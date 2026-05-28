@@ -49,6 +49,23 @@ python scripts/scan.py
 cat data/new_high.json
 ```
 
+## Archive-aware scoring (user feedback loop)
+
+The app (`docs/index.html`) lets you **archive** any listing with quick-tags
+("no view", "too remote", "ferry required", "bumi/Malay-reserved", …) and a
+free-text reason. Archives are persisted in browser localStorage; use
+**⬇ export archives** to download `archives.json`.
+
+Commit that file to `data/archives.json` and the next cron run will:
+- **Drop the rating to 0** for any URL you've explicitly archived.
+- **Penalise the region** (country + region pair) by up to 20 points when
+  ≥2 listings there are archived with the same tag — so the same patterns
+  stop triggering DD alerts.
+
+This is the cheap-but-effective version of "the AI learns why this property
+wasn't right" — no model, just deterministic pattern matching from your
+revealed preferences.
+
 ## Caveats
 
 - Bare-earth coastal filter only; the rigorous LOS ocean-view test is omitted

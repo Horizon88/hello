@@ -186,17 +186,21 @@ def scrape_rew_bc() -> list[dict]:
                 break
             time.sleep(2 + attempt * 2)
         pr = re.search(r"\$([0-9]{2,3}(?:,[0-9]{3})+)", h)
-        sqft = re.search(r"\(([0-9][0-9,]*)\s*ft(?:&sup2;|²|2)\)", h)
-        acre = re.search(r"([0-9][0-9.,]*)\s*(?:ac\b|acres?)\b", h, re.I)
-        if not pr:
+        # Anchor size extraction to the "Lot Size" label, NOT the description body
+        # (descriptions often contain misleading text like "48-acre development").
+        ls_match = re.search(r"Lot Size.{0,300}", h, re.S)
+        m2 = None
+        if ls_match:
+            ls_text = re.sub(r"<[^>]+>", " ", ls_match.group(0))[:200]
+            sqft = re.search(r"\(?([0-9][0-9,]*)\s*ft(?:&sup2;|²|2)\)?", ls_text)
+            acre = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*ac\b", ls_text, re.I)
+            if sqft:
+                m2 = int(sqft.group(1).replace(",", "")) * 0.092903
+            elif acre:
+                m2 = float(acre.group(1).replace(",", "")) * 4046.86
+        if not pr or not m2:
             continue
         cad = int(pr.group(1).replace(",", ""))
-        if sqft:
-            m2 = int(sqft.group(1).replace(",", "")) * 0.092903
-        elif acre:
-            m2 = float(acre.group(1).replace(",", "")) * 4046.86
-        else:
-            continue
         if m2 < 300 or m2 > 1_500_000 or cad < 50000:
             continue
         usd = cad * 0.73

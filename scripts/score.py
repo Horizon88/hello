@@ -2,9 +2,14 @@
 
 Calibrated for a Canadian citizen. Scores combine value ($/m^2),
 country access, view, title security, plot size fit, and practical signals.
+
+Optionally penalises listings that match patterns from data/archives.json
+(user's archived listings with tags + reasons). If a country/region has
+2+ listings archived with the same tag, listings in that region get a
+penalty proportional to the tag count.
 """
 from __future__ import annotations
-import math, re
+import json, math, pathlib, re
 
 ACCESS = {
     "British Columbia": 25,
@@ -18,10 +23,68 @@ BUMI = re.compile(r"\b(bumi[-\s]?lot|tanah[-\s]?rizab|rizab[-\s]?melayu|malay[-\
 NON_BUMI = re.compile(r"\b(non[-\s]?bumi)\b", re.I)
 
 
+def _load_archive_patterns():
+    """Returns {('Country','Region'): {tag: count}} or empty dict if no archives.json."""
+    path = pathlib.Path(__file__).resolve().parent.parent / "data" / "archives.json"
+    if not path.exists():
+        return {}, set()
+    try:
+        d = json.loads(path.read_text())
+    except json.JSONDecodeError:
+        return {}, set()
+    archives = d.get("archives", d) if isinstance(d, dict) else {}
+    region_tags: dict[tuple[str, str], dict[str, int]] = {}
+    archived_urls: set[str] = set()
+    # We need country/region per URL; the archive only stores tags+reason.
+    # The scanner caller passes country/region via the listing row; we match
+    # by URL since the latest.csv is sibling of archives.json.
+    latest = pathlib.Path(__file__).resolve().parent.parent / "data" / "latest.csv"
+    if not latest.exists():
+        return {}, set()
+    import csv as _csv
+    url_to_region: dict[str, tuple[str, str]] = {}
+    with latest.open() as f:
+        for r in _csv.DictReader(f):
+            url_to_region[r.get("listing_link", "")] = (r.get("country", ""), r.get("region", ""))
+    for url, entry in archives.items():
+        archived_urls.add(url)
+        key = url_to_region.get(url)
+        if not key:
+            continue
+        for t in entry.get("tags", []):
+            region_tags.setdefault(key, {})
+            region_tags[key][t] = region_tags[key].get(t, 0) + 1
+    return region_tags, archived_urls
+
+
+_REGION_TAGS, _ARCHIVED_URLS = _load_archive_patterns()
+
+
+def archive_penalty(country: str, region: str) -> tuple[int, list[str]]:
+    """Return (penalty_points, reasons) for a (country, region) pair based on archives."""
+    tags = _REGION_TAGS.get((country, region))
+    if not tags:
+        return 0, []
+    # Sum tag counts that exceed the "sticky" threshold (>=2)
+    sticky = {t: n for t, n in tags.items() if n >= 2}
+    if not sticky:
+        return 0, []
+    # cap penalty at 20 points
+    penalty = min(20, sum(min(n * 3, 12) for n in sticky.values()))
+    reasons = [f"{t}×{n}" for t, n in sticky.items()]
+    return penalty, reasons
+
+
 def rate(row: dict) -> dict:
     """Mutates row in-place adding 'rating' and 'rating_breakdown'."""
     slug = (row.get("listing_link") or "").lower()
     country = row.get("country", "")
+
+    # Pre-archived → drop way down; the user has explicitly rejected this URL.
+    if row.get("listing_link") in _ARCHIVED_URLS:
+        row["rating"] = 0.0
+        row["rating_breakdown"] = "archived by user"
+        return row
 
     access = ACCESS.get(country, 10)
     if country == "Malaysia" and BUMI.search(slug) and not NON_BUMI.search(slug):
@@ -73,9 +136,14 @@ def rate(row: dict) -> dict:
         prac += 2
     prac = min(prac, 5)
 
-    rating = round(access + value + view_pts + title_pts + size_pts + prac, 1)
-    row["rating"] = rating
-    row["rating_breakdown"] = (
-        f"acc{access}+val{value:.0f}+view{view_pts}+title{title_pts}+size{size_pts}+prac{prac}"
-    )
+    # Apply user-archive learning penalty
+    penalty, reasons = archive_penalty(country, row.get("region", ""))
+
+    rating = round(access + value + view_pts + title_pts + size_pts + prac - penalty, 1)
+    row["rating"] = max(0.0, rating)
+    bd = f"acc{access}+val{value:.0f}+view{view_pts}+title{title_pts}+size{size_pts}+prac{prac}"
+    if penalty:
+        bd += f"-arch{penalty}({','.join(reasons)})"
+    row["rating_breakdown"] = bd
     return row
+

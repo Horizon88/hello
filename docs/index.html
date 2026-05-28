@@ -12,6 +12,7 @@
     --bg:#0f1419; --panel:#1a2028; --panel2:#232b35; --border:#2e3845;
     --txt:#e4e6eb; --txt-dim:#8a93a3; --accent:#4fa3ff; --accent2:#7ce38b;
     --th:#ff6b6b; --nz:#7ce38b; --bc:#4fa3ff; --my:#ffd166; --jp:#c084fc;
+    --danger:#ff8080; --warn:#ffb86c;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--txt);display:grid;grid-template-rows:auto auto 1fr auto;height:100vh}
@@ -20,28 +21,34 @@
   .stats{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
   .chip{padding:4px 10px;border-radius:99px;background:var(--panel2);border:1px solid var(--border);font-size:12px;cursor:pointer;user-select:none}
   .chip.on{background:#2a3340;color:#fff}
-  .chip[data-c=TH].on{border-color:var(--th);box-shadow:inset 0 0 0 1px var(--th)}
-  .chip[data-c=NZ].on{border-color:var(--nz);box-shadow:inset 0 0 0 1px var(--nz)}
-  .chip[data-c=Br].on{border-color:var(--bc);box-shadow:inset 0 0 0 1px var(--bc)}
-  .chip[data-c=Ma].on{border-color:var(--my);box-shadow:inset 0 0 0 1px var(--my)}
-  .chip[data-c=Ja].on{border-color:var(--jp);box-shadow:inset 0 0 0 1px var(--jp)}
+  .chip[data-cs=Th].on{border-color:var(--th);box-shadow:inset 0 0 0 1px var(--th)}
+  .chip[data-cs=Ne].on{border-color:var(--nz);box-shadow:inset 0 0 0 1px var(--nz)}
+  .chip[data-cs=Br].on{border-color:var(--bc);box-shadow:inset 0 0 0 1px var(--bc)}
+  .chip[data-cs=Ma].on{border-color:var(--my);box-shadow:inset 0 0 0 1px var(--my)}
+  .chip[data-cs=Ja].on{border-color:var(--jp);box-shadow:inset 0 0 0 1px var(--jp)}
   .controls{padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;gap:18px;flex-wrap:wrap;align-items:center}
   .control{display:flex;gap:8px;align-items:center;font-size:12px}
   .control label{color:var(--txt-dim);text-transform:uppercase;letter-spacing:.04em}
   .control input[type=range]{accent-color:var(--accent);width:140px}
   .control input[type=number]{width:80px;background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:3px 6px;border-radius:4px}
   .control select{background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:3px 6px;border-radius:4px}
-  main{display:grid;grid-template-columns:60% 40%;gap:0;overflow:hidden;min-height:0}
+  .btn{background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px}
+  .btn:hover{background:#2a3340}
+  .btn.primary{background:var(--accent);color:#0f1419;border-color:var(--accent);font-weight:600}
+  .btn.primary:hover{background:#6cb0ff}
+  main{display:grid;grid-template-columns:55% 45%;gap:0;overflow:hidden;min-height:0}
   #map{height:100%;background:#0a0e13}
-  .panel{overflow:auto;background:var(--panel);border-left:1px solid var(--border)}
+  .panel{overflow:auto;background:var(--panel);border-left:1px solid var(--border);position:relative}
   table{width:100%;border-collapse:collapse;font-size:12px}
-  thead th{position:sticky;top:0;background:var(--panel2);text-align:left;padding:8px 6px;font-weight:600;color:var(--txt-dim);text-transform:uppercase;letter-spacing:.04em;font-size:11px;cursor:pointer;border-bottom:1px solid var(--border);user-select:none;white-space:nowrap}
+  thead th{position:sticky;top:0;background:var(--panel2);text-align:left;padding:8px 6px;font-weight:600;color:var(--txt-dim);text-transform:uppercase;letter-spacing:.04em;font-size:11px;cursor:pointer;border-bottom:1px solid var(--border);user-select:none;white-space:nowrap;z-index:2}
   thead th:hover{color:var(--txt)}
   thead th.sorted::after{content:" ↓";opacity:.6}
   thead th.sorted.asc::after{content:" ↑"}
   tbody tr{border-bottom:1px solid #1f2630;cursor:pointer}
   tbody tr:hover{background:#202732}
   tbody tr.hi{background:#2a3a4d}
+  tbody tr.archived{opacity:.4;background:#1c1414}
+  tbody tr.flagged{background:#2a2014}
   tbody td{padding:6px;white-space:nowrap;vertical-align:middle}
   tbody td.r{font-weight:600}
   tbody td.r.s90{color:#7ce38b}
@@ -51,13 +58,37 @@
   td a{color:var(--accent);text-decoration:none}
   td a:hover{text-decoration:underline}
   .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
-  .d.Th{background:var(--th)} .d.Ne{background:var(--nz)} .d.Br{background:var(--bc)} .d.Ma{background:var(--my)} .d.Ja{background:var(--jp)}
-  footer{padding:6px 16px;background:var(--panel);border-top:1px solid var(--border);color:var(--txt-dim);font-size:11px;display:flex;gap:16px;flex-wrap:wrap}
+  .arch-btn{background:transparent;border:1px solid var(--border);color:var(--txt-dim);padding:2px 6px;border-radius:4px;cursor:pointer;font-size:11px}
+  .arch-btn:hover{color:var(--danger);border-color:var(--danger)}
+  .flag{font-size:10px;padding:2px 5px;border-radius:3px;background:#3a2a10;color:var(--warn);border:1px solid #5a401a;margin-left:4px}
+  footer{padding:6px 16px;background:var(--panel);border-top:1px solid var(--border);color:var(--txt-dim);font-size:11px;display:flex;gap:16px;flex-wrap:wrap;align-items:center}
   #count{color:var(--txt);font-weight:600}
+  footer .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+  /* Archive modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:1000}
+  .modal-bg.show{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:20px;width:460px;max-width:90%;max-height:90vh;overflow:auto}
+  .modal h3{margin-bottom:12px;font-size:15px}
+  .modal .lbl{color:var(--txt-dim);font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:block}
+  .modal textarea{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:8px;border-radius:6px;min-height:60px;resize:vertical;font:inherit}
+  .modal .tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .modal .tag{padding:4px 10px;border-radius:99px;background:var(--panel2);border:1px solid var(--border);font-size:12px;cursor:pointer;user-select:none}
+  .modal .tag.on{background:#2a3340;border-color:var(--accent);color:#fff}
+  .modal .row{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+  .modal .info{background:var(--panel2);padding:8px 10px;border-radius:6px;margin-bottom:12px;font-size:12px;line-height:1.5}
+  /* Insights drawer */
+  .insights{position:absolute;right:0;top:0;bottom:0;width:300px;background:var(--panel);border-left:1px solid var(--border);transform:translateX(100%);transition:transform .25s;z-index:5;overflow:auto;padding:16px}
+  .insights.show{transform:translateX(0)}
+  .insights h3{font-size:14px;margin-bottom:10px}
+  .insights .group{margin-bottom:16px}
+  .insights .group h4{font-size:11px;text-transform:uppercase;color:var(--txt-dim);margin-bottom:6px;letter-spacing:.04em}
+  .insights .item{display:flex;justify-content:space-between;padding:4px 0;font-size:12px;border-bottom:1px solid #1f2630}
+  .insights .item .n{color:var(--warn);font-weight:600}
   .leaflet-popup-content{font:13px/1.4 system-ui;min-width:240px;color:#222}
   .leaflet-popup-content .lp-r{font-size:18px;font-weight:700;margin-bottom:4px}
   .leaflet-popup-content .lp-k{color:#666;font-size:11px}
-  @media(max-width:900px){main{grid-template-columns:1fr;grid-template-rows:50vh 1fr}.panel{border-left:0;border-top:1px solid var(--border)}}
+  .leaflet-popup-content button{margin-top:6px;cursor:pointer}
+  @media(max-width:900px){main{grid-template-columns:1fr;grid-template-rows:45vh 1fr}.panel{border-left:0;border-top:1px solid var(--border)}}
 </style>
 </head>
 <body>
@@ -71,16 +102,57 @@
   <div class="control"><label>Acres</label><input type="number" id="minA" placeholder="min" step="0.1"> – <input type="number" id="maxA" placeholder="max" step="0.1"></div>
   <div class="control"><label>View</label><select id="view"><option value="">any</option><option>beachfront</option><option>sea_visible</option><option>coastal</option></select></div>
   <div class="control"><label>Sort</label><select id="sort"><option value="r">rating</option><option value="upm">$/m²</option><option value="ac">acres</option><option value="usd">price USD</option></select></div>
+  <button class="btn" id="toggleInsights">Insights ▸</button>
 </div>
 <main>
   <div id="map"></div>
-  <div class="panel"><table id="tbl"><thead><tr><th data-k="r" class="sorted">★</th><th data-k="cf">country</th><th data-k="rg">region</th><th data-k="a">area</th><th data-k="ac">acres</th><th data-k="upm">$/m²</th><th data-k="usd">price USD</th><th data-k="v">view</th><th>link</th></tr></thead><tbody id="tbody"></tbody></table></div>
+  <div class="panel">
+    <table id="tbl"><thead><tr><th data-k="r" class="sorted">★</th><th data-k="cf">country</th><th data-k="rg">region</th><th data-k="a">area</th><th data-k="ac">acres</th><th data-k="upm">$/m²</th><th data-k="usd">price USD</th><th data-k="v">view</th><th>link</th><th></th></tr></thead><tbody id="tbody"></tbody></table>
+    <div class="insights" id="insights">
+      <h3>📊 Patterns from your archives</h3>
+      <div id="insightsBody"><p style="color:var(--txt-dim);font-size:12px">Archive listings (with a reason) to start training the model. Patterns will appear here as you accumulate signals.</p></div>
+    </div>
+  </div>
 </main>
 <footer>
   <span id="count">…</span>
-  <span>map shows listings with coords (TH/NZ/BC ~732); MY/JP shown in table only</span>
-  <span>data scraped 2026-05 · ratings calibrated for a Canadian citizen</span>
+  <span>map: 732 with coords (TH/NZ/BC); table: all 2,274</span>
+  <span class="right">
+    <label style="cursor:pointer"><input type="checkbox" id="showArch"> show archived (<span id="archN">0</span>)</label>
+    <button class="btn" id="exportBtn">⬇ export archives</button>
+    <button class="btn" id="importBtn">⬆ import</button>
+    <input type="file" id="importFile" accept=".json" style="display:none">
+  </span>
 </footer>
+
+<!-- Archive modal -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3>Archive listing</h3>
+    <div class="info" id="modalInfo"></div>
+    <span class="lbl">Quick tags (multi-select)</span>
+    <div class="tags" id="tagBox">
+      <span class="tag" data-tag="no view">no view</span>
+      <span class="tag" data-tag="gas station view">gas station view</span>
+      <span class="tag" data-tag="too remote">too remote</span>
+      <span class="tag" data-tag="ferry required">ferry required</span>
+      <span class="tag" data-tag="too expensive">too expensive</span>
+      <span class="tag" data-tag="wrong size">wrong size</span>
+      <span class="tag" data-tag="climate">climate</span>
+      <span class="tag" data-tag="title concern">title concern</span>
+      <span class="tag" data-tag="green-zone restriction">green-zone restriction</span>
+      <span class="tag" data-tag="bumi/Malay-reserved">bumi/Malay-reserved</span>
+      <span class="tag" data-tag="not buildable">not buildable</span>
+      <span class="tag" data-tag="data error">data error</span>
+    </div>
+    <span class="lbl">Reason / note</span>
+    <textarea id="reason" placeholder="optional free-text — anything the tags don't capture"></textarea>
+    <div class="row">
+      <button class="btn" id="cancelArch">Cancel</button>
+      <button class="btn primary" id="saveArch">Archive</button>
+    </div>
+  </div>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
@@ -92,22 +164,29 @@ fetch('listings.json').then(r=>r.json()).then(d=>{DATA=d;init();}).catch(e=>{doc
 function init(){
   const COLORS = {Thailand:'#ff6b6b','New Zealand':'#7ce38b','British Columbia':'#4fa3ff',Malaysia:'#ffd166',Japan:'#c084fc'};
   const ALL_COUNTRIES = ['Thailand','New Zealand','British Columbia','Malaysia','Japan'];
+  const LS_KEY = 'archives_v1';
 
-  // state
+  // ---- archives (localStorage) ----
+  function loadArchives(){
+    try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); }
+    catch(e){ return {}; }
+  }
+  function saveArchives(a){ localStorage.setItem(LS_KEY, JSON.stringify(a)); }
+  let archives = loadArchives();
+
   const state = {
     countries: new Set(ALL_COUNTRIES),
     minR: 0, maxU: 1000, minA: null, maxA: null, view: '',
-    sortKey: 'r', sortAsc: false
+    sortKey: 'r', sortAsc: false, showArchived: false
   };
 
-  // header chips
+  // ---- header chips ----
   const stats = document.getElementById('stats');
   ALL_COUNTRIES.forEach(c=>{
     const n=DATA.filter(r=>r.cf===c).length;
     const chip=document.createElement('span');
-    chip.className='chip on';
-    chip.dataset.c=c.slice(0,2);
-    chip.innerHTML=`<span class="dot d ${c.slice(0,2)}" style="background:${COLORS[c]}"></span>${c} ${n}`;
+    chip.className='chip on'; chip.dataset.cs=c.slice(0,2);
+    chip.innerHTML=`<span class="dot" style="background:${COLORS[c]}"></span>${c} ${n}`;
     chip.onclick=()=>{
       if(state.countries.has(c)){state.countries.delete(c);chip.classList.remove('on');}
       else{state.countries.add(c);chip.classList.add('on');}
@@ -116,7 +195,7 @@ function init(){
     stats.appendChild(chip);
   });
 
-  // controls wiring
+  // ---- controls wiring ----
   function bindRange(rangeId, numId, key){
     const r=document.getElementById(rangeId), n=document.getElementById(numId);
     r.oninput=()=>{n.value=r.value;state[key]=+r.value;render();};
@@ -128,21 +207,18 @@ function init(){
   document.getElementById('maxA').oninput=e=>{state.maxA=e.target.value?+e.target.value:null;render();};
   document.getElementById('view').onchange=e=>{state.view=e.target.value;render();};
   document.getElementById('sort').onchange=e=>{state.sortKey=e.target.value;state.sortAsc=false;render();};
+  document.getElementById('showArch').onchange=e=>{state.showArchived=e.target.checked;render();};
 
   // table header sort
   document.querySelectorAll('thead th[data-k]').forEach(th=>{
-    th.onclick=()=>{
-      const k=th.dataset.k;
+    th.onclick=()=>{ const k=th.dataset.k;
       if(state.sortKey===k) state.sortAsc=!state.sortAsc; else {state.sortKey=k;state.sortAsc=false;}
-      render();
-    };
+      render(); };
   });
 
-  // map
+  // ---- map ----
   const map = L.map('map',{worldCopyJump:true}).setView([20,100],3);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
-    attribution:'© OpenStreetMap © CARTO', maxZoom:19, subdomains:'abcd'
-  }).addTo(map);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO', maxZoom:19, subdomains:'abcd'}).addTo(map);
   const cluster = L.markerClusterGroup({maxClusterRadius:40, chunkedLoading:true});
   map.addLayer(cluster);
 
@@ -154,6 +230,7 @@ function init(){
       if(state.minA!=null && r.ac < state.minA) return false;
       if(state.maxA!=null && r.ac > state.maxA) return false;
       if(state.view && r.v !== state.view) return false;
+      if(!state.showArchived && archives[r.u]) return false;
       return true;
     });
   }
@@ -171,59 +248,103 @@ function init(){
   function fmtUsd(n){ return '$'+(n||0).toLocaleString(); }
   function ratingClass(r){ if(r>=90) return 's90'; if(r>=80) return 's80'; if(r>=70) return 's70'; if(r>=60) return 's60'; return ''; }
 
+  // ---- pattern learning: derive flags from archives ----
+  function computeFlags(){
+    // count tags per region
+    const regionTags = {};      // {region: {tag: count}}
+    const regionTotal = {};     // {region: total archived}
+    Object.entries(archives).forEach(([u,a])=>{
+      const r = DATA.find(x=>x.u===u);
+      if(!r) return;
+      const key = `${r.cf}|${r.rg}`;
+      regionTotal[key] = (regionTotal[key]||0)+1;
+      (a.tags||[]).forEach(t=>{
+        regionTags[key] = regionTags[key]||{};
+        regionTags[key][t] = (regionTags[key][t]||0)+1;
+      });
+    });
+    // a region's tag "sticks" once it appears 2+ times → flag remaining listings in that region with that tag
+    const flags = {}; // {url: ['tag x N',...]}
+    DATA.forEach(r=>{
+      const key = `${r.cf}|${r.rg}`;
+      const tt = regionTags[key];
+      if(!tt) return;
+      Object.entries(tt).forEach(([tag,n])=>{
+        if(n>=2 && !archives[r.u]){
+          flags[r.u] = flags[r.u]||[];
+          flags[r.u].push(`${tag}×${n} in region`);
+        }
+      });
+    });
+    return {regionTags, regionTotal, flags};
+  }
+
   const tbody=document.getElementById('tbody');
   const counter=document.getElementById('count');
+  const archN=document.getElementById('archN');
   let highlightUrl=null;
+  let activeFlags={};
 
   function render(){
+    const {regionTags, regionTotal, flags} = computeFlags();
+    activeFlags = flags;
+    archN.textContent = Object.keys(archives).length;
+
     const all = filt(DATA);
-    counter.textContent = all.length+' listings · '+all.filter(r=>r.lat).length+' on map · top rating '+(all[0]?Math.max(...all.map(r=>r.r)).toFixed(1):'—');
+    counter.textContent = `${all.length} listings · ${all.filter(r=>r.lat).length} on map · top rating ${(all.length?Math.max(...all.map(r=>r.r)).toFixed(1):'—')} · ${Object.keys(flags).length} flagged by archive patterns`;
 
     // markers
     cluster.clearLayers();
     const markers=[];
     all.filter(r=>r.lat).forEach(r=>{
       const color=COLORS[r.cf]||'#999';
+      const isFlagged = !!flags[r.u];
       const size = Math.max(6, Math.min(16, 4+r.r/8));
-      const m=L.circleMarker([r.lat,r.lon],{radius:size,color:'#fff',weight:1,fillColor:color,fillOpacity:.85});
+      const m=L.circleMarker([r.lat,r.lon],{radius:size,color:isFlagged?'#ffb86c':'#fff',weight:isFlagged?2:1,fillColor:color,fillOpacity:.85});
+      const flagHtml = isFlagged ? `<div class="lp-k" style="color:#c47800">⚠ ${flags[r.u].join(', ')}</div>` : '';
       m.bindPopup(`<div class="lp-r" style="color:${color}">★ ${r.r}</div>
         <div><b>${r.cf}</b> — ${r.rg} ${r.a}</div>
         <div>${r.ac} acres (${r.m2.toLocaleString()} m²) · ${r.v||'-'}</div>
         <div>${fmtUsd(r.usd)} · <b>$${r.upm}/m²</b></div>
         <div class="lp-k">${r.t||''} · ${r.rb||''}</div>
-        <div style="margin-top:6px"><a href="${r.u}" target="_blank">open listing →</a></div>`);
+        ${flagHtml}
+        <div style="margin-top:6px;display:flex;gap:6px"><a href="${r.u}" target="_blank">open listing →</a><button onclick="window.__archive('${r.u.replace(/'/g,'%27')}')">archive</button></div>`);
       m.on('click',()=>{highlightUrl=r.u;renderTable(all);});
       markers.push(m);
     });
     cluster.addLayers(markers);
 
     renderTable(all);
+    renderInsights(regionTags);
   }
 
   function renderTable(all){
-    const rows = sortRows(all).slice(0, 600); // cap render
+    const rows = sortRows(all).slice(0, 600);
     const html = rows.map(r=>{
       const color=COLORS[r.cf]||'#999';
-      const hi = r.u===highlightUrl ? ' class="hi"' : '';
-      return `<tr${hi} data-u="${r.u}">
-        <td class="r ${ratingClass(r.r)}">${r.r}</td>
+      const isArchived = !!archives[r.u];
+      const isFlagged = !!activeFlags[r.u];
+      const cls = (highlightUrl===r.u?'hi ':'') + (isArchived?'archived ':'') + (isFlagged && !isArchived?'flagged ':'');
+      const flagBadge = isFlagged ? `<span class="flag" title="${activeFlags[r.u].join(', ')}">⚠</span>` : '';
+      return `<tr class="${cls}" data-u="${r.u}">
+        <td class="r ${ratingClass(r.r)}">${r.r}${flagBadge}</td>
         <td><span class="dot" style="background:${color}"></span>${r.cf.replace('British Columbia','BC').replace('New Zealand','NZ')}</td>
         <td>${r.rg}</td><td>${r.a}</td>
         <td>${r.ac}</td><td>${r.upm}</td><td>${fmtUsd(r.usd)}</td>
         <td>${r.v||''}</td>
         <td><a href="${r.u}" target="_blank">→</a></td>
+        <td>${isArchived ? `<button class="arch-btn" data-unarch="${encodeURIComponent(r.u)}" title="restore">↺</button>` : `<button class="arch-btn" data-arch="${encodeURIComponent(r.u)}" title="archive">✕</button>`}</td>
       </tr>`;
     }).join('');
-    tbody.innerHTML = html || '<tr><td colspan="9" style="padding:20px;text-align:center;color:#666">no matches — loosen filters</td></tr>';
-    // sort header indicator
+    tbody.innerHTML = html || '<tr><td colspan="10" style="padding:20px;text-align:center;color:#666">no matches — loosen filters or check "show archived"</td></tr>';
+
     document.querySelectorAll('thead th[data-k]').forEach(th=>{
       th.classList.remove('sorted','asc');
       if(th.dataset.k===state.sortKey){th.classList.add('sorted');if(state.sortAsc) th.classList.add('asc');}
     });
-    // row click → focus on map
     tbody.querySelectorAll('tr').forEach(tr=>{
       tr.onclick=(e)=>{
-        if(e.target.tagName==='A') return;
+        if(e.target.tagName==='A' || e.target.tagName==='BUTTON') return;
         const u=tr.dataset.u, r=DATA.find(x=>x.u===u);
         highlightUrl=u;
         if(r && r.lat){ map.flyTo([r.lat,r.lon],11,{duration:.6}); }
@@ -231,7 +352,96 @@ function init(){
         tr.classList.add('hi');
       };
     });
+    tbody.querySelectorAll('[data-arch]').forEach(b=>{
+      b.onclick=(e)=>{e.stopPropagation(); openArchive(decodeURIComponent(b.dataset.arch));};
+    });
+    tbody.querySelectorAll('[data-unarch]').forEach(b=>{
+      b.onclick=(e)=>{e.stopPropagation(); delete archives[decodeURIComponent(b.dataset.unarch)]; saveArchives(archives); render();};
+    });
   }
+
+  // ---- archive modal ----
+  const modalBg=document.getElementById('modalBg');
+  const modalInfo=document.getElementById('modalInfo');
+  const tagBox=document.getElementById('tagBox');
+  const reasonInp=document.getElementById('reason');
+  let pendingUrl=null;
+  let pendingTags=new Set();
+  function openArchive(url){
+    const r=DATA.find(x=>x.u===url);
+    if(!r) return;
+    pendingUrl=url; pendingTags=new Set();
+    reasonInp.value='';
+    tagBox.querySelectorAll('.tag').forEach(t=>t.classList.remove('on'));
+    modalInfo.innerHTML=`<b>★ ${r.r}</b> · ${r.cf} · ${r.rg} ${r.a}<br>${r.ac} ac · $${r.upm}/m² · ${fmtUsd(r.usd)}<br><a href="${url}" target="_blank" style="color:#4fa3ff">view listing</a>`;
+    modalBg.classList.add('show');
+  }
+  window.__archive = openArchive; // expose for popup buttons
+  tagBox.querySelectorAll('.tag').forEach(t=>{
+    t.onclick=()=>{
+      const tag=t.dataset.tag;
+      if(pendingTags.has(tag)){pendingTags.delete(tag);t.classList.remove('on');}
+      else{pendingTags.add(tag);t.classList.add('on');}
+    };
+  });
+  document.getElementById('cancelArch').onclick=()=>modalBg.classList.remove('show');
+  document.getElementById('saveArch').onclick=()=>{
+    if(!pendingUrl) return;
+    archives[pendingUrl]={tags:Array.from(pendingTags), reason:reasonInp.value.trim(), ts:Date.now()};
+    saveArchives(archives);
+    modalBg.classList.remove('show');
+    render();
+  };
+  modalBg.onclick=(e)=>{ if(e.target===modalBg) modalBg.classList.remove('show'); };
+
+  // ---- insights drawer ----
+  const insights=document.getElementById('insights');
+  document.getElementById('toggleInsights').onclick=()=>{
+    insights.classList.toggle('show');
+    document.getElementById('toggleInsights').textContent = insights.classList.contains('show') ? 'Insights ◂' : 'Insights ▸';
+  };
+  function renderInsights(regionTags){
+    const body=document.getElementById('insightsBody');
+    const total=Object.keys(archives).length;
+    if(total===0){body.innerHTML='<p style="color:var(--txt-dim);font-size:12px">Archive listings to see patterns appear here.</p>';return;}
+    // global tag counts
+    const tagCounts={};
+    Object.values(archives).forEach(a=>(a.tags||[]).forEach(t=>{tagCounts[t]=(tagCounts[t]||0)+1;}));
+    const tagItems=Object.entries(tagCounts).sort((a,b)=>b[1]-a[1]).map(([t,n])=>`<div class="item"><span>${t}</span><span class="n">${n}</span></div>`).join('');
+    // region archive counts
+    const regionItems=Object.entries(regionTags).sort((a,b)=>Object.values(b[1]).reduce((s,n)=>s+n,0)-Object.values(a[1]).reduce((s,n)=>s+n,0))
+      .slice(0,8).map(([key,tags])=>{
+        const tagSummary=Object.entries(tags).sort((a,b)=>b[1]-a[1]).map(([t,n])=>`${t}×${n}`).join(', ');
+        return `<div class="item"><span>${key.replace('|',' / ')}</span><span class="n" title="${tagSummary}">${Object.values(tags).reduce((s,n)=>s+n,0)}</span></div>`;
+      }).join('');
+    body.innerHTML=`
+      <div class="group"><h4>Total archived: ${total}</h4></div>
+      <div class="group"><h4>Top reasons</h4>${tagItems||'<i>none</i>'}</div>
+      <div class="group"><h4>Regions you avoid</h4>${regionItems||'<i>none</i>'}</div>
+      <div class="group"><h4>Auto-flagged listings</h4><div style="font-size:12px;color:var(--txt-dim)">${Object.keys(activeFlags).length} listings carry a ⚠ flag because 2+ neighbors were archived with the same tag.</div></div>
+      <div class="group"><h4>How this trains the model</h4><div style="font-size:11px;color:var(--txt-dim)">Use "export archives" to save your reasons as JSON, then commit to <code>data/archives.json</code> in the repo. The weekly cron will read that file and apply a score penalty to new listings in flagged regions / matching tags — so next week's alerts auto-skip patterns you've already rejected.</div></div>`;
+  }
+
+  // ---- export / import ----
+  document.getElementById('exportBtn').onclick=()=>{
+    const out={schema:'archives_v1',exported:new Date().toISOString(),archives};
+    const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='archives.json';a.click();
+  };
+  document.getElementById('importBtn').onclick=()=>document.getElementById('importFile').click();
+  document.getElementById('importFile').onchange=e=>{
+    const f=e.target.files[0];if(!f)return;
+    const r=new FileReader();
+    r.onload=()=>{
+      try{
+        const d=JSON.parse(r.result);
+        const incoming=d.archives||d;
+        archives=Object.assign({},archives,incoming);
+        saveArchives(archives);render();
+      }catch(err){alert('invalid JSON: '+err);}
+    };
+    r.readAsText(f);
+  };
 
   render();
 }
