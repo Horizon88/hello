@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Coastal Land — 5-Country Comparison</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+<style>
+  :root {
+    --bg:#0f1419; --panel:#1a2028; --panel2:#232b35; --border:#2e3845;
+    --txt:#e4e6eb; --txt-dim:#8a93a3; --accent:#4fa3ff; --accent2:#7ce38b;
+    --th:#ff6b6b; --nz:#7ce38b; --bc:#4fa3ff; --my:#ffd166; --jp:#c084fc;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--txt);display:grid;grid-template-rows:auto auto 1fr auto;height:100vh}
+  header{padding:12px 16px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  h1{font-size:16px;font-weight:600}
+  .stats{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+  .chip{padding:4px 10px;border-radius:99px;background:var(--panel2);border:1px solid var(--border);font-size:12px;cursor:pointer;user-select:none}
+  .chip.on{background:#2a3340;color:#fff}
+  .chip[data-c=TH].on{border-color:var(--th);box-shadow:inset 0 0 0 1px var(--th)}
+  .chip[data-c=NZ].on{border-color:var(--nz);box-shadow:inset 0 0 0 1px var(--nz)}
+  .chip[data-c=Br].on{border-color:var(--bc);box-shadow:inset 0 0 0 1px var(--bc)}
+  .chip[data-c=Ma].on{border-color:var(--my);box-shadow:inset 0 0 0 1px var(--my)}
+  .chip[data-c=Ja].on{border-color:var(--jp);box-shadow:inset 0 0 0 1px var(--jp)}
+  .controls{padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+  .control{display:flex;gap:8px;align-items:center;font-size:12px}
+  .control label{color:var(--txt-dim);text-transform:uppercase;letter-spacing:.04em}
+  .control input[type=range]{accent-color:var(--accent);width:140px}
+  .control input[type=number]{width:80px;background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:3px 6px;border-radius:4px}
+  .control select{background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:3px 6px;border-radius:4px}
+  main{display:grid;grid-template-columns:60% 40%;gap:0;overflow:hidden;min-height:0}
+  #map{height:100%;background:#0a0e13}
+  .panel{overflow:auto;background:var(--panel);border-left:1px solid var(--border)}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  thead th{position:sticky;top:0;background:var(--panel2);text-align:left;padding:8px 6px;font-weight:600;color:var(--txt-dim);text-transform:uppercase;letter-spacing:.04em;font-size:11px;cursor:pointer;border-bottom:1px solid var(--border);user-select:none;white-space:nowrap}
+  thead th:hover{color:var(--txt)}
+  thead th.sorted::after{content:" ↓";opacity:.6}
+  thead th.sorted.asc::after{content:" ↑"}
+  tbody tr{border-bottom:1px solid #1f2630;cursor:pointer}
+  tbody tr:hover{background:#202732}
+  tbody tr.hi{background:#2a3a4d}
+  tbody td{padding:6px;white-space:nowrap;vertical-align:middle}
+  tbody td.r{font-weight:600}
+  tbody td.r.s90{color:#7ce38b}
+  tbody td.r.s80{color:#9fd96d}
+  tbody td.r.s70{color:#d9e57c}
+  tbody td.r.s60{color:#e5b87c}
+  td a{color:var(--accent);text-decoration:none}
+  td a:hover{text-decoration:underline}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .d.Th{background:var(--th)} .d.Ne{background:var(--nz)} .d.Br{background:var(--bc)} .d.Ma{background:var(--my)} .d.Ja{background:var(--jp)}
+  footer{padding:6px 16px;background:var(--panel);border-top:1px solid var(--border);color:var(--txt-dim);font-size:11px;display:flex;gap:16px;flex-wrap:wrap}
+  #count{color:var(--txt);font-weight:600}
+  .leaflet-popup-content{font:13px/1.4 system-ui;min-width:240px;color:#222}
+  .leaflet-popup-content .lp-r{font-size:18px;font-weight:700;margin-bottom:4px}
+  .leaflet-popup-content .lp-k{color:#666;font-size:11px}
+  @media(max-width:900px){main{grid-template-columns:1fr;grid-template-rows:50vh 1fr}.panel{border-left:0;border-top:1px solid var(--border)}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🌊 Coastal Land — 5-country comparison</h1>
+  <div class="stats" id="stats"></div>
+</header>
+<div class="controls">
+  <div class="control"><label>Rating ≥</label><input type="range" id="minR" min="0" max="100" value="0" step="1"><input type="number" id="minRn" min="0" max="100" value="0" step="1"></div>
+  <div class="control"><label>$/m² ≤</label><input type="range" id="maxU" min="0" max="1000" value="1000" step="10"><input type="number" id="maxUn" min="0" value="1000" step="10"></div>
+  <div class="control"><label>Acres</label><input type="number" id="minA" placeholder="min" step="0.1"> – <input type="number" id="maxA" placeholder="max" step="0.1"></div>
+  <div class="control"><label>View</label><select id="view"><option value="">any</option><option>beachfront</option><option>sea_visible</option><option>coastal</option></select></div>
+  <div class="control"><label>Sort</label><select id="sort"><option value="r">rating</option><option value="upm">$/m²</option><option value="ac">acres</option><option value="usd">price USD</option></select></div>
+</div>
+<main>
+  <div id="map"></div>
+  <div class="panel"><table id="tbl"><thead><tr><th data-k="r" class="sorted">★</th><th data-k="cf">country</th><th data-k="rg">region</th><th data-k="a">area</th><th data-k="ac">acres</th><th data-k="upm">$/m²</th><th data-k="usd">price USD</th><th data-k="v">view</th><th>link</th></tr></thead><tbody id="tbody"></tbody></table></div>
+</main>
+<footer>
+  <span id="count">…</span>
+  <span>map shows listings with coords (TH/NZ/BC ~732); MY/JP shown in table only</span>
+  <span>data scraped 2026-05 · ratings calibrated for a Canadian citizen</span>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<script>
+(function(){
+  let DATA;
+fetch('listings.json').then(r=>r.json()).then(d=>{DATA=d;init();}).catch(e=>{document.body.innerHTML='<p style="color:#fff;padding:20px">failed to load listings.json: '+e+'</p>';});
+function init(){
+  const COLORS = {Thailand:'#ff6b6b','New Zealand':'#7ce38b','British Columbia':'#4fa3ff',Malaysia:'#ffd166',Japan:'#c084fc'};
+  const ALL_COUNTRIES = ['Thailand','New Zealand','British Columbia','Malaysia','Japan'];
+
+  // state
+  const state = {
+    countries: new Set(ALL_COUNTRIES),
+    minR: 0, maxU: 1000, minA: null, maxA: null, view: '',
+    sortKey: 'r', sortAsc: false
+  };
+
+  // header chips
+  const stats = document.getElementById('stats');
+  ALL_COUNTRIES.forEach(c=>{
+    const n=DATA.filter(r=>r.cf===c).length;
+    const chip=document.createElement('span');
+    chip.className='chip on';
+    chip.dataset.c=c.slice(0,2);
+    chip.innerHTML=`<span class="dot d ${c.slice(0,2)}" style="background:${COLORS[c]}"></span>${c} ${n}`;
+    chip.onclick=()=>{
+      if(state.countries.has(c)){state.countries.delete(c);chip.classList.remove('on');}
+      else{state.countries.add(c);chip.classList.add('on');}
+      render();
+    };
+    stats.appendChild(chip);
+  });
+
+  // controls wiring
+  function bindRange(rangeId, numId, key){
+    const r=document.getElementById(rangeId), n=document.getElementById(numId);
+    r.oninput=()=>{n.value=r.value;state[key]=+r.value;render();};
+    n.oninput=()=>{r.value=n.value;state[key]=+n.value;render();};
+  }
+  bindRange('minR','minRn','minR');
+  bindRange('maxU','maxUn','maxU');
+  document.getElementById('minA').oninput=e=>{state.minA=e.target.value?+e.target.value:null;render();};
+  document.getElementById('maxA').oninput=e=>{state.maxA=e.target.value?+e.target.value:null;render();};
+  document.getElementById('view').onchange=e=>{state.view=e.target.value;render();};
+  document.getElementById('sort').onchange=e=>{state.sortKey=e.target.value;state.sortAsc=false;render();};
+
+  // table header sort
+  document.querySelectorAll('thead th[data-k]').forEach(th=>{
+    th.onclick=()=>{
+      const k=th.dataset.k;
+      if(state.sortKey===k) state.sortAsc=!state.sortAsc; else {state.sortKey=k;state.sortAsc=false;}
+      render();
+    };
+  });
+
+  // map
+  const map = L.map('map',{worldCopyJump:true}).setView([20,100],3);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+    attribution:'© OpenStreetMap © CARTO', maxZoom:19, subdomains:'abcd'
+  }).addTo(map);
+  const cluster = L.markerClusterGroup({maxClusterRadius:40, chunkedLoading:true});
+  map.addLayer(cluster);
+
+  function filt(rows){
+    return rows.filter(r=>{
+      if(!state.countries.has(r.cf)) return false;
+      if(r.r < state.minR) return false;
+      if(r.upm > state.maxU) return false;
+      if(state.minA!=null && r.ac < state.minA) return false;
+      if(state.maxA!=null && r.ac > state.maxA) return false;
+      if(state.view && r.v !== state.view) return false;
+      return true;
+    });
+  }
+  function sortRows(rows){
+    const k=state.sortKey, dir=state.sortAsc?1:-1;
+    return rows.slice().sort((a,b)=>{
+      const av=a[k], bv=b[k];
+      if(av==null && bv==null) return 0;
+      if(av==null) return 1;
+      if(bv==null) return -1;
+      if(typeof av==='string') return av.localeCompare(bv)*dir;
+      return (av-bv)*dir;
+    });
+  }
+  function fmtUsd(n){ return '$'+(n||0).toLocaleString(); }
+  function ratingClass(r){ if(r>=90) return 's90'; if(r>=80) return 's80'; if(r>=70) return 's70'; if(r>=60) return 's60'; return ''; }
+
+  const tbody=document.getElementById('tbody');
+  const counter=document.getElementById('count');
+  let highlightUrl=null;
+
+  function render(){
+    const all = filt(DATA);
+    counter.textContent = all.length+' listings · '+all.filter(r=>r.lat).length+' on map · top rating '+(all[0]?Math.max(...all.map(r=>r.r)).toFixed(1):'—');
+
+    // markers
+    cluster.clearLayers();
+    const markers=[];
+    all.filter(r=>r.lat).forEach(r=>{
+      const color=COLORS[r.cf]||'#999';
+      const size = Math.max(6, Math.min(16, 4+r.r/8));
+      const m=L.circleMarker([r.lat,r.lon],{radius:size,color:'#fff',weight:1,fillColor:color,fillOpacity:.85});
+      m.bindPopup(`<div class="lp-r" style="color:${color}">★ ${r.r}</div>
+        <div><b>${r.cf}</b> — ${r.rg} ${r.a}</div>
+        <div>${r.ac} acres (${r.m2.toLocaleString()} m²) · ${r.v||'-'}</div>
+        <div>${fmtUsd(r.usd)} · <b>$${r.upm}/m²</b></div>
+        <div class="lp-k">${r.t||''} · ${r.rb||''}</div>
+        <div style="margin-top:6px"><a href="${r.u}" target="_blank">open listing →</a></div>`);
+      m.on('click',()=>{highlightUrl=r.u;renderTable(all);});
+      markers.push(m);
+    });
+    cluster.addLayers(markers);
+
+    renderTable(all);
+  }
+
+  function renderTable(all){
+    const rows = sortRows(all).slice(0, 600); // cap render
+    const html = rows.map(r=>{
+      const color=COLORS[r.cf]||'#999';
+      const hi = r.u===highlightUrl ? ' class="hi"' : '';
+      return `<tr${hi} data-u="${r.u}">
+        <td class="r ${ratingClass(r.r)}">${r.r}</td>
+        <td><span class="dot" style="background:${color}"></span>${r.cf.replace('British Columbia','BC').replace('New Zealand','NZ')}</td>
+        <td>${r.rg}</td><td>${r.a}</td>
+        <td>${r.ac}</td><td>${r.upm}</td><td>${fmtUsd(r.usd)}</td>
+        <td>${r.v||''}</td>
+        <td><a href="${r.u}" target="_blank">→</a></td>
+      </tr>`;
+    }).join('');
+    tbody.innerHTML = html || '<tr><td colspan="9" style="padding:20px;text-align:center;color:#666">no matches — loosen filters</td></tr>';
+    // sort header indicator
+    document.querySelectorAll('thead th[data-k]').forEach(th=>{
+      th.classList.remove('sorted','asc');
+      if(th.dataset.k===state.sortKey){th.classList.add('sorted');if(state.sortAsc) th.classList.add('asc');}
+    });
+    // row click → focus on map
+    tbody.querySelectorAll('tr').forEach(tr=>{
+      tr.onclick=(e)=>{
+        if(e.target.tagName==='A') return;
+        const u=tr.dataset.u, r=DATA.find(x=>x.u===u);
+        highlightUrl=u;
+        if(r && r.lat){ map.flyTo([r.lat,r.lon],11,{duration:.6}); }
+        document.querySelectorAll('tbody tr').forEach(t=>t.classList.remove('hi'));
+        tr.classList.add('hi');
+      };
+    });
+  }
+
+  render();
+}
+})();
+</script>
+</body>
+</html>
