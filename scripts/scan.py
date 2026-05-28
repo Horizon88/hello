@@ -435,10 +435,12 @@ def main() -> int:
             seen = set(json.loads(seen_path.read_text()))
         except json.JSONDecodeError:
             seen = set()
-    new_high = [r for r in all_rows if r["rating"] >= 90 and listing_id(r) not in seen]
-    print(f"TOTAL: {len(all_rows)} | new high (>=90, unseen): {len(new_high)}", flush=True)
+    # Listings rated >=80 trigger a "do further due diligence" issue.
+    DD_THRESHOLD = int(os.environ.get("DD_THRESHOLD", "80"))
+    new_dd = [r for r in all_rows if r["rating"] >= DD_THRESHOLD and listing_id(r) not in seen]
+    print(f"TOTAL: {len(all_rows)} | new DD candidates (>={DD_THRESHOLD}, unseen): {len(new_dd)}", flush=True)
 
-    (DATA / "new_high.json").write_text(json.dumps(new_high, indent=2))
+    (DATA / "new_high.json").write_text(json.dumps(new_dd, indent=2))
 
     # Update seen
     new_seen = seen | {listing_id(r) for r in all_rows}

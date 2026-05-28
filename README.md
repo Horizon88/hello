@@ -24,7 +24,9 @@ See `scripts/score.py`. Components:
 - **Size band fit** (0–10): 1–20 ac peak, then 20–100 ac, then small/very-large
 - **Practical** (0–5): elevation bonus, view keyword bonus
 
-≥ **90** = exceptional combo (cheap + view + clean title + accessible) → triggers an issue.
+≥ **80** = strong combo (cheap + view + clean title + accessible) → triggers a "do further due diligence" GitHub issue.
+
+Override the threshold via the `DD_THRESHOLD` env var on the workflow if you want it stricter or looser.
 
 ## Cron
 
@@ -34,7 +36,7 @@ Runs every Monday at 09:00 UTC. Trigger manually via the **Actions** tab → *We
 
 1. `scripts/scan.py` scrapes the five sources, rates everything, writes:
    - `data/latest.csv` — all listings this run (sorted by rating desc)
-   - `data/new_high.json` — newly-seen listings with rating ≥ 90
+   - `data/new_high.json` — newly-seen listings with rating ≥ 80 (DD candidates)
    - `data/seen.json` — running set of listing URLs already processed
 2. `scripts/notify.py` opens a GitHub issue per new high-rated listing
    (labels: `land-alert`, `rating-NN`). You get email notifications for new issues.

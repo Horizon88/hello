@@ -39,9 +39,10 @@ def main() -> int:
         print("no new high-rated listings this run")
         return 0
     for r in rows:
-        title = f"[{r['country']}] {r['rating']:.0f} — {r.get('region','')} {r.get('area','')} — ${r.get('price_usd',0):,} for {r.get('acres','?')} ac"
+        title = f"[DD] [{r['country']}] {r['rating']:.0f} — {r.get('region','')} {r.get('area','')} — ${r.get('price_usd',0):,} for {r.get('acres','?')} ac"
         body = (
-            f"**Rating: {r['rating']}** ({r.get('rating_breakdown','')})\n\n"
+            f"**Rating: {r['rating']} — do further due diligence**\n"
+            f"Breakdown: {r.get('rating_breakdown','')}\n\n"
             f"- Country: {r['country']}\n"
             f"- Region/area: {r.get('region','')} / {r.get('area','')}\n"
             f"- Size: {r.get('acres','?')} acres ({r.get('m2','?')} m²)\n"
@@ -54,7 +55,7 @@ def main() -> int:
             f"**Listing:** {r['listing_link']}\n"
         )
         try:
-            issue = gh_post(repo, token, title, body, ["land-alert", f"rating-{int(r['rating'])}"])
+            issue = gh_post(repo, token, title, body, ["land-alert", "due-diligence", f"rating-{int(r['rating'])}"])
             print(f"opened issue #{issue.get('number')} for rating {r['rating']}")
         except urllib.error.HTTPError as e:
             print(f"HTTPError opening issue: {e.code} {e.reason}", file=sys.stderr)
