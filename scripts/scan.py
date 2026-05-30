@@ -314,7 +314,7 @@ def scrape_suumo_jp() -> list[dict]:
         "okinawa":   ["nago","motobu","ishigaki","miyakojima","onna","nanjo","itoman","kunigami","ogimi"],
         "miyazaki":  ["nichinan","hyuga","miyazaki","nobeoka","kushima","saito"],
         "niigata":   ["joetsu","kashiwazaki","itoigawa","sado","murakami","niigata","nagaoka"],
-        "hokkaido":  ["hakodate","otaru","muroran","kushiro","tomakomai","abashiri","monbetsu","wakkanai"],
+        "hokkaido_": ["hakodate","otaru","muroran","kushiro","tomakomai","abashiri","wakkanai","obihiro","chitose","ishikari","asahikawa"],
         "fukuoka":   ["itoshima","fukuoka","munakata","kitakyushu","fukutsu","koga"],
         "nagasaki":  ["sasebo","nagasaki","omura","hirado","goto","saikai","unzen","minamishimabara"],
         "kagoshima": ["ibusuki","kanoya","amami","satsumasendai","kagoshima","minamikyushu","tarumizu","makurazaki"],
