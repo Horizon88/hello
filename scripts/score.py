@@ -117,14 +117,19 @@ def rate(row: dict) -> dict:
         acres = float(row.get("acres") or 0)
     except (ValueError, TypeError):
         acres = 0.0
-    if 1 <= acres <= 20:
-        size_pts = 10
-    elif 20 < acres <= 100:
-        size_pts = 7
-    elif (0.1 < acres < 1) or (100 < acres <= 300):
+    # Bigger is better (user prefers acreage, not building lots)
+    if acres < 1:
+        size_pts = 0
+    elif acres < 5:
         size_pts = 4
+    elif acres < 20:
+        size_pts = 8
+    elif acres < 100:
+        size_pts = 14
+    elif acres < 500:
+        size_pts = 18
     else:
-        size_pts = 2
+        size_pts = 20
 
     prac = 0
     try:
