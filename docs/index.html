@@ -344,12 +344,15 @@ function init(){
     });
     tbody.querySelectorAll('tr').forEach(tr=>{
       tr.onclick=(e)=>{
-        if(e.target.tagName==='A' || e.target.tagName==='BUTTON') return;
+        if(e.target.tagName==='BUTTON') return;          // archive/restore buttons
+        if(e.target.tagName==='A') return;                // explicit link arrow — let native behavior handle
         const u=tr.dataset.u, r=DATA.find(x=>x.u===u);
         highlightUrl=u;
         if(r && r.lat){ map.flyTo([r.lat,r.lon],11,{duration:.6}); }
         document.querySelectorAll('tbody tr').forEach(t=>t.classList.remove('hi'));
         tr.classList.add('hi');
+        // Open the actual listing page in a new tab
+        if(u) window.open(u,'_blank','noopener,noreferrer');
       };
     });
     tbody.querySelectorAll('[data-arch]').forEach(b=>{
