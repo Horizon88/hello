@@ -493,6 +493,15 @@
         counter.textContent = `${idx+1} / ${gallery.length}`; };
       detailImg.querySelector('.prev').onclick = e=>{e.stopPropagation();go(-1)};
       detailImg.querySelector('.next').onclick = e=>{e.stopPropagation();go(1)};
+      // Arrow-key navigation while the detail popover is open
+      if (window._galleryKeyHandler) document.removeEventListener('keydown', window._galleryKeyHandler);
+      window._galleryKeyHandler = e=>{
+        if (!detailBg.classList.contains('show')) return;
+        if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
+        else if (e.key === 'ArrowRight') { e.preventDefault(); go(1); }
+        else if (e.key === 'Escape') { detailBg.classList.remove('show'); }
+      };
+      document.addEventListener('keydown', window._galleryKeyHandler);
     } else if(gallery.length === 1){
       detailImg.className='detail-img'; detailImg.style.backgroundImage=`url("${gallery[0]}")`; detailImg.innerHTML='';
     } else {
