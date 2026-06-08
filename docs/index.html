@@ -118,6 +118,23 @@
   .gallery .dots{position:absolute;bottom:8px;left:0;right:0;text-align:center;z-index:2}
   .gallery .dots span{display:inline-block;width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.4);margin:0 3px}
   .gallery .dots span.on{background:#fff}
+
+  /* Shortlist viewer */
+  .sl-group{border-top:1px solid var(--border);padding:14px 0}
+  .sl-group:first-of-type{border-top:none}
+  .sl-group h4{margin-bottom:10px;font-size:14px}
+  .sl-group h4 .ct{color:var(--txt-dim);font-weight:400;font-size:11px;margin-left:6px}
+  .sl-picks,.sl-similar{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px}
+  .sl-similar{margin-top:6px}
+  .sl-similar .lbl{display:block;color:var(--txt-dim);font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin:10px 0 6px;grid-column:1/-1}
+  .sl-card{display:flex;gap:10px;background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:8px;cursor:pointer;align-items:center}
+  .sl-card:hover{background:#2a3340;border-color:#3d4a5c}
+  .sl-img{width:80px;height:60px;background-size:cover;background-position:center;background-color:#0a0e13;border-radius:4px;flex-shrink:0}
+  .sl-meta{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+  .sl-meta .title{font-size:12px;font-weight:600;line-height:1.3}
+  .sl-meta .sub{font-size:11px;color:var(--txt-dim)}
+  .sl-meta .why{font-size:10px;color:#9fd96d;line-height:1.4}
+  .sl-meta .btn{font-size:10px;padding:2px 6px;align-self:flex-start}
   .gallery .counter{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;font-size:11px;padding:2px 10px;border-radius:99px;z-index:2}
   /* Mobile (≤900px) — already had basic stack; expand it */
   @media(max-width:900px){
@@ -166,6 +183,7 @@
 <header>
   <h1>🌊 Coastal Land & 🏙 BKK Penthouses</h1>
   <div class="stats" id="stats"></div>
+  <span class="chip" id="slChip" style="display:none;background:#2a3340;color:#ffd166;border-color:#ffd166;cursor:pointer" title="Open shortlist">★ 0</span>
 </header>
 <div class="controls">
   <div class="control"><label>Type</label><select id="type"><option value="all">all</option><option value="land">land</option><option value="penthouse">penthouse</option><option value="apartment">apt w/ pool</option></select></div>
@@ -233,6 +251,46 @@
       <button class="btn" id="cancelArch">Cancel</button>
       <button class="btn primary" id="saveArch">Archive</button>
     </div>
+  </div>
+</div>
+
+<!-- Promote / Shortlist modal -->
+<div class="modal-bg" id="promoteBg">
+  <div class="modal">
+    <h3>★ Promote to shortlist</h3>
+    <div class="info" id="promoteInfo"></div>
+    <span class="lbl">Reasons (multi-select — drives the "similar plots" search)</span>
+    <div class="tags" id="promoteTagBox">
+      <span class="tag" data-tag="ocean view">ocean view</span>
+      <span class="tag" data-tag="mountain view">mountain view</span>
+      <span class="tag" data-tag="good road access">good road access</span>
+      <span class="tag" data-tag="near power">near power</span>
+      <span class="tag" data-tag="good size">good size</span>
+      <span class="tag" data-tag="good price">good price</span>
+      <span class="tag" data-tag="good title">good title</span>
+      <span class="tag" data-tag="near airport">near airport</span>
+      <span class="tag" data-tag="near coast">near coast</span>
+      <span class="tag" data-tag="buildable">buildable</span>
+      <span class="tag" data-tag="rural / private">rural / private</span>
+      <span class="tag" data-tag="climate-resilient">climate-resilient</span>
+    </div>
+    <span class="lbl">Note (optional)</span>
+    <textarea id="promoteReason" placeholder="anything the tags don't capture"></textarea>
+    <div class="row">
+      <button class="btn" id="cancelPromote">Cancel</button>
+      <button class="btn primary" id="savePromote">Save to shortlist</button>
+    </div>
+  </div>
+</div>
+
+<!-- Shortlist viewer -->
+<div class="modal-bg" id="shortlistBg">
+  <div class="modal" style="max-width:1100px;width:95%;max-height:90vh;overflow:auto">
+    <h3 style="display:flex;align-items:center;gap:8px">★ Shortlist
+      <span style="color:var(--txt-dim);font-weight:400;font-size:13px" id="shortlistCount"></span>
+      <button class="close" id="shortlistClose" style="margin-left:auto">×</button>
+    </h3>
+    <div id="shortlistBody"></div>
   </div>
 </div>
 
@@ -540,11 +598,15 @@
         ${archives[r.u]
           ? `<button class="btn" id="detailUnarch">↺ Restore from archive</button>`
           : `<button class="btn" id="detailArch">✕ Archive (give reason)</button>`}
+        <button class="btn" id="detailPromote" style="${shortlist[r.u]?'border-color:#ffd166;color:#ffd166':''}">★ ${shortlist[r.u]?'Shortlisted (edit)':'Promote'}</button>
+        ${shortlist[r.u]?`<button class="btn" id="detailFindSimilar">Find similar →</button>`:''}
         <a class="btn primary" href="${r.u}" target="_blank" rel="noopener">Open listing →</a>
       </div>`;
     document.getElementById('detailClose').onclick=()=>detailBg.classList.remove('show');
     const ab=document.getElementById('detailArch'); if(ab) ab.onclick=()=>{ detailBg.classList.remove('show'); openArchive(r.u); };
     const ub=document.getElementById('detailUnarch'); if(ub) ub.onclick=()=>{ delete archives[r.u]; saveArchives(archives); detailBg.classList.remove('show'); render(); };
+    const pb=document.getElementById('detailPromote'); if(pb) pb.onclick=()=>{ detailBg.classList.remove('show'); openPromote(r.u); };
+    const fs=document.getElementById('detailFindSimilar'); if(fs) fs.onclick=()=>{ detailBg.classList.remove('show'); openShortlistView(); };
     detailBg.classList.add('show');
     if(r.lat){
       setTimeout(()=>{
@@ -558,7 +620,7 @@
     }
   }
   detailBg.onclick=(e)=>{ if(e.target===detailBg) detailBg.classList.remove('show'); };
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ detailBg.classList.remove('show'); modalBg.classList.remove('show'); }});
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ detailBg.classList.remove('show'); modalBg.classList.remove('show'); document.getElementById('promoteBg').classList.remove('show'); document.getElementById('shortlistBg').classList.remove('show'); }});
 
   // ---- archive modal ----
   const modalBg=document.getElementById('modalBg');
@@ -594,6 +656,186 @@
     render();
   };
   modalBg.onclick=(e)=>{ if(e.target===modalBg) modalBg.classList.remove('show'); };
+
+  // ---- shortlist (localStorage) ----
+  const SL_KEY = 'shortlist_v1';
+  function loadShortlist(){ try { return JSON.parse(localStorage.getItem(SL_KEY) || '{}'); } catch(e){ return {}; } }
+  function saveShortlist(s){ localStorage.setItem(SL_KEY, JSON.stringify(s)); }
+  let shortlist = loadShortlist();
+
+  // promote modal
+  const promoteBg = document.getElementById('promoteBg');
+  const promoteInfo = document.getElementById('promoteInfo');
+  const promoteTagBox = document.getElementById('promoteTagBox');
+  const promoteReason = document.getElementById('promoteReason');
+  let pendingPromoteUrl = null;
+  let pendingPromoteTags = new Set();
+  function openPromote(url){
+    const r = DATA.find(x=>x.u===url); if(!r) return;
+    const existing = shortlist[url];
+    pendingPromoteUrl = url;
+    pendingPromoteTags = new Set(existing?.tags || []);
+    promoteReason.value = existing?.reason || '';
+    promoteTagBox.querySelectorAll('.tag').forEach(t=>{
+      t.classList.toggle('on', pendingPromoteTags.has(t.dataset.tag));
+    });
+    promoteInfo.innerHTML = `<b>★ ${r.r}</b> · ${r.cf} · ${r.rg} ${r.a||''}<br>${r.ac} ac · $${r.upm}/m² · ${fmtUsd(r.usd)}<br><a href="${url}" target="_blank" style="color:#4fa3ff">view listing</a>`;
+    promoteBg.classList.add('show');
+  }
+  window.__promote = openPromote;
+  promoteTagBox.querySelectorAll('.tag').forEach(t=>{
+    t.onclick=()=>{
+      const tag=t.dataset.tag;
+      if(pendingPromoteTags.has(tag)){pendingPromoteTags.delete(tag);t.classList.remove('on');}
+      else{pendingPromoteTags.add(tag);t.classList.add('on');}
+    };
+  });
+  document.getElementById('cancelPromote').onclick=()=>promoteBg.classList.remove('show');
+  document.getElementById('savePromote').onclick=()=>{
+    if(!pendingPromoteUrl) return;
+    shortlist[pendingPromoteUrl]={tags:Array.from(pendingPromoteTags), reason:promoteReason.value.trim(), ts:Date.now()};
+    saveShortlist(shortlist);
+    promoteBg.classList.remove('show');
+    refreshShortlistChip();
+    render();
+  };
+  promoteBg.onclick=(e)=>{ if(e.target===promoteBg) promoteBg.classList.remove('show'); };
+
+  // ---- similarity engine ----
+  function viewCat(v){
+    v=(v||'').toLowerCase();
+    if(v.includes('ocean')||v.includes('sea')||v.includes('coast')||v.includes('lake')) return 2;
+    if(v.includes('mountain')||v.includes('forest')||v.includes('valley')) return 1;
+    return 0;
+  }
+  function titleCat(t){ return (t||'').toLowerCase().split(/[\s/]+/)[0] || ''; }
+  function featureVec(r){
+    return {
+      cf:r.cf, rg:r.rg, tp:r.tp||'land',
+      view:viewCat(r.v), title:titleCat(r.t),
+      logUsd: r.usd>0 ? Math.log2(r.usd) : 0,
+      logAc:  r.ac>0  ? Math.log2(r.ac)  : 0,
+      aptKm: r.apt_km!=null ? +r.apt_km : null,
+    };
+  }
+  function centroid(rows){
+    const mode=arr=>{ const c={}; arr.forEach(v=>v!=null&&v!==''&&(c[v]=(c[v]||0)+1)); const e=Object.entries(c).sort((a,b)=>b[1]-a[1])[0]; return e?e[0]:null; };
+    const median=arr=>{ const s=arr.filter(v=>v!=null&&!isNaN(v)).sort((a,b)=>a-b); return s.length?s[Math.floor(s.length/2)]:0; };
+    const v=rows.map(featureVec);
+    return {
+      cf:mode(v.map(x=>x.cf)), rg:mode(v.map(x=>x.rg)), tp:mode(v.map(x=>x.tp)),
+      view:parseInt(mode(v.map(x=>x.view))||0),
+      title:mode(v.map(x=>x.title)),
+      logUsd:median(v.map(x=>x.logUsd)),
+      logAc: median(v.map(x=>x.logAc)),
+      aptKm: median(v.map(x=>x.aptKm).filter(v=>v!=null)),
+    };
+  }
+  function distance(a, ref){
+    let d=0; const why=[];
+    if(a.cf===ref.cf) why.push(`same country`); else d+=0.5;
+    if(a.cf===ref.cf && a.rg===ref.rg) why.push(`same region`);
+    if(a.tp===ref.tp) { if(a.tp!=='land') why.push(`same type (${a.tp})`); } else d+=0.25;
+    if(a.view===ref.view){ if(a.view>0) why.push(`${['','mountain','ocean'][a.view]} view`); }
+    else d+=0.15;
+    if(a.title && ref.title && a.title===ref.title) why.push(`same title (${a.title})`);
+    else if(ref.title) d+=0.08;
+    const dUsd=Math.abs(a.logUsd-ref.logUsd);
+    if(dUsd<0.3) why.push(`±${Math.round((Math.pow(2,dUsd)-1)*100)}% price`);
+    d+=Math.min(1,dUsd);
+    const dAc=Math.abs(a.logAc-ref.logAc);
+    if(dAc<0.5) why.push(`±${Math.round((Math.pow(2,dAc)-1)*100)}% size`);
+    d+=Math.min(1,dAc);
+    return {d, why};
+  }
+  function findSimilar(seedRows, k){
+    if(!seedRows.length) return [];
+    const ref=centroid(seedRows);
+    const seedUrls=new Set(seedRows.map(r=>r.u));
+    const scored=[];
+    for(const r of DATA){
+      if(seedUrls.has(r.u)) continue;
+      if(archives[r.u]) continue;
+      if(shortlist[r.u]) continue;
+      const f=featureVec(r);
+      const {d, why}=distance(f, ref);
+      scored.push({r, d, why});
+    }
+    scored.sort((a,b)=>a.d-b.d);
+    return scored.slice(0,k||12);
+  }
+
+  // ---- shortlist viewer ----
+  const shortlistBg=document.getElementById('shortlistBg');
+  const shortlistBody=document.getElementById('shortlistBody');
+  const shortlistCountEl=document.getElementById('shortlistCount');
+  function refreshShortlistChip(){
+    const n=Object.keys(shortlist).length;
+    const chip=document.getElementById('slChip');
+    if(chip){ chip.textContent=`★ ${n}`; chip.style.display=n?'':'none'; }
+  }
+  function slCard(r, isPick, why){
+    const img=(r.imgs && r.imgs[0]) || r.img || '';
+    const whyTxt=why && why.length ? `<div class="why">${why.join(' · ')}</div>` : '';
+    const action=isPick
+      ? `<button class="btn" data-unpromote="${encodeURIComponent(r.u)}">remove</button>`
+      : `<button class="btn primary" data-promote="${encodeURIComponent(r.u)}">+ shortlist</button>`;
+    return `<div class="sl-card" data-detail="${encodeURIComponent(r.u)}">
+      <div class="sl-img"${img?` style="background-image:url('${img.replace(/'/g,"%27")}')"`:''}></div>
+      <div class="sl-meta">
+        <div class="title">★${r.r} · ${r.cf.replace('British Columbia','BC').replace('New Zealand','NZ')} · ${r.rg||''}</div>
+        <div class="sub">${r.ac?r.ac+' ac · ':''}${fmtUsd(r.usd)}${r.t?' · '+r.t:''}</div>
+        ${whyTxt}${action}
+      </div>
+    </div>`;
+  }
+  function openShortlistView(){
+    const urls=Object.keys(shortlist);
+    shortlistCountEl.textContent = urls.length ? `· ${urls.length} listings` : '';
+    if(!urls.length){
+      shortlistBody.innerHTML='<p style="color:var(--txt-dim);padding:16px">Nothing on the shortlist yet. Click a listing → <b>★ Promote</b> to add it.</p>';
+      shortlistBg.classList.add('show'); return;
+    }
+    const groups={};
+    for(const u of urls){
+      const meta=shortlist[u];
+      const key=(meta.tags && meta.tags.length) ? meta.tags.slice().sort().join(' + ') : (meta.reason || 'untagged');
+      (groups[key]=groups[key]||[]).push(u);
+    }
+    const html=[];
+    for(const [name, gUrls] of Object.entries(groups)){
+      const gRows=gUrls.map(u=>DATA.find(r=>r.u===u)).filter(Boolean);
+      const similar=findSimilar(gRows, 12);
+      html.push(`<div class="sl-group">
+        <h4>${name} <span class="ct">${gRows.length} picked · ${similar.length} similar</span></h4>
+        <div class="sl-picks">${gRows.map(r=>slCard(r,true)).join('')}</div>
+        <div class="sl-similar">
+          <span class="lbl">Most similar (not yet shortlisted or archived)</span>
+          ${similar.map(({r,why})=>slCard(r,false,why)).join('')}
+        </div>
+      </div>`);
+    }
+    shortlistBody.innerHTML=html.join('');
+    shortlistBody.querySelectorAll('[data-detail]').forEach(el=>{
+      el.onclick=(e)=>{
+        if(e.target.tagName==='BUTTON') return;
+        shortlistBg.classList.remove('show');
+        const r=DATA.find(x=>x.u===decodeURIComponent(el.dataset.detail));
+        if(r) openDetail(r);
+      };
+    });
+    shortlistBody.querySelectorAll('[data-promote]').forEach(el=>{
+      el.onclick=(e)=>{ e.stopPropagation(); shortlistBg.classList.remove('show'); openPromote(decodeURIComponent(el.dataset.promote)); };
+    });
+    shortlistBody.querySelectorAll('[data-unpromote]').forEach(el=>{
+      el.onclick=(e)=>{ e.stopPropagation(); delete shortlist[decodeURIComponent(el.dataset.unpromote)]; saveShortlist(shortlist); refreshShortlistChip(); openShortlistView(); render(); };
+    });
+    shortlistBg.classList.add('show');
+  }
+  document.getElementById('shortlistClose').onclick=()=>shortlistBg.classList.remove('show');
+  shortlistBg.onclick=(e)=>{ if(e.target===shortlistBg) shortlistBg.classList.remove('show'); };
+  document.getElementById('slChip').onclick=()=>openShortlistView();
+  refreshShortlistChip();
 
   // ---- insights drawer ----
   const insights=document.getElementById('insights');
