@@ -155,7 +155,8 @@
     /* hide less-critical columns on phones */
     thead th[data-k=ac],tbody td:nth-child(5),
     thead th[data-k=upm],tbody td:nth-child(6),
-    thead th[data-k=v],tbody td:nth-child(8){display:none}
+    thead th[data-k=v],tbody td:nth-child(8),
+    thead th[data-k=ski_km],tbody td:nth-child(9){display:none}
     .insights{width:88%}
     .detail-modal{max-height:94vh}
     .gallery{height:200px}
@@ -193,13 +194,14 @@
   <div class="control"><label>View</label><select id="view"><option value="">any</option><option>beachfront</option><option>sea_visible</option><option>coastal</option><option value="city/sky">city/sky</option><option>river</option></select></div>
   <div class="control"><label><input type="checkbox" id="distressedOnly"> 💎 Distressed only</label></div>
   <div class="control"><label><input type="checkbox" id="verifiedOnly"> ✓ Verified view only</label></div>
+  <div class="control"><label>Ski</label><select id="ski"><option value="">any</option><option value="0.5">ski-in/out (≤0.5km)</option><option value="2">≤2 km</option><option value="10">≤10 km</option><option value="30">≤30 km</option><option value="rope">rope-tow potential</option></select></div>
   <div class="control"><label>Sort</label><select id="sort"><option value="r">rating</option><option value="upm">$/m²</option><option value="ac">acres</option><option value="usd">price USD</option></select></div>
   <button class="btn" id="toggleInsights">Insights ▸</button>
 </div>
 <main>
   <div id="map"></div>
   <div class="panel">
-    <table id="tbl"><thead><tr><th data-k="r" class="sorted">★</th><th data-k="cf">country</th><th data-k="rg">region</th><th data-k="a">area</th><th data-k="ac">acres</th><th data-k="upm">$/m²</th><th data-k="usd">price USD</th><th data-k="v">view</th><th>link</th><th></th></tr></thead><tbody id="tbody"></tbody></table>
+    <table id="tbl"><thead><tr><th data-k="r" class="sorted">★</th><th data-k="cf">country</th><th data-k="rg">region</th><th data-k="a">area</th><th data-k="ac">acres</th><th data-k="upm">$/m²</th><th data-k="usd">price USD</th><th data-k="v">view</th><th data-k="ski_km">⛷ km</th><th>link</th><th></th></tr></thead><tbody id="tbody"></tbody></table>
     <div class="insights" id="insights">
       <h3>📊 Patterns from your archives</h3>
       <div id="insightsBody"><p style="color:var(--txt-dim);font-size:12px">Archive listings (with a reason) to start training the model. Patterns will appear here as you accumulate signals.</p></div>
@@ -327,7 +329,7 @@
   const state = {
     countries: new Set(ALL_COUNTRIES),
     type: 'all', distressedOnly: false, verifiedOnly: false,
-    minR: 0, maxU: 10000, minA: null, maxA: null, view: '',
+    minR: 0, maxU: 10000, minA: null, maxA: null, view: '', ski: '',
     sortKey: 'r', sortAsc: false, showArchived: false
   };
 
@@ -357,6 +359,7 @@
   document.getElementById('minA').oninput=e=>{state.minA=e.target.value?+e.target.value:null;render();};
   document.getElementById('maxA').oninput=e=>{state.maxA=e.target.value?+e.target.value:null;render();};
   document.getElementById('view').onchange=e=>{state.view=e.target.value;render();};
+  document.getElementById('ski').onchange=e=>{state.ski=e.target.value;render();};
   document.getElementById('type').onchange=e=>{state.type=e.target.value;render();};
   document.getElementById('distressedOnly').onchange=e=>{state.distressedOnly=e.target.checked;render();};
   document.getElementById('verifiedOnly').onchange=e=>{state.verifiedOnly=e.target.checked;render();};
@@ -391,6 +394,14 @@
         if(state.maxA!=null && r.ac > state.maxA) return false;
       }
       if(state.view && r.v !== state.view) return false;
+      if(state.ski){
+        if(state.ski === 'rope'){
+          if((r.ac||0) < 5 || r.ski_km == null || r.ski_km > 30) return false;
+        } else {
+          const max = parseFloat(state.ski);
+          if(r.ski_km == null || r.ski_km > max) return false;
+        }
+      }
       if(!state.showArchived && archives[r.u]) return false;
       return true;
     });
@@ -493,6 +504,7 @@
         <td>${r.rg}</td><td>${r.a}</td>
         <td>${r.ac}</td><td>${r.upm}</td><td>${fmtUsd(r.usd)}</td>
         <td>${r.v||''}</td>
+        <td title="${r.ski_r||''}">${r.ski_km!=null ? r.ski_km : ''}</td>
         <td><a href="${r.u}" target="_blank">→</a></td>
         <td>${isArchived ? `<button class="arch-btn" data-unarch="${encodeURIComponent(r.u)}" title="restore">↺</button>` : `<button class="arch-btn" data-arch="${encodeURIComponent(r.u)}" title="archive">✕</button>`}</td>
       </tr>`;
@@ -587,6 +599,7 @@
         ${r.el?`<div><div class="k">elevation</div><div class="v">${r.el} m</div></div>`:''}
         ${r.apt_km!=null?`<div><div class="k">nearest airport</div><div class="v">${r.apt_km} km · ${r.apt}</div></div>`:''}
         ${r.coast_km!=null?`<div><div class="k">coast distance</div><div class="v">${r.coast_km} km</div></div>`:''}
+        ${r.ski_km!=null?`<div><div class="k">⛷ nearest ski</div><div class="v">${r.ski_km} km · ${r.ski_r||''}${r.ski_km<=0.5?' · <b style="color:#9fd96d">ski-in/out</b>':r.ski_km<=2?' · <b style="color:#9fd96d">walk to lift</b>':''}</div></div>`:''}
         ${r.pid?`<div><div class="k">PID (title)</div><div class="v" style="font-family:monospace">${r.pid}</div></div>`:''}
         ${r.plan?`<div><div class="k">plan number</div><div class="v" style="font-family:monospace">${r.plan}</div></div>`:''}
         ${r.owner_type?`<div><div class="k">owner type</div><div class="v">${r.owner_type}</div></div>`:''}
