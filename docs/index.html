@@ -196,7 +196,7 @@
   <div class="control"><label><input type="checkbox" id="distressedOnly"> 💎 Distressed only</label></div>
   <div class="control"><label><input type="checkbox" id="verifiedOnly"> ✓ Verified view only</label></div>
   <div class="control"><label>Ski</label><select id="ski"><option value="">any</option><option value="0.5">ski-in/out (≤0.5km)</option><option value="2">≤2 km</option><option value="10">≤10 km</option><option value="30">≤30 km</option><option value="rope">rope-tow potential</option></select></div>
-  <div class="control"><label><input type="checkbox" id="terraceOnly"> 🏔 Terrace zone only</label></div>
+  <div class="control"><label><input type="checkbox" id="terraceOnly"> 🏔 Terrance zone only</label></div>
   <div class="control"><label>Sort</label><select id="sort"><option value="r">rating</option><option value="upm">$/m²</option><option value="ac">acres</option><option value="usd">price USD</option></select></div>
   <button class="btn" id="toggleInsights">Insights ▸</button>
 </div>
@@ -615,7 +615,7 @@
         ${r.apt_km!=null?`<div><div class="k">nearest airport</div><div class="v">${r.apt_km} km · ${r.apt}</div></div>`:''}
         ${r.coast_km!=null?`<div><div class="k">coast distance</div><div class="v">${r.coast_km} km</div></div>`:''}
         ${r.ski_km!=null?`<div><div class="k">⛷ nearest ski</div><div class="v">${r.ski_km} km · ${r.ski_r||''}${r.ski_km<=0.5?' · <b style="color:#9fd96d">ski-in/out</b>':r.ski_km<=2?' · <b style="color:#9fd96d">walk to lift</b>':''}</div></div>`:''}
-        ${r.terrace_zone?`<div><div class="k">🏔 Terrace zone</div><div class="v"><b style="color:#9fd96d">${r.terrace_zone}</b> · ${r.terrace_km} km · +${r.terrace_bonus} rating</div></div>`:''}
+        ${r.terrace_zone?`<div><div class="k">🏔 Terrance zone</div><div class="v"><b style="color:#9fd96d">${r.terrace_zone}</b> · ${r.terrace_km} km · +${r.terrace_bonus} rating</div></div>`:''}
         ${r.pid?`<div><div class="k">PID (title)</div><div class="v" style="font-family:monospace">${r.pid}</div></div>`:''}
         ${r.plan?`<div><div class="k">plan number</div><div class="v" style="font-family:monospace">${r.plan}</div></div>`:''}
         ${r.owner_type?`<div><div class="k">owner type</div><div class="v">${r.owner_type}</div></div>`:''}
