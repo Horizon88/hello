@@ -11,7 +11,7 @@
   :root {
     --bg:#0f1419; --panel:#1a2028; --panel2:#232b35; --border:#2e3845;
     --txt:#e4e6eb; --txt-dim:#8a93a3; --accent:#4fa3ff; --accent2:#7ce38b;
-    --th:#ff6b6b; --nz:#7ce38b; --bc:#4fa3ff; --my:#ffd166; --jp:#c084fc;
+    --th:#ff6b6b; --nz:#7ce38b; --bc:#4fa3ff; --ca:#ff8fb1; --my:#ffd166; --jp:#c084fc;
     --danger:#ff8080; --warn:#ffb86c;
   }
   *{box-sizing:border-box;margin:0;padding:0}
@@ -24,6 +24,7 @@
   .chip[data-cs=Th].on{border-color:var(--th);box-shadow:inset 0 0 0 1px var(--th)}
   .chip[data-cs=Ne].on{border-color:var(--nz);box-shadow:inset 0 0 0 1px var(--nz)}
   .chip[data-cs=Br].on{border-color:var(--bc);box-shadow:inset 0 0 0 1px var(--bc)}
+  .chip[data-cs=Ca].on{border-color:var(--ca);box-shadow:inset 0 0 0 1px var(--ca)}
   .chip[data-cs=Ma].on{border-color:var(--my);box-shadow:inset 0 0 0 1px var(--my)}
   .chip[data-cs=Ja].on{border-color:var(--jp);box-shadow:inset 0 0 0 1px var(--jp)}
   .controls{padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;gap:18px;flex-wrap:wrap;align-items:center}
@@ -316,8 +317,8 @@
     return;
   }
   loadingEl.remove();
-  const COLORS = {Thailand:'#ff6b6b','New Zealand':'#7ce38b','British Columbia':'#4fa3ff',Malaysia:'#ffd166',Japan:'#c084fc'};
-  const ALL_COUNTRIES = ['Thailand','New Zealand','British Columbia','Malaysia','Japan'];
+  const COLORS = {Thailand:'#ff6b6b','New Zealand':'#7ce38b','British Columbia':'#4fa3ff',Canada:'#ff8fb1',Malaysia:'#ffd166',Japan:'#c084fc'};
+  const ALL_COUNTRIES = ['Thailand','New Zealand','British Columbia','Canada','Malaysia','Japan'];
   const LS_KEY = 'archives_v1';
 
   // ---- archives (localStorage) ----
