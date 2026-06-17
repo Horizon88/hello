@@ -1,0 +1,953 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Coastal Land — 5-Country Comparison</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+<style>
+  :root {
+    --bg:#0f1419; --panel:#1a2028; --panel2:#232b35; --border:#2e3845;
+    --txt:#e4e6eb; --txt-dim:#8a93a3; --accent:#4fa3ff; --accent2:#7ce38b;
+    --th:#ff6b6b; --nz:#7ce38b; --bc:#4fa3ff; --ca:#ff8fb1; --my:#ffd166; --jp:#c084fc;
+    --danger:#ff8080; --warn:#ffb86c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--txt);display:grid;grid-template-rows:auto auto 1fr auto;height:100vh}
+  header{padding:12px 16px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  h1{font-size:16px;font-weight:600}
+  .stats{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+  .chip{padding:4px 10px;border-radius:99px;background:var(--panel2);border:1px solid var(--border);font-size:12px;cursor:pointer;user-select:none}
+  .chip.on{background:#2a3340;color:#fff}
+  .chip[data-cs=Th].on{border-color:var(--th);box-shadow:inset 0 0 0 1px var(--th)}
+  .chip[data-cs=Ne].on{border-color:var(--nz);box-shadow:inset 0 0 0 1px var(--nz)}
+  .chip[data-cs=Br].on{border-color:var(--bc);box-shadow:inset 0 0 0 1px var(--bc)}
+  .chip[data-cs=Ca].on{border-color:var(--ca);box-shadow:inset 0 0 0 1px var(--ca)}
+  .chip[data-cs=Ma].on{border-color:var(--my);box-shadow:inset 0 0 0 1px var(--my)}
+  .chip[data-cs=Ja].on{border-color:var(--jp);box-shadow:inset 0 0 0 1px var(--jp)}
+  .controls{padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+  .control{display:flex;gap:8px;align-items:center;font-size:12px}
+  .control label{color:var(--txt-dim);text-transform:uppercase;letter-spacing:.04em}
+  .control input[type=range]{accent-color:var(--accent);width:140px}
+  .control input[type=number]{width:80px;background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:3px 6px;border-radius:4px}
+  .control select{background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:3px 6px;border-radius:4px}
+  .btn{background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px}
+  .btn:hover{background:#2a3340}
+  .btn.primary{background:var(--accent);color:#0f1419;border-color:var(--accent);font-weight:600}
+  .btn.primary:hover{background:#6cb0ff}
+  main{display:grid;grid-template-columns:55% 45%;gap:0;overflow:hidden;min-height:0}
+  #map{height:100%;background:#0a0e13}
+  .panel{overflow:auto;background:var(--panel);border-left:1px solid var(--border);position:relative}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  thead th{position:sticky;top:0;background:var(--panel2);text-align:left;padding:8px 6px;font-weight:600;color:var(--txt-dim);text-transform:uppercase;letter-spacing:.04em;font-size:11px;cursor:pointer;border-bottom:1px solid var(--border);user-select:none;white-space:nowrap;z-index:2}
+  thead th:hover{color:var(--txt)}
+  thead th.sorted::after{content:" ↓";opacity:.6}
+  thead th.sorted.asc::after{content:" ↑"}
+  tbody tr{border-bottom:1px solid #1f2630;cursor:pointer}
+  tbody tr:hover{background:#202732}
+  tbody tr.hi{background:#2a3a4d}
+  tbody tr.archived{opacity:.4;background:#1c1414}
+  tbody tr.flagged{background:#2a2014}
+  tbody td{padding:6px;white-space:nowrap;vertical-align:middle}
+  tbody td.r{font-weight:600}
+  tbody td.r.s90{color:#7ce38b}
+  tbody td.r.s80{color:#9fd96d}
+  tbody td.r.s70{color:#d9e57c}
+  tbody td.r.s60{color:#e5b87c}
+  td a{color:var(--accent);text-decoration:none}
+  td a:hover{text-decoration:underline}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .arch-btn{background:transparent;border:1px solid var(--border);color:var(--txt-dim);padding:2px 6px;border-radius:4px;cursor:pointer;font-size:11px}
+  .arch-btn:hover{color:var(--danger);border-color:var(--danger)}
+  .flag{font-size:10px;padding:2px 5px;border-radius:3px;background:#3a2a10;color:var(--warn);border:1px solid #5a401a;margin-left:4px}
+  footer{padding:6px 16px;background:var(--panel);border-top:1px solid var(--border);color:var(--txt-dim);font-size:11px;display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+  #count{color:var(--txt);font-weight:600}
+  footer .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+  /* Archive modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:1000}
+  .modal-bg.show{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:20px;width:460px;max-width:90%;max-height:90vh;overflow:auto}
+  .modal h3{margin-bottom:12px;font-size:15px}
+  .modal .lbl{color:var(--txt-dim);font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:block}
+  .modal textarea{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:8px;border-radius:6px;min-height:60px;resize:vertical;font:inherit}
+  .modal .tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .modal .tag{padding:4px 10px;border-radius:99px;background:var(--panel2);border:1px solid var(--border);font-size:12px;cursor:pointer;user-select:none}
+  .modal .tag.on{background:#2a3340;border-color:var(--accent);color:#fff}
+  .modal .row{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+  .modal .info{background:var(--panel2);padding:8px 10px;border-radius:6px;margin-bottom:12px;font-size:12px;line-height:1.5}
+  /* Detail popover */
+  .detail-modal{width:560px;max-width:94%;padding:0;overflow:auto;max-height:90vh}
+  .detail-img{width:100%;height:240px;background:#0a0e13;background-size:cover;background-position:center;position:relative}
+  .detail-img.placeholder{display:flex;align-items:center;justify-content:center;color:var(--txt-dim);font-size:13px;text-align:center}
+  .detail-img .close{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6);color:#fff;border:0;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;line-height:1}
+  .detail-img .badge{position:absolute;left:12px;top:12px;background:rgba(0,0,0,.7);color:#fff;padding:4px 10px;border-radius:99px;font-size:12px}
+  .detail-body{padding:18px 20px}
+  .detail-body h3{margin-bottom:4px;font-size:16px}
+  .detail-body .sub{color:var(--txt-dim);font-size:13px;margin-bottom:14px}
+  .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;font-size:13px;margin-bottom:14px}
+  .detail-grid .k{color:var(--txt-dim);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+  .detail-grid .v{font-weight:500}
+  .detail-rating{font-size:28px;font-weight:700;margin-bottom:2px}
+  .detail-rating .rb{font-size:11px;color:var(--txt-dim);font-weight:400;margin-left:8px;letter-spacing:0;text-transform:none}
+  .detail-flag{background:#3a2a10;color:var(--warn);border:1px solid #5a401a;padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:12px}
+  .detail-arch-info{background:#2a1414;color:#ff8080;border:1px solid #5a2020;padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:12px}
+  .detail-actions{display:flex;gap:8px;margin-top:8px}
+  #detailMap{width:100%;height:160px;border-radius:6px;margin-bottom:12px;background:#0a0e13}
+  #detailMap.empty{display:flex;align-items:center;justify-content:center;color:var(--txt-dim);font-size:12px;height:60px}
+  .detail-actions .btn{flex:1;justify-content:center;text-align:center;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+  /* Insights drawer */
+  .insights{position:absolute;right:0;top:0;bottom:0;width:300px;background:var(--panel);border-left:1px solid var(--border);transform:translateX(100%);transition:transform .25s;z-index:5;overflow:auto;padding:16px}
+  .insights.show{transform:translateX(0)}
+  .insights h3{font-size:14px;margin-bottom:10px}
+  .insights .group{margin-bottom:16px}
+  .insights .group h4{font-size:11px;text-transform:uppercase;color:var(--txt-dim);margin-bottom:6px;letter-spacing:.04em}
+  .insights .item{display:flex;justify-content:space-between;padding:4px 0;font-size:12px;border-bottom:1px solid #1f2630}
+  .insights .item .n{color:var(--warn);font-weight:600}
+  .leaflet-popup-content{font:13px/1.4 system-ui;min-width:240px;color:#222}
+  .leaflet-popup-content .lp-r{font-size:18px;font-weight:700;margin-bottom:4px}
+  .leaflet-popup-content .lp-k{color:#666;font-size:11px}
+  .leaflet-popup-content button{margin-top:6px;cursor:pointer}
+  /* Image carousel inside detail popover */
+  .gallery{position:relative;width:100%;height:240px;background:#0a0e13;overflow:hidden}
+  .gallery .slide{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transition:opacity .3s}
+  .gallery .slide.on{opacity:1}
+  .gallery .nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.55);color:#fff;border:0;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;line-height:1;z-index:2}
+  .gallery .nav:hover{background:rgba(0,0,0,.8)}
+  .gallery .nav.prev{left:8px} .gallery .nav.next{right:8px}
+  .gallery .dots{position:absolute;bottom:8px;left:0;right:0;text-align:center;z-index:2}
+  .gallery .dots span{display:inline-block;width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.4);margin:0 3px}
+  .gallery .dots span.on{background:#fff}
+
+  /* Shortlist viewer */
+  .sl-group{border-top:1px solid var(--border);padding:14px 0}
+  .sl-group:first-of-type{border-top:none}
+  .sl-group h4{margin-bottom:10px;font-size:14px}
+  .sl-group h4 .ct{color:var(--txt-dim);font-weight:400;font-size:11px;margin-left:6px}
+  .sl-picks,.sl-similar{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px}
+  .sl-similar{margin-top:6px}
+  .sl-similar .lbl{display:block;color:var(--txt-dim);font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin:10px 0 6px;grid-column:1/-1}
+  .sl-card{display:flex;gap:10px;background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:8px;cursor:pointer;align-items:center}
+  .sl-card:hover{background:#2a3340;border-color:#3d4a5c}
+  .sl-img{width:80px;height:60px;background-size:cover;background-position:center;background-color:#0a0e13;border-radius:4px;flex-shrink:0}
+  .sl-meta{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+  .sl-meta .title{font-size:12px;font-weight:600;line-height:1.3}
+  .sl-meta .sub{font-size:11px;color:var(--txt-dim)}
+  .sl-meta .why{font-size:10px;color:#9fd96d;line-height:1.4}
+  .sl-meta .btn{font-size:10px;padding:2px 6px;align-self:flex-start}
+  .gallery .counter{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;font-size:11px;padding:2px 10px;border-radius:99px;z-index:2}
+  /* Mobile (≤900px) — already had basic stack; expand it */
+  @media(max-width:900px){
+    main{grid-template-columns:1fr;grid-template-rows:45vh 1fr}
+    .panel{border-left:0;border-top:1px solid var(--border)}
+    header{padding:8px 10px;gap:8px}
+    h1{font-size:14px}
+    .stats{margin-left:0;width:100%;gap:5px}
+    .chip{padding:3px 8px;font-size:11px}
+    .controls{padding:6px 10px;gap:10px;overflow-x:auto;flex-wrap:nowrap;white-space:nowrap}
+    .controls::-webkit-scrollbar{height:4px}
+    .control{flex-shrink:0}
+    .control input[type=range]{width:90px}
+    .control input[type=number]{width:60px}
+    .panel{overflow:auto}
+    table{font-size:11px}
+    thead th,tbody td{padding:5px 4px}
+    /* hide less-critical columns on phones */
+    thead th[data-k=ac],tbody td:nth-child(5),
+    thead th[data-k=upm],tbody td:nth-child(6),
+    thead th[data-k=v],tbody td:nth-child(8),
+    thead th[data-k=ski_km],tbody td:nth-child(9){display:none}
+    .insights{width:88%}
+    .detail-modal{max-height:94vh}
+    .gallery{height:200px}
+    #detailMap{height:130px}
+    .detail-grid{grid-template-columns:1fr;gap:4px}
+    footer{padding:6px 10px;font-size:10px;gap:8px}
+    footer .right{margin-left:0;width:100%;justify-content:flex-start}
+  }
+  /* Phones (≤500px) — fully stack */
+  @media(max-width:500px){
+    main{grid-template-rows:38vh 1fr}
+    h1{font-size:13px}
+    .stats .chip{padding:2px 6px;font-size:10px}
+    .stats .chip .dot{width:6px;height:6px;margin-right:3px}
+    /* drop more columns */
+    thead th[data-k=rg],tbody td:nth-child(3){max-width:120px;overflow:hidden;text-overflow:ellipsis}
+    thead th[data-k=a],tbody td:nth-child(4){display:none}
+    .detail-body{padding:14px 14px}
+    .gallery{height:170px}
+    .gallery .nav{width:30px;height:30px;font-size:15px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>🌊 Coastal Land & 🏙 BKK Penthouses</h1>
+  <div class="stats" id="stats"></div>
+  <span class="chip" id="slChip" style="display:none;background:#2a3340;color:#ffd166;border-color:#ffd166;cursor:pointer" title="Open shortlist">★ 0</span>
+</header>
+<div class="controls">
+  <div class="control"><label>Type</label><select id="type"><option value="all">all</option><option value="land">land</option><option value="penthouse">penthouse</option><option value="apartment">apt w/ pool</option><option value="abandoned_ski">❄ abandoned ski</option></select></div>
+  <div class="control"><label>Rating ≥</label><input type="range" id="minR" min="0" max="100" value="0" step="1"><input type="number" id="minRn" min="0" max="100" value="0" step="1"></div>
+  <div class="control"><label>$/m² ≤</label><input type="range" id="maxU" min="0" max="10000" value="10000" step="50"><input type="number" id="maxUn" min="0" value="10000" step="50"></div>
+  <div class="control"><label>Max $</label><select id="maxUsd"><option value="">any</option><option value="100000">≤ $100k</option><option value="250000">≤ $250k</option><option value="500000">≤ $500k</option><option value="1000000">≤ $1M</option><option value="2500000">≤ $2.5M (personal)</option><option value="10000000">≤ $10M</option></select></div>
+  <div class="control"><label>Acres</label><input type="number" id="minA" placeholder="min" step="0.1"> – <input type="number" id="maxA" placeholder="max" step="0.1"></div>
+  <div class="control"><label>Min size</label><select id="minAQuick"><option value="">any</option><option value="0.25">≥ 0.25 ac (building lot)</option><option value="1">≥ 1 ac</option><option value="5">≥ 5 ac</option><option value="10">≥ 10 ac (rope-tow)</option><option value="20">≥ 20 ac</option><option value="40">≥ 40 ac (homestead)</option><option value="100">≥ 100 ac</option><option value="hide_blank">hide unknown size</option></select></div>
+  <div class="control"><label>View</label><select id="view"><option value="">any</option><option>beachfront</option><option>sea_visible</option><option>coastal</option><option value="city/sky">city/sky</option><option>river</option></select></div>
+  <div class="control"><label><input type="checkbox" id="distressedOnly"> 💎 Distressed only</label></div>
+  <div class="control"><label><input type="checkbox" id="verifiedOnly"> ✓ Verified view only</label></div>
+  <div class="control"><label>Ski</label><select id="ski"><option value="">any</option><option value="0.5">ski-in/out (≤0.5km)</option><option value="2">≤2 km</option><option value="10">≤10 km</option><option value="30">≤30 km</option><option value="rope">rope-tow potential</option></select></div>
+  <div class="control"><label><input type="checkbox" id="terraceOnly"> 🏔 Terrance zone only</label></div>
+  <div class="control"><label>Sort</label><select id="sort"><option value="r">rating</option><option value="upm">$/m²</option><option value="ac">acres</option><option value="usd">price USD</option></select></div>
+  <button class="btn" id="toggleInsights">Insights ▸</button>
+</div>
+<main>
+  <div id="map"></div>
+  <div class="panel">
+    <table id="tbl"><thead><tr><th data-k="r" class="sorted">★</th><th data-k="cf">country</th><th data-k="rg">region</th><th data-k="a">area</th><th data-k="ac">acres</th><th data-k="upm">$/m²</th><th data-k="usd">price USD</th><th data-k="v">view</th><th data-k="ski_km">⛷ km</th><th>link</th><th></th></tr></thead><tbody id="tbody"></tbody></table>
+    <div class="insights" id="insights">
+      <h3>📊 Patterns from your archives</h3>
+      <div id="insightsBody"><p style="color:var(--txt-dim);font-size:12px">Archive listings (with a reason) to start training the model. Patterns will appear here as you accumulate signals.</p></div>
+    </div>
+  </div>
+</main>
+<footer>
+  <span id="count">…</span>
+  <span>map: 732 with coords (TH/NZ/BC); table: all 2,274</span>
+  <span class="right">
+    <label style="cursor:pointer"><input type="checkbox" id="showArch"> show archived (<span id="archN">0</span>)</label>
+    <button class="btn" id="exportBtn">⬇ export archives</button>
+    <button class="btn" id="importBtn">⬆ import</button>
+    <input type="file" id="importFile" accept=".json" style="display:none">
+  </span>
+</footer>
+
+<!-- Detail popover -->
+<div class="modal-bg" id="detailBg">
+  <div class="modal detail-modal">
+    <div class="detail-img placeholder" id="detailImg"></div>
+    <div class="detail-body" id="detailBody"></div>
+  </div>
+</div>
+
+<!-- Archive modal -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3>Archive listing</h3>
+    <div class="info" id="modalInfo"></div>
+    <span class="lbl">Quick tags (multi-select)</span>
+    <div class="tags" id="tagBox">
+      <span class="tag" data-tag="no view">no view</span>
+      <span class="tag" data-tag="gas station view">gas station view</span>
+      <span class="tag" data-tag="too remote">too remote</span>
+      <span class="tag" data-tag="ferry required">ferry required</span>
+      <span class="tag" data-tag="too expensive">too expensive</span>
+      <span class="tag" data-tag="wrong size">wrong size</span>
+      <span class="tag" data-tag="climate">climate</span>
+      <span class="tag" data-tag="title concern">title concern</span>
+      <span class="tag" data-tag="green-zone restriction">green-zone restriction</span>
+      <span class="tag" data-tag="bumi/Malay-reserved">bumi/Malay-reserved</span>
+      <span class="tag" data-tag="not buildable">not buildable</span>
+      <span class="tag" data-tag="data error">data error</span>
+    </div>
+    <span class="lbl">Reason / note</span>
+    <textarea id="reason" placeholder="optional free-text — anything the tags don't capture"></textarea>
+    <div class="row">
+      <button class="btn" id="cancelArch">Cancel</button>
+      <button class="btn primary" id="saveArch">Archive</button>
+    </div>
+  </div>
+</div>
+
+<!-- Promote / Shortlist modal -->
+<div class="modal-bg" id="promoteBg">
+  <div class="modal">
+    <h3>★ Promote to shortlist</h3>
+    <div class="info" id="promoteInfo"></div>
+    <span class="lbl">Reasons (multi-select — drives the "similar plots" search)</span>
+    <div class="tags" id="promoteTagBox">
+      <span class="tag" data-tag="ocean view">ocean view</span>
+      <span class="tag" data-tag="mountain view">mountain view</span>
+      <span class="tag" data-tag="good road access">good road access</span>
+      <span class="tag" data-tag="near power">near power</span>
+      <span class="tag" data-tag="good size">good size</span>
+      <span class="tag" data-tag="good price">good price</span>
+      <span class="tag" data-tag="good title">good title</span>
+      <span class="tag" data-tag="near airport">near airport</span>
+      <span class="tag" data-tag="near coast">near coast</span>
+      <span class="tag" data-tag="buildable">buildable</span>
+      <span class="tag" data-tag="rural / private">rural / private</span>
+      <span class="tag" data-tag="climate-resilient">climate-resilient</span>
+    </div>
+    <span class="lbl">Note (optional)</span>
+    <textarea id="promoteReason" placeholder="anything the tags don't capture"></textarea>
+    <div class="row">
+      <button class="btn" id="cancelPromote">Cancel</button>
+      <button class="btn primary" id="savePromote">Save to shortlist</button>
+    </div>
+  </div>
+</div>
+
+<!-- Shortlist viewer -->
+<div class="modal-bg" id="shortlistBg">
+  <div class="modal" style="max-width:1100px;width:95%;max-height:90vh;overflow:auto">
+    <h3 style="display:flex;align-items:center;gap:8px">★ Shortlist
+      <span style="color:var(--txt-dim);font-weight:400;font-size:13px" id="shortlistCount"></span>
+      <button class="close" id="shortlistClose" style="margin-left:auto">×</button>
+    </h3>
+    <div id="shortlistBody"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script>
+(async function(){
+  const loadingEl = document.createElement('div');
+  loadingEl.id = '_loadmsg';
+  loadingEl.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font:14px system-ui;color:#9aa3b2;z-index:9999';
+  loadingEl.textContent = 'Loading listings…';
+  document.body.appendChild(loadingEl);
+  let DATA;
+  try {
+    const resp = await fetch('listings.json', {cache:'no-cache'});
+    DATA = await resp.json();
+  } catch (e) {
+    loadingEl.textContent = 'Failed to load listings.json: ' + e.message;
+    return;
+  }
+  loadingEl.remove();
+  const COLORS = {Thailand:'#ff6b6b','New Zealand':'#7ce38b','British Columbia':'#4fa3ff',Canada:'#ff8fb1',Malaysia:'#ffd166',Japan:'#c084fc'};
+  const ALL_COUNTRIES = ['Thailand','New Zealand','British Columbia','Canada','Malaysia','Japan'];
+  const LS_KEY = 'archives_v1';
+
+  // ---- archives (localStorage) ----
+  function loadArchives(){
+    try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); }
+    catch(e){ return {}; }
+  }
+  function saveArchives(a){ localStorage.setItem(LS_KEY, JSON.stringify(a)); }
+  let archives = loadArchives();
+
+  const state = {
+    countries: new Set(ALL_COUNTRIES),
+    type: 'all', distressedOnly: false, verifiedOnly: false, terraceOnly: false,
+    minR: 0, maxU: 10000, maxUsd: null, minA: null, maxA: null, minAQuick: '', view: '', ski: '',
+    sortKey: 'r', sortAsc: false, showArchived: false
+  };
+
+  // ---- header chips ----
+  const stats = document.getElementById('stats');
+  ALL_COUNTRIES.forEach(c=>{
+    const n=DATA.filter(r=>r.cf===c).length;
+    const chip=document.createElement('span');
+    chip.className='chip on'; chip.dataset.cs=c.slice(0,2);
+    chip.innerHTML=`<span class="dot" style="background:${COLORS[c]}"></span>${c} ${n}`;
+    chip.onclick=()=>{
+      if(state.countries.has(c)){state.countries.delete(c);chip.classList.remove('on');}
+      else{state.countries.add(c);chip.classList.add('on');}
+      render();
+    };
+    stats.appendChild(chip);
+  });
+
+  // ---- controls wiring ----
+  function bindRange(rangeId, numId, key){
+    const r=document.getElementById(rangeId), n=document.getElementById(numId);
+    r.oninput=()=>{n.value=r.value;state[key]=+r.value;render();};
+    n.oninput=()=>{r.value=n.value;state[key]=+n.value;render();};
+  }
+  bindRange('minR','minRn','minR');
+  bindRange('maxU','maxUn','maxU');
+  document.getElementById('minA').oninput=e=>{state.minA=e.target.value?+e.target.value:null;render();};
+  document.getElementById('maxA').oninput=e=>{state.maxA=e.target.value?+e.target.value:null;render();};
+  document.getElementById('minAQuick').onchange=e=>{state.minAQuick=e.target.value;render();};
+  document.getElementById('view').onchange=e=>{state.view=e.target.value;render();};
+  document.getElementById('ski').onchange=e=>{state.ski=e.target.value;render();};
+  document.getElementById('maxUsd').onchange=e=>{state.maxUsd=e.target.value?+e.target.value:null;render();};
+  document.getElementById('terraceOnly').onchange=e=>{state.terraceOnly=e.target.checked;render();};
+  document.getElementById('type').onchange=e=>{state.type=e.target.value;render();};
+  document.getElementById('distressedOnly').onchange=e=>{state.distressedOnly=e.target.checked;render();};
+  document.getElementById('verifiedOnly').onchange=e=>{state.verifiedOnly=e.target.checked;render();};
+  document.getElementById('sort').onchange=e=>{state.sortKey=e.target.value;state.sortAsc=false;render();};
+  document.getElementById('showArch').onchange=e=>{state.showArchived=e.target.checked;render();};
+
+  // table header sort
+  document.querySelectorAll('thead th[data-k]').forEach(th=>{
+    th.onclick=()=>{ const k=th.dataset.k;
+      if(state.sortKey===k) state.sortAsc=!state.sortAsc; else {state.sortKey=k;state.sortAsc=false;}
+      render(); };
+  });
+
+  // ---- map ----
+  const map = L.map('map',{worldCopyJump:true}).setView([20,100],3);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO', maxZoom:19, subdomains:'abcd'}).addTo(map);
+  const cluster = L.markerClusterGroup({maxClusterRadius:40, chunkedLoading:true});
+  map.addLayer(cluster);
+
+  function filt(rows){
+    return rows.filter(r=>{
+      const tp = r.tp || 'land';
+      if(state.type !== 'all' && tp !== state.type) return false;
+      if(state.distressedOnly && !r.distressed) return false;
+      if(state.verifiedOnly && !r.view_verified) return false;
+      if(!state.countries.has(r.cf)) return false;
+      if(r.r < state.minR) return false;
+      if(r.upm > state.maxU) return false;
+      if(state.maxUsd != null && (r.usd||0) > state.maxUsd) return false;
+      // acres range applies only to land (penthouses have ac=0)
+      if(tp === 'land'){
+        if(state.minA!=null && r.ac < state.minA) return false;
+        if(state.maxA!=null && r.ac > state.maxA) return false;
+      }
+      // min-size quick filter applies to every type — it's how the user says
+      // "no tiny ski-town lots / no apartments / show me real acreage".
+      if(state.minAQuick){
+        if(state.minAQuick === 'hide_blank'){
+          if(!r.ac || r.ac <= 0) return false;
+        } else {
+          const min = parseFloat(state.minAQuick);
+          if((r.ac||0) < min) return false;
+        }
+      }
+      if(state.view && r.v !== state.view) return false;
+      if(state.ski){
+        if(state.ski === 'rope'){
+          if((r.ac||0) < 5 || r.ski_km == null || r.ski_km > 30) return false;
+        } else {
+          const max = parseFloat(state.ski);
+          if(r.ski_km == null || r.ski_km > max) return false;
+        }
+      }
+      if(state.terraceOnly && !r.terrace_zone) return false;
+      if(!state.showArchived && archives[r.u]) return false;
+      return true;
+    });
+  }
+  function sortRows(rows){
+    const k=state.sortKey, dir=state.sortAsc?1:-1;
+    return rows.slice().sort((a,b)=>{
+      const av=a[k], bv=b[k];
+      if(av==null && bv==null) return 0;
+      if(av==null) return 1;
+      if(bv==null) return -1;
+      if(typeof av==='string') return av.localeCompare(bv)*dir;
+      return (av-bv)*dir;
+    });
+  }
+  function fmtUsd(n){ return '$'+(n||0).toLocaleString(); }
+  function ratingClass(r){ if(r>=90) return 's90'; if(r>=80) return 's80'; if(r>=70) return 's70'; if(r>=60) return 's60'; return ''; }
+
+  // ---- pattern learning: derive flags from archives ----
+  function computeFlags(){
+    // count tags per region
+    const regionTags = {};      // {region: {tag: count}}
+    const regionTotal = {};     // {region: total archived}
+    Object.entries(archives).forEach(([u,a])=>{
+      const r = DATA.find(x=>x.u===u);
+      if(!r) return;
+      const key = `${r.cf}|${r.rg}`;
+      regionTotal[key] = (regionTotal[key]||0)+1;
+      (a.tags||[]).forEach(t=>{
+        regionTags[key] = regionTags[key]||{};
+        regionTags[key][t] = (regionTags[key][t]||0)+1;
+      });
+    });
+    // a region's tag "sticks" once it appears 2+ times → flag remaining listings in that region with that tag
+    const flags = {}; // {url: ['tag x N',...]}
+    DATA.forEach(r=>{
+      const key = `${r.cf}|${r.rg}`;
+      const tt = regionTags[key];
+      if(!tt) return;
+      Object.entries(tt).forEach(([tag,n])=>{
+        if(n>=2 && !archives[r.u]){
+          flags[r.u] = flags[r.u]||[];
+          flags[r.u].push(`${tag}×${n} in region`);
+        }
+      });
+    });
+    return {regionTags, regionTotal, flags};
+  }
+
+  const tbody=document.getElementById('tbody');
+  const counter=document.getElementById('count');
+  const archN=document.getElementById('archN');
+  let highlightUrl=null;
+  let activeFlags={};
+
+  function render(){
+    const {regionTags, regionTotal, flags} = computeFlags();
+    activeFlags = flags;
+    archN.textContent = Object.keys(archives).length;
+
+    const all = filt(DATA);
+    counter.textContent = `${all.length} listings · ${all.filter(r=>r.lat).length} on map · top rating ${(all.length?Math.max(...all.map(r=>r.r)).toFixed(1):'—')} · ${Object.keys(flags).length} flagged by archive patterns`;
+
+    // markers
+    cluster.clearLayers();
+    const markers=[];
+    all.filter(r=>r.lat).forEach(r=>{
+      const isAbandoned = r.tp==='abandoned_ski';
+      const color = isAbandoned ? '#9aa3b2' : (COLORS[r.cf]||'#999');
+      const isFlagged = !!flags[r.u];
+      const size = Math.max(6, Math.min(16, 4+r.r/8));
+      let m;
+      if(isAbandoned){
+        // Distinct snowflake-style marker for abandoned ski resorts
+        const icon = L.divIcon({
+          html:`<div style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#2a3340;border:2px solid #9aa3b2;color:#9aa3b2;font-size:14px;font-weight:700">❄</div>`,
+          className:'abandoned-ski-marker', iconSize:[22,22], iconAnchor:[11,11]
+        });
+        m = L.marker([r.lat,r.lon], {icon});
+      } else {
+        m = L.circleMarker([r.lat,r.lon],{radius:size,color:isFlagged?'#ffb86c':'#fff',weight:isFlagged?2:1,fillColor:color,fillOpacity:.85});
+      }
+      const flagHtml = isFlagged ? `<div class="lp-k" style="color:#c47800">⚠ ${flags[r.u].join(', ')}</div>` : '';
+      if(isAbandoned){
+        m.bindPopup(`<div class="lp-r" style="color:${color}">❄ ${r.r}</div>
+          <div><b>${r.a}</b></div>
+          <div>${r.rg}, Japan · ${r.closure_status||'unknown'}${r.year_closed?' '+r.year_closed:''}</div>
+          <div class="lp-k">geo: ${r.geocode_src||'?'}</div>
+          <div style="margin-top:6px;display:flex;gap:6px"><button onclick="window.__detail('${r.u.replace(/'/g,'%27')}')">details</button>${r.wiki_jp?`<a href="${r.wiki_jp}" target="_blank">wiki →</a>`:''}</div>`);
+      } else {
+        m.bindPopup(`<div class="lp-r" style="color:${color}">★ ${r.r}</div>
+          <div><b>${r.cf}</b> — ${r.rg} ${r.a}</div>
+          <div>${r.ac} acres (${r.m2.toLocaleString()} m²) · ${r.v||'-'}</div>
+          <div>${fmtUsd(r.usd)} · <b>$${r.upm}/m²</b></div>
+          <div class="lp-k">${r.t||''} · ${r.rb||''}</div>
+          ${flagHtml}
+          <div style="margin-top:6px;display:flex;gap:6px"><button onclick="window.__detail('${r.u.replace(/'/g,'%27')}')">details</button><a href="${r.u}" target="_blank">listing →</a></div>`);
+      }
+      m.on('click',()=>{highlightUrl=r.u;renderTable(all);openDetail(r);});
+      markers.push(m);
+    });
+    cluster.addLayers(markers);
+
+    renderTable(all);
+    renderInsights(regionTags);
+  }
+
+  function renderTable(all){
+    const rows = sortRows(all).slice(0, 600);
+    const html = rows.map(r=>{
+      const color=COLORS[r.cf]||'#999';
+      const isArchived = !!archives[r.u];
+      const isFlagged = !!activeFlags[r.u];
+      const cls = (highlightUrl===r.u?'hi ':'') + (isArchived?'archived ':'') + (isFlagged && !isArchived?'flagged ':'');
+      const flagBadge = isFlagged ? `<span class="flag" title="${activeFlags[r.u].join(', ')}">⚠</span>` : '';
+      return `<tr class="${cls}" data-u="${r.u}">
+        <td class="r ${ratingClass(r.r)}">${r.r}${flagBadge}</td>
+        <td><span class="dot" style="background:${color}"></span>${r.cf.replace('British Columbia','BC').replace('New Zealand','NZ')}</td>
+        <td>${r.rg}</td><td>${r.a}</td>
+        <td>${r.tp==='abandoned_ski'?'':r.ac}</td><td>${r.tp==='abandoned_ski'?'':r.upm}</td><td>${r.tp==='abandoned_ski'?(r.closure_status==='closed'?'❄ closed':r.closure_status==='suspended'?'❄ susp':r.closure_status==='on hiatus'?'❄ hiatus':'❄'):fmtUsd(r.usd)}</td>
+        <td>${r.tp==='abandoned_ski'?(r.year_closed?'cl. '+r.year_closed:''):r.v||''}</td>
+        <td title="${r.ski_r||''}">${r.ski_km!=null ? r.ski_km : ''}</td>
+        <td><a href="${r.u}" target="_blank">→</a></td>
+        <td>${isArchived ? `<button class="arch-btn" data-unarch="${encodeURIComponent(r.u)}" title="restore">↺</button>` : `<button class="arch-btn" data-arch="${encodeURIComponent(r.u)}" title="archive">✕</button>`}</td>
+      </tr>`;
+    }).join('');
+    tbody.innerHTML = html || '<tr><td colspan="10" style="padding:20px;text-align:center;color:#666">no matches — loosen filters or check "show archived"</td></tr>';
+
+    document.querySelectorAll('thead th[data-k]').forEach(th=>{
+      th.classList.remove('sorted','asc');
+      if(th.dataset.k===state.sortKey){th.classList.add('sorted');if(state.sortAsc) th.classList.add('asc');}
+    });
+    tbody.querySelectorAll('tr').forEach(tr=>{
+      tr.onclick=(e)=>{
+        if(e.target.tagName==='BUTTON') return;          // archive/restore buttons
+        if(e.target.tagName==='A') return;                // explicit link arrow — let native behavior handle
+        const u=tr.dataset.u, r=DATA.find(x=>x.u===u);
+        highlightUrl=u;
+        if(r && r.lat){ map.flyTo([r.lat,r.lon],11,{duration:.6}); }
+        document.querySelectorAll('tbody tr').forEach(t=>t.classList.remove('hi'));
+        tr.classList.add('hi');
+        if(r) openDetail(r);
+      };
+    });
+    tbody.querySelectorAll('[data-arch]').forEach(b=>{
+      b.onclick=(e)=>{e.stopPropagation(); openArchive(decodeURIComponent(b.dataset.arch));};
+    });
+    tbody.querySelectorAll('[data-unarch]').forEach(b=>{
+      b.onclick=(e)=>{e.stopPropagation(); delete archives[decodeURIComponent(b.dataset.unarch)]; saveArchives(archives); render();};
+    });
+  }
+
+  // ---- detail popover ----
+  const detailBg=document.getElementById('detailBg');
+  const detailImg=document.getElementById('detailImg');
+  const detailBody=document.getElementById('detailBody');
+  function openDetail(r){
+    const color=COLORS[r.cf]||'#999';
+    // imgs[] is the multi-image gallery; r.img is the legacy single thumb. Merge & dedupe.
+    const gallery = Array.from(new Set([...(r.imgs||[]), r.img].filter(Boolean)));
+    if(gallery.length > 1){
+      detailImg.className = 'gallery';
+      detailImg.style.backgroundImage = '';
+      const slides = gallery.map((u,i)=>`<div class="slide${i===0?' on':''}" style="background-image:url('${u.replace(/'/g,"%27")}')"></div>`).join('');
+      const dots = gallery.map((_,i)=>`<span${i===0?' class="on"':''}></span>`).join('');
+      detailImg.innerHTML = slides
+        + `<button class="nav prev" aria-label="prev">‹</button>`
+        + `<button class="nav next" aria-label="next">›</button>`
+        + `<div class="counter">1 / ${gallery.length}</div>`
+        + `<div class="dots">${dots}</div>`;
+      let idx = 0;
+      const slidesEls = detailImg.querySelectorAll('.slide');
+      const dotsEls = detailImg.querySelectorAll('.dots span');
+      const counter = detailImg.querySelector('.counter');
+      const go = d=>{ slidesEls[idx].classList.remove('on'); dotsEls[idx].classList.remove('on');
+        idx=(idx+d+gallery.length)%gallery.length;
+        slidesEls[idx].classList.add('on'); dotsEls[idx].classList.add('on');
+        counter.textContent = `${idx+1} / ${gallery.length}`; };
+      detailImg.querySelector('.prev').onclick = e=>{e.stopPropagation();go(-1)};
+      detailImg.querySelector('.next').onclick = e=>{e.stopPropagation();go(1)};
+      // Arrow-key navigation while the detail popover is open
+      if (window._galleryKeyHandler) document.removeEventListener('keydown', window._galleryKeyHandler);
+      window._galleryKeyHandler = e=>{
+        if (!detailBg.classList.contains('show')) return;
+        if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
+        else if (e.key === 'ArrowRight') { e.preventDefault(); go(1); }
+        else if (e.key === 'Escape') { detailBg.classList.remove('show'); }
+      };
+      document.addEventListener('keydown', window._galleryKeyHandler);
+    } else if(gallery.length === 1){
+      detailImg.className='detail-img'; detailImg.style.backgroundImage=`url("${gallery[0]}")`; detailImg.innerHTML='';
+    } else {
+      detailImg.className='detail-img placeholder'; detailImg.style.backgroundImage='';
+      detailImg.innerHTML=`<div>No image available — open listing for photos</div>`;
+    }
+    detailImg.insertAdjacentHTML('beforeend',`<span class="badge" style="border-left:3px solid ${color};padding-left:8px">${r.cf}</span><button class="close" id="detailClose">×</button>`);
+    const flag = activeFlags && activeFlags[r.u] ? `<div class="detail-flag">⚠ Auto-flag: ${activeFlags[r.u].join(', ')}</div>` : '';
+    const arch = archives[r.u] ? `<div class="detail-arch-info">📦 Archived${archives[r.u].tags && archives[r.u].tags.length?': '+archives[r.u].tags.join(', '):''}${archives[r.u].reason?' — "'+archives[r.u].reason+'"':''}</div>` : '';
+    const ratingC = ratingClass(r.r);
+    detailBody.innerHTML = `
+      <div class="detail-rating ${ratingC}" style="color:${ratingC==='s90'?'#7ce38b':ratingC==='s80'?'#9fd96d':ratingC==='s70'?'#d9e57c':ratingC==='s60'?'#e5b87c':'#fff'}">★ ${r.r}<span class="rb">${r.rb||''}</span></div>
+      <h3>${r.rg} ${r.a?' · '+r.a:''}</h3>
+      <div class="sub">${r.v||'no view'}${r.view_verified===true?' <span style="color:#7ce38b">✓ verified</span>':r.view_verified===false?' <span style="color:#ff8080">✗ unverified</span>':''} · ${r.t||'title unspecified'} · src: ${r.cur||''}</div>
+      ${flag}${arch}
+      ${r.structural_warn?`<div class="detail-flag" style="background:#3a2a10;color:#ffb060;border-color:#7a5020">⚠ Structural concern: ${r.structural_warn}</div>`:''}
+      ${r.size_mismatch?`<div class="detail-flag" style="background:#2a2010;color:#ffd060;border-color:#6a5020">⚠ Listing size vs official parcel: ${r.size_mismatch}× — verify which parcels the sale covers</div>`:''}
+      ${r.npa?`<div class="detail-flag" style="background:#3a1a1a;color:#ff9090;border-color:#702030">🏦 NPA / Bank repossession (BAM) — disposal sale</div>`:(r.distressed?`<div class="detail-flag" style="background:#2a1a3a;color:#d49aff;border-color:#5a3070">💎 Distressed: bottom-quartile $/m² in ${r.rg}</div>`:'')}
+      ${r.tp==='penthouse' && (r.pool||r.fullfloor||r.duplex||r.floor)?`<div class="sub" style="margin-bottom:10px">${[r.pool?'🏊 private pool/jacuzzi':null, r.fullfloor?'🏢 full floor':null, r.duplex?'🏛 duplex':null, r.floor?'floor '+r.floor:null].filter(Boolean).join(' · ')}</div>`:''}
+      <div class="detail-grid">
+        ${r.tp==='abandoned_ski' ? `
+          <div><div class="k">status</div><div class="v"><b style="color:${r.closure_status==='closed'?'#ff8080':r.closure_status==='suspended'?'#ffd166':'#9aa3b2'}">❄ ${r.closure_status||'unknown'}</b></div></div>
+          ${r.year_closed?`<div><div class="k">year closed</div><div class="v">${r.year_closed} (${new Date().getFullYear()-r.year_closed} yrs ago)</div></div>`:''}
+          <div><div class="k">geocode source</div><div class="v" style="font-size:11px">${r.geocode_src==='wiki'?'wikipedia ✓':r.geocode_src==='osm'?'OpenStreetMap ✓':r.geocode_src==='sub'?'sub-region centroid':'prefecture centroid (approx)'}</div></div>
+          ${r.wiki_jp?`<div><div class="k">wikipedia (ja)</div><div class="v"><a href="${r.wiki_jp}" target="_blank" style="color:#4fa3ff">view article →</a></div></div>`:''}
+        ` : `
+          <div><div class="k">size</div><div class="v">${r.tp==='penthouse'?r.m2.toLocaleString()+' m²':r.ac+' acres ('+r.m2.toLocaleString()+' m²)'}</div></div>
+          <div><div class="k">price</div><div class="v">${r.lp?(r.lp).toLocaleString()+' '+r.cur:''} ${r.cur!=='USD'?'· $'+r.usd.toLocaleString():''}</div></div>
+          <div><div class="k">$/m²</div><div class="v">$${r.upm}</div></div>
+          <div><div class="k">$/acre</div><div class="v">$${r.ac?Math.round(r.usd/r.ac).toLocaleString():'-'}</div></div>
+          ${r.cf==='Thailand' && r.ac ? `<div><div class="k">$/rai</div><div class="v">$${Math.round(r.usd/(r.ac/0.3954)).toLocaleString()}<span style="color:#9aa3b2"> · ${Math.round(r.ac/0.3954).toLocaleString()} rai · ฿${Math.round(r.usd*36).toLocaleString()} total</span></div></div>` : ''}
+        `}
+        ${r.el?`<div><div class="k">elevation</div><div class="v">${r.el} m</div></div>`:''}
+        ${r.apt_km!=null?`<div><div class="k">nearest airport</div><div class="v">${r.apt_km} km · ${r.apt}</div></div>`:''}
+        ${r.coast_km!=null?`<div><div class="k">coast distance</div><div class="v">${r.coast_km} km</div></div>`:''}
+        ${r.ski_km!=null?`<div><div class="k">⛷ nearest ski</div><div class="v">${r.ski_km} km · ${r.ski_r||''}${r.ski_km<=0.5?' · <b style="color:#9fd96d">ski-in/out</b>':r.ski_km<=2?' · <b style="color:#9fd96d">walk to lift</b>':''}</div></div>`:''}
+        ${r.terrace_zone?`<div><div class="k">🏔 Terrance zone</div><div class="v"><b style="color:#9fd96d">${r.terrace_zone}</b> · ${r.terrace_km} km · +${r.terrace_bonus} rating</div></div>`:''}
+        ${r.pid?`<div><div class="k">PID (title)</div><div class="v" style="font-family:monospace">${r.pid}</div></div>`:''}
+        ${r.plan?`<div><div class="k">plan number</div><div class="v" style="font-family:monospace">${r.plan}</div></div>`:''}
+        ${r.owner_type?`<div><div class="k">owner type</div><div class="v">${r.owner_type}</div></div>`:''}
+        ${r.official_acres?`<div><div class="k">official area</div><div class="v">${r.official_acres} ac (${r.official_m2.toLocaleString()} m²)</div></div>`:''}
+        ${r.lat?`<div><div class="k">coords</div><div class="v" style="font-family:monospace;font-size:11px">${r.lat}, ${r.lon}</div></div>`:''}
+      </div>
+      ${r.lat?`<div id="detailMap"></div>`:`<div id="detailMap" class="empty">no coordinates available</div>`}
+      <div class="detail-actions">
+        ${archives[r.u]
+          ? `<button class="btn" id="detailUnarch">↺ Restore from archive</button>`
+          : `<button class="btn" id="detailArch">✕ Archive (give reason)</button>`}
+        <button class="btn" id="detailPromote" style="${shortlist[r.u]?'border-color:#ffd166;color:#ffd166':''}">★ ${shortlist[r.u]?'Shortlisted (edit)':'Promote'}</button>
+        ${shortlist[r.u]?`<button class="btn" id="detailFindSimilar">Find similar →</button>`:''}
+        <a class="btn primary" href="${r.u}" target="_blank" rel="noopener">Open listing →</a>
+      </div>`;
+    document.getElementById('detailClose').onclick=()=>detailBg.classList.remove('show');
+    const ab=document.getElementById('detailArch'); if(ab) ab.onclick=()=>{ detailBg.classList.remove('show'); openArchive(r.u); };
+    const ub=document.getElementById('detailUnarch'); if(ub) ub.onclick=()=>{ delete archives[r.u]; saveArchives(archives); detailBg.classList.remove('show'); render(); };
+    const pb=document.getElementById('detailPromote'); if(pb) pb.onclick=()=>{ detailBg.classList.remove('show'); openPromote(r.u); };
+    const fs=document.getElementById('detailFindSimilar'); if(fs) fs.onclick=()=>{ detailBg.classList.remove('show'); openShortlistView(); };
+    detailBg.classList.add('show');
+    if(r.lat){
+      setTimeout(()=>{
+        const el=document.getElementById('detailMap');
+        if(!el || el._lm) return;
+        const m=L.map(el,{zoomControl:true,attributionControl:false,scrollWheelZoom:false}).setView([r.lat,r.lon],11);
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19}).addTo(m);
+        L.circleMarker([r.lat,r.lon],{radius:8,color:'#fff',weight:2,fillColor:color,fillOpacity:.9}).addTo(m);
+        el._lm=m;
+      },50);
+    }
+  }
+  detailBg.onclick=(e)=>{ if(e.target===detailBg) detailBg.classList.remove('show'); };
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ detailBg.classList.remove('show'); modalBg.classList.remove('show'); document.getElementById('promoteBg').classList.remove('show'); document.getElementById('shortlistBg').classList.remove('show'); }});
+
+  // ---- archive modal ----
+  const modalBg=document.getElementById('modalBg');
+  const modalInfo=document.getElementById('modalInfo');
+  const tagBox=document.getElementById('tagBox');
+  const reasonInp=document.getElementById('reason');
+  let pendingUrl=null;
+  let pendingTags=new Set();
+  function openArchive(url){
+    const r=DATA.find(x=>x.u===url);
+    if(!r) return;
+    pendingUrl=url; pendingTags=new Set();
+    reasonInp.value='';
+    tagBox.querySelectorAll('.tag').forEach(t=>t.classList.remove('on'));
+    modalInfo.innerHTML=`<b>★ ${r.r}</b> · ${r.cf} · ${r.rg} ${r.a}<br>${r.ac} ac · $${r.upm}/m² · ${fmtUsd(r.usd)}<br><a href="${url}" target="_blank" style="color:#4fa3ff">view listing</a>`;
+    modalBg.classList.add('show');
+  }
+  window.__archive = openArchive; // expose for popup buttons
+  window.__detail = (u)=>{ const r=DATA.find(x=>x.u===decodeURIComponent(u.replace(/%27/g,"'"))); if(r) openDetail(r); };
+  tagBox.querySelectorAll('.tag').forEach(t=>{
+    t.onclick=()=>{
+      const tag=t.dataset.tag;
+      if(pendingTags.has(tag)){pendingTags.delete(tag);t.classList.remove('on');}
+      else{pendingTags.add(tag);t.classList.add('on');}
+    };
+  });
+  document.getElementById('cancelArch').onclick=()=>modalBg.classList.remove('show');
+  document.getElementById('saveArch').onclick=()=>{
+    if(!pendingUrl) return;
+    archives[pendingUrl]={tags:Array.from(pendingTags), reason:reasonInp.value.trim(), ts:Date.now()};
+    saveArchives(archives);
+    modalBg.classList.remove('show');
+    render();
+  };
+  modalBg.onclick=(e)=>{ if(e.target===modalBg) modalBg.classList.remove('show'); };
+
+  // ---- shortlist (localStorage) ----
+  const SL_KEY = 'shortlist_v1';
+  function loadShortlist(){ try { return JSON.parse(localStorage.getItem(SL_KEY) || '{}'); } catch(e){ return {}; } }
+  function saveShortlist(s){ localStorage.setItem(SL_KEY, JSON.stringify(s)); }
+  let shortlist = loadShortlist();
+
+  // promote modal
+  const promoteBg = document.getElementById('promoteBg');
+  const promoteInfo = document.getElementById('promoteInfo');
+  const promoteTagBox = document.getElementById('promoteTagBox');
+  const promoteReason = document.getElementById('promoteReason');
+  let pendingPromoteUrl = null;
+  let pendingPromoteTags = new Set();
+  function openPromote(url){
+    const r = DATA.find(x=>x.u===url); if(!r) return;
+    const existing = shortlist[url];
+    pendingPromoteUrl = url;
+    pendingPromoteTags = new Set(existing?.tags || []);
+    promoteReason.value = existing?.reason || '';
+    promoteTagBox.querySelectorAll('.tag').forEach(t=>{
+      t.classList.toggle('on', pendingPromoteTags.has(t.dataset.tag));
+    });
+    promoteInfo.innerHTML = `<b>★ ${r.r}</b> · ${r.cf} · ${r.rg} ${r.a||''}<br>${r.ac} ac · $${r.upm}/m² · ${fmtUsd(r.usd)}<br><a href="${url}" target="_blank" style="color:#4fa3ff">view listing</a>`;
+    promoteBg.classList.add('show');
+  }
+  window.__promote = openPromote;
+  promoteTagBox.querySelectorAll('.tag').forEach(t=>{
+    t.onclick=()=>{
+      const tag=t.dataset.tag;
+      if(pendingPromoteTags.has(tag)){pendingPromoteTags.delete(tag);t.classList.remove('on');}
+      else{pendingPromoteTags.add(tag);t.classList.add('on');}
+    };
+  });
+  document.getElementById('cancelPromote').onclick=()=>promoteBg.classList.remove('show');
+  document.getElementById('savePromote').onclick=()=>{
+    if(!pendingPromoteUrl) return;
+    shortlist[pendingPromoteUrl]={tags:Array.from(pendingPromoteTags), reason:promoteReason.value.trim(), ts:Date.now()};
+    saveShortlist(shortlist);
+    promoteBg.classList.remove('show');
+    refreshShortlistChip();
+    render();
+  };
+  promoteBg.onclick=(e)=>{ if(e.target===promoteBg) promoteBg.classList.remove('show'); };
+
+  // ---- similarity engine ----
+  function viewCat(v){
+    v=(v||'').toLowerCase();
+    if(v.includes('ocean')||v.includes('sea')||v.includes('coast')||v.includes('lake')) return 2;
+    if(v.includes('mountain')||v.includes('forest')||v.includes('valley')) return 1;
+    return 0;
+  }
+  function titleCat(t){ return (t||'').toLowerCase().split(/[\s/]+/)[0] || ''; }
+  function featureVec(r){
+    return {
+      cf:r.cf, rg:r.rg, tp:r.tp||'land',
+      view:viewCat(r.v), title:titleCat(r.t),
+      logUsd: r.usd>0 ? Math.log2(r.usd) : 0,
+      logAc:  r.ac>0  ? Math.log2(r.ac)  : 0,
+      aptKm: r.apt_km!=null ? +r.apt_km : null,
+    };
+  }
+  function centroid(rows){
+    const mode=arr=>{ const c={}; arr.forEach(v=>v!=null&&v!==''&&(c[v]=(c[v]||0)+1)); const e=Object.entries(c).sort((a,b)=>b[1]-a[1])[0]; return e?e[0]:null; };
+    const median=arr=>{ const s=arr.filter(v=>v!=null&&!isNaN(v)).sort((a,b)=>a-b); return s.length?s[Math.floor(s.length/2)]:0; };
+    const v=rows.map(featureVec);
+    return {
+      cf:mode(v.map(x=>x.cf)), rg:mode(v.map(x=>x.rg)), tp:mode(v.map(x=>x.tp)),
+      view:parseInt(mode(v.map(x=>x.view))||0),
+      title:mode(v.map(x=>x.title)),
+      logUsd:median(v.map(x=>x.logUsd)),
+      logAc: median(v.map(x=>x.logAc)),
+      aptKm: median(v.map(x=>x.aptKm).filter(v=>v!=null)),
+    };
+  }
+  function distance(a, ref){
+    let d=0; const why=[];
+    if(a.cf===ref.cf) why.push(`same country`); else d+=0.5;
+    if(a.cf===ref.cf && a.rg===ref.rg) why.push(`same region`);
+    if(a.tp===ref.tp) { if(a.tp!=='land') why.push(`same type (${a.tp})`); } else d+=0.25;
+    if(a.view===ref.view){ if(a.view>0) why.push(`${['','mountain','ocean'][a.view]} view`); }
+    else d+=0.15;
+    if(a.title && ref.title && a.title===ref.title) why.push(`same title (${a.title})`);
+    else if(ref.title) d+=0.08;
+    const dUsd=Math.abs(a.logUsd-ref.logUsd);
+    if(dUsd<0.3) why.push(`±${Math.round((Math.pow(2,dUsd)-1)*100)}% price`);
+    d+=Math.min(1,dUsd);
+    const dAc=Math.abs(a.logAc-ref.logAc);
+    if(dAc<0.5) why.push(`±${Math.round((Math.pow(2,dAc)-1)*100)}% size`);
+    d+=Math.min(1,dAc);
+    return {d, why};
+  }
+  function findSimilar(seedRows, k){
+    if(!seedRows.length) return [];
+    const ref=centroid(seedRows);
+    const seedUrls=new Set(seedRows.map(r=>r.u));
+    const scored=[];
+    for(const r of DATA){
+      if(seedUrls.has(r.u)) continue;
+      if(archives[r.u]) continue;
+      if(shortlist[r.u]) continue;
+      const f=featureVec(r);
+      const {d, why}=distance(f, ref);
+      scored.push({r, d, why});
+    }
+    scored.sort((a,b)=>a.d-b.d);
+    return scored.slice(0,k||12);
+  }
+
+  // ---- shortlist viewer ----
+  const shortlistBg=document.getElementById('shortlistBg');
+  const shortlistBody=document.getElementById('shortlistBody');
+  const shortlistCountEl=document.getElementById('shortlistCount');
+  function refreshShortlistChip(){
+    const n=Object.keys(shortlist).length;
+    const chip=document.getElementById('slChip');
+    if(chip){ chip.textContent=`★ ${n}`; chip.style.display=n?'':'none'; }
+  }
+  function slCard(r, isPick, why){
+    const img=(r.imgs && r.imgs[0]) || r.img || '';
+    const whyTxt=why && why.length ? `<div class="why">${why.join(' · ')}</div>` : '';
+    const action=isPick
+      ? `<button class="btn" data-unpromote="${encodeURIComponent(r.u)}">remove</button>`
+      : `<button class="btn primary" data-promote="${encodeURIComponent(r.u)}">+ shortlist</button>`;
+    return `<div class="sl-card" data-detail="${encodeURIComponent(r.u)}">
+      <div class="sl-img"${img?` style="background-image:url('${img.replace(/'/g,"%27")}')"`:''}></div>
+      <div class="sl-meta">
+        <div class="title">★${r.r} · ${r.cf.replace('British Columbia','BC').replace('New Zealand','NZ')} · ${r.rg||''}</div>
+        <div class="sub">${r.ac?r.ac+' ac · ':''}${fmtUsd(r.usd)}${r.t?' · '+r.t:''}</div>
+        ${whyTxt}${action}
+      </div>
+    </div>`;
+  }
+  function openShortlistView(){
+    const urls=Object.keys(shortlist);
+    shortlistCountEl.textContent = urls.length ? `· ${urls.length} listings` : '';
+    if(!urls.length){
+      shortlistBody.innerHTML='<p style="color:var(--txt-dim);padding:16px">Nothing on the shortlist yet. Click a listing → <b>★ Promote</b> to add it.</p>';
+      shortlistBg.classList.add('show'); return;
+    }
+    const groups={};
+    for(const u of urls){
+      const meta=shortlist[u];
+      const key=(meta.tags && meta.tags.length) ? meta.tags.slice().sort().join(' + ') : (meta.reason || 'untagged');
+      (groups[key]=groups[key]||[]).push(u);
+    }
+    const html=[];
+    for(const [name, gUrls] of Object.entries(groups)){
+      const gRows=gUrls.map(u=>DATA.find(r=>r.u===u)).filter(Boolean);
+      const similar=findSimilar(gRows, 12);
+      html.push(`<div class="sl-group">
+        <h4>${name} <span class="ct">${gRows.length} picked · ${similar.length} similar</span></h4>
+        <div class="sl-picks">${gRows.map(r=>slCard(r,true)).join('')}</div>
+        <div class="sl-similar">
+          <span class="lbl">Most similar (not yet shortlisted or archived)</span>
+          ${similar.map(({r,why})=>slCard(r,false,why)).join('')}
+        </div>
+      </div>`);
+    }
+    shortlistBody.innerHTML=html.join('');
+    shortlistBody.querySelectorAll('[data-detail]').forEach(el=>{
+      el.onclick=(e)=>{
+        if(e.target.tagName==='BUTTON') return;
+        shortlistBg.classList.remove('show');
+        const r=DATA.find(x=>x.u===decodeURIComponent(el.dataset.detail));
+        if(r) openDetail(r);
+      };
+    });
+    shortlistBody.querySelectorAll('[data-promote]').forEach(el=>{
+      el.onclick=(e)=>{ e.stopPropagation(); shortlistBg.classList.remove('show'); openPromote(decodeURIComponent(el.dataset.promote)); };
+    });
+    shortlistBody.querySelectorAll('[data-unpromote]').forEach(el=>{
+      el.onclick=(e)=>{ e.stopPropagation(); delete shortlist[decodeURIComponent(el.dataset.unpromote)]; saveShortlist(shortlist); refreshShortlistChip(); openShortlistView(); render(); };
+    });
+    shortlistBg.classList.add('show');
+  }
+  document.getElementById('shortlistClose').onclick=()=>shortlistBg.classList.remove('show');
+  shortlistBg.onclick=(e)=>{ if(e.target===shortlistBg) shortlistBg.classList.remove('show'); };
+  document.getElementById('slChip').onclick=()=>openShortlistView();
+  refreshShortlistChip();
+
+  // ---- insights drawer ----
+  const insights=document.getElementById('insights');
+  document.getElementById('toggleInsights').onclick=()=>{
+    insights.classList.toggle('show');
+    document.getElementById('toggleInsights').textContent = insights.classList.contains('show') ? 'Insights ◂' : 'Insights ▸';
+  };
+  function renderInsights(regionTags){
+    const body=document.getElementById('insightsBody');
+    const total=Object.keys(archives).length;
+    if(total===0){body.innerHTML='<p style="color:var(--txt-dim);font-size:12px">Archive listings to see patterns appear here.</p>';return;}
+    // global tag counts
+    const tagCounts={};
+    Object.values(archives).forEach(a=>(a.tags||[]).forEach(t=>{tagCounts[t]=(tagCounts[t]||0)+1;}));
+    const tagItems=Object.entries(tagCounts).sort((a,b)=>b[1]-a[1]).map(([t,n])=>`<div class="item"><span>${t}</span><span class="n">${n}</span></div>`).join('');
+    // region archive counts
+    const regionItems=Object.entries(regionTags).sort((a,b)=>Object.values(b[1]).reduce((s,n)=>s+n,0)-Object.values(a[1]).reduce((s,n)=>s+n,0))
+      .slice(0,8).map(([key,tags])=>{
+        const tagSummary=Object.entries(tags).sort((a,b)=>b[1]-a[1]).map(([t,n])=>`${t}×${n}`).join(', ');
+        return `<div class="item"><span>${key.replace('|',' / ')}</span><span class="n" title="${tagSummary}">${Object.values(tags).reduce((s,n)=>s+n,0)}</span></div>`;
+      }).join('');
+    body.innerHTML=`
+      <div class="group"><h4>Total archived: ${total}</h4></div>
+      <div class="group"><h4>Top reasons</h4>${tagItems||'<i>none</i>'}</div>
+      <div class="group"><h4>Regions you avoid</h4>${regionItems||'<i>none</i>'}</div>
+      <div class="group"><h4>Auto-flagged listings</h4><div style="font-size:12px;color:var(--txt-dim)">${Object.keys(activeFlags).length} listings carry a ⚠ flag because 2+ neighbors were archived with the same tag.</div></div>
+      <div class="group"><h4>How this trains the model</h4><div style="font-size:11px;color:var(--txt-dim)">Use "export archives" to save your reasons as JSON, then commit to <code>data/archives.json</code> in the repo. The weekly cron will read that file and apply a score penalty to new listings in flagged regions / matching tags — so next week's alerts auto-skip patterns you've already rejected.</div></div>`;
+  }
+
+  // ---- export / import ----
+  document.getElementById('exportBtn').onclick=()=>{
+    const out={schema:'archives_v1',exported:new Date().toISOString(),archives};
+    const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='archives.json';a.click();
+  };
+  document.getElementById('importBtn').onclick=()=>document.getElementById('importFile').click();
+  document.getElementById('importFile').onchange=e=>{
+    const f=e.target.files[0];if(!f)return;
+    const r=new FileReader();
+    r.onload=()=>{
+      try{
+        const d=JSON.parse(r.result);
+        const incoming=d.archives||d;
+        archives=Object.assign({},archives,incoming);
+        saveArchives(archives);render();
+      }catch(err){alert('invalid JSON: '+err);}
+    };
+    r.readAsText(f);
+  };
+
+  render();
+})();
+</script>
+</body>
+</html>
