@@ -191,6 +191,7 @@
   <div class="control"><label>Type</label><select id="type"><option value="all">all</option><option value="land">land</option><option value="penthouse">penthouse</option><option value="apartment">apt w/ pool</option><option value="abandoned_ski">❄ abandoned ski</option></select></div>
   <div class="control"><label>Rating ≥</label><input type="range" id="minR" min="0" max="100" value="0" step="1"><input type="number" id="minRn" min="0" max="100" value="0" step="1"></div>
   <div class="control"><label>$/m² ≤</label><input type="range" id="maxU" min="0" max="10000" value="10000" step="50"><input type="number" id="maxUn" min="0" value="10000" step="50"></div>
+  <div class="control"><label>Max $</label><select id="maxUsd"><option value="">any</option><option value="100000">≤ $100k</option><option value="250000">≤ $250k</option><option value="500000">≤ $500k</option><option value="1000000">≤ $1M</option><option value="2500000">≤ $2.5M (personal)</option><option value="10000000">≤ $10M</option></select></div>
   <div class="control"><label>Acres</label><input type="number" id="minA" placeholder="min" step="0.1"> – <input type="number" id="maxA" placeholder="max" step="0.1"></div>
   <div class="control"><label>Min size</label><select id="minAQuick"><option value="">any</option><option value="0.25">≥ 0.25 ac (building lot)</option><option value="1">≥ 1 ac</option><option value="5">≥ 5 ac</option><option value="10">≥ 10 ac (rope-tow)</option><option value="20">≥ 20 ac</option><option value="40">≥ 40 ac (homestead)</option><option value="100">≥ 100 ac</option><option value="hide_blank">hide unknown size</option></select></div>
   <div class="control"><label>View</label><select id="view"><option value="">any</option><option>beachfront</option><option>sea_visible</option><option>coastal</option><option value="city/sky">city/sky</option><option>river</option></select></div>
@@ -332,7 +333,7 @@
   const state = {
     countries: new Set(ALL_COUNTRIES),
     type: 'all', distressedOnly: false, verifiedOnly: false, terraceOnly: false,
-    minR: 0, maxU: 10000, minA: null, maxA: null, minAQuick: '', view: '', ski: '',
+    minR: 0, maxU: 10000, maxUsd: null, minA: null, maxA: null, minAQuick: '', view: '', ski: '',
     sortKey: 'r', sortAsc: false, showArchived: false
   };
 
@@ -364,6 +365,7 @@
   document.getElementById('minAQuick').onchange=e=>{state.minAQuick=e.target.value;render();};
   document.getElementById('view').onchange=e=>{state.view=e.target.value;render();};
   document.getElementById('ski').onchange=e=>{state.ski=e.target.value;render();};
+  document.getElementById('maxUsd').onchange=e=>{state.maxUsd=e.target.value?+e.target.value:null;render();};
   document.getElementById('terraceOnly').onchange=e=>{state.terraceOnly=e.target.checked;render();};
   document.getElementById('type').onchange=e=>{state.type=e.target.value;render();};
   document.getElementById('distressedOnly').onchange=e=>{state.distressedOnly=e.target.checked;render();};
@@ -393,6 +395,7 @@
       if(!state.countries.has(r.cf)) return false;
       if(r.r < state.minR) return false;
       if(r.upm > state.maxU) return false;
+      if(state.maxUsd != null && (r.usd||0) > state.maxUsd) return false;
       // acres range applies only to land (penthouses have ac=0)
       if(tp === 'land'){
         if(state.minA!=null && r.ac < state.minA) return false;
