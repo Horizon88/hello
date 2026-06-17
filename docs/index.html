@@ -637,6 +637,7 @@
           <div><div class="k">price</div><div class="v">${r.lp?(r.lp).toLocaleString()+' '+r.cur:''} ${r.cur!=='USD'?'· $'+r.usd.toLocaleString():''}</div></div>
           <div><div class="k">$/m²</div><div class="v">$${r.upm}</div></div>
           <div><div class="k">$/acre</div><div class="v">$${r.ac?Math.round(r.usd/r.ac).toLocaleString():'-'}</div></div>
+          ${r.cf==='Thailand' && r.ac ? `<div><div class="k">$/rai</div><div class="v">$${Math.round(r.usd/(r.ac/0.3954)).toLocaleString()}<span style="color:#9aa3b2"> · ${Math.round(r.ac/0.3954).toLocaleString()} rai · ฿${Math.round(r.usd*36).toLocaleString()} total</span></div></div>` : ''}
         `}
         ${r.el?`<div><div class="k">elevation</div><div class="v">${r.el} m</div></div>`:''}
         ${r.apt_km!=null?`<div><div class="k">nearest airport</div><div class="v">${r.apt_km} km · ${r.apt}</div></div>`:''}
