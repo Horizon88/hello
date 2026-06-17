@@ -199,6 +199,7 @@
   <div class="control"><label><input type="checkbox" id="verifiedOnly"> ✓ Verified view only</label></div>
   <div class="control"><label>Ski</label><select id="ski"><option value="">any</option><option value="0.5">ski-in/out (≤0.5km)</option><option value="2">≤2 km</option><option value="10">≤10 km</option><option value="30">≤30 km</option><option value="rope">rope-tow potential</option></select></div>
   <div class="control"><label><input type="checkbox" id="terraceOnly"> 🏔 Terrance zone only</label></div>
+  <div class="control"><label><input type="checkbox" id="foreignerOK"> 🛂 Foreigner-friendly only</label></div>
   <div class="control"><label>Sort</label><select id="sort"><option value="r">rating</option><option value="upm">$/m²</option><option value="ac">acres</option><option value="usd">price USD</option></select></div>
   <button class="btn" id="toggleInsights">Insights ▸</button>
 </div>
@@ -332,7 +333,7 @@
 
   const state = {
     countries: new Set(ALL_COUNTRIES),
-    type: 'all', distressedOnly: false, verifiedOnly: false, terraceOnly: false,
+    type: 'all', distressedOnly: false, verifiedOnly: false, terraceOnly: false, foreignerOK: false,
     minR: 0, maxU: 10000, maxUsd: null, minA: null, maxA: null, minAQuick: '', view: '', ski: '',
     sortKey: 'r', sortAsc: false, showArchived: false
   };
@@ -367,6 +368,7 @@
   document.getElementById('ski').onchange=e=>{state.ski=e.target.value;render();};
   document.getElementById('maxUsd').onchange=e=>{state.maxUsd=e.target.value?+e.target.value:null;render();};
   document.getElementById('terraceOnly').onchange=e=>{state.terraceOnly=e.target.checked;render();};
+  document.getElementById('foreignerOK').onchange=e=>{state.foreignerOK=e.target.checked;render();};
   document.getElementById('type').onchange=e=>{state.type=e.target.value;render();};
   document.getElementById('distressedOnly').onchange=e=>{state.distressedOnly=e.target.checked;render();};
   document.getElementById('verifiedOnly').onchange=e=>{state.verifiedOnly=e.target.checked;render();};
@@ -421,6 +423,7 @@
         }
       }
       if(state.terraceOnly && !r.terrace_zone) return false;
+      if(state.foreignerOK && (r.foreign_friction||0) < 0) return false;
       if(!state.showArchived && archives[r.u]) return false;
       return true;
     });
@@ -647,6 +650,7 @@
         ${r.coast_km!=null?`<div><div class="k">coast distance</div><div class="v">${r.coast_km} km</div></div>`:''}
         ${r.ski_km!=null?`<div><div class="k">⛷ nearest ski</div><div class="v">${r.ski_km} km · ${r.ski_r||''}${r.ski_km<=0.5?' · <b style="color:#9fd96d">ski-in/out</b>':r.ski_km<=2?' · <b style="color:#9fd96d">walk to lift</b>':''}</div></div>`:''}
         ${r.terrace_zone?`<div><div class="k">🏔 Terrance zone</div><div class="v"><b style="color:#9fd96d">${r.terrace_zone}</b> · ${r.terrace_km} km · +${r.terrace_bonus} rating</div></div>`:''}
+        ${r.foreign_note?`<div><div class="k">🛂 foreign ownership</div><div class="v" style="color:${r.foreign_friction<0?'#ff8080':r.foreign_friction>0?'#9fd96d':'#9aa3b2'}">${r.foreign_friction>0?'+':''}${r.foreign_friction||0} · ${r.foreign_note}</div></div>`:''}
         ${r.pid?`<div><div class="k">PID (title)</div><div class="v" style="font-family:monospace">${r.pid}</div></div>`:''}
         ${r.plan?`<div><div class="k">plan number</div><div class="v" style="font-family:monospace">${r.plan}</div></div>`:''}
         ${r.owner_type?`<div><div class="k">owner type</div><div class="v">${r.owner_type}</div></div>`:''}
