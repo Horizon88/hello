@@ -1,0 +1,23 @@
+{
+  "_about": "Regulatory items being tracked because they could affect the land we're looking at. Updated by scripts/watch_regulatory.py during the weekly scan; the UI surfaces 'last_checked' and 'status' on the home screen.",
+  "items": [
+    {
+      "id": "nz-conservation-amendment-2025",
+      "name": "Conservation Amendment Bill",
+      "jurisdiction": "New Zealand",
+      "issuer": "54th Parliament — Environment Select Committee",
+      "doc_id": "54SCENV_SCF_BD7D0F89-D8CB-42F7-9C5F-08DEABEDA048",
+      "type": "select committee submission",
+      "url": "https://www3.parliament.nz/en/pb/sc/make-a-submission/document/54SCENV_SCF_BD7D0F89-D8CB-42F7-9C5F-08DEABEDA048/conservation-amendment-bill",
+      "why_watching": "Amendments to NZ Conservation Act 1987 can shift DOC land boundaries, conservation concession rules, and what private parcels adjacent to public conservation land can do. Material for NZ rural / coastal listings.",
+      "affects": [
+        "New Zealand"
+      ],
+      "added": "2026-06-17",
+      "last_attempted": "2026-06-18T05:04:11.173171Z",
+      "last_status": "blocked",
+      "last_status_note": "http 200; bot-signature: radware — open the URL manually to check status",
+      "last_snapshot_sha": null
+    }
+  ]
+}

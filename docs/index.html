@@ -186,7 +186,18 @@
   <h1>🌊 Coastal Land & 🏙 BKK Penthouses</h1>
   <div class="stats" id="stats"></div>
   <span class="chip" id="slChip" style="display:none;background:#2a3340;color:#ffd166;border-color:#ffd166;cursor:pointer" title="Open shortlist">★ 0</span>
+  <span class="chip" id="regChip" style="display:none;cursor:pointer" title="Open regulatory watch">📜 Regulatory <span id="regCount">0</span></span>
 </header>
+
+<!-- Regulatory watch panel (hidden until chip clicked) -->
+<div id="regPanel" style="display:none;background:var(--panel);border-bottom:1px solid var(--border);padding:10px 16px;font-size:12px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+    <b>📜 Regulatory watch</b>
+    <span style="color:var(--txt-dim);font-size:11px">items that can move the value of listings in their jurisdiction</span>
+    <button class="btn" style="margin-left:auto;font-size:11px" onclick="document.getElementById('regPanel').style.display='none'">×</button>
+  </div>
+  <div id="regItems"></div>
+</div>
 <div class="controls">
   <div class="control"><label>Type</label><select id="type"><option value="all">all</option><option value="land">land</option><option value="penthouse">penthouse</option><option value="apartment">apt w/ pool</option><option value="abandoned_ski">❄ abandoned ski</option></select></div>
   <div class="control"><label>Rating ≥</label><input type="range" id="minR" min="0" max="100" value="0" step="1"><input type="number" id="minRn" min="0" max="100" value="0" step="1"></div>
@@ -900,6 +911,53 @@
   shortlistBg.onclick=(e)=>{ if(e.target===shortlistBg) shortlistBg.classList.remove('show'); };
   document.getElementById('slChip').onclick=()=>openShortlistView();
   refreshShortlistChip();
+
+  // ---- regulatory watch ----
+  async function loadRegulatoryWatch(){
+    try {
+      const r = await fetch('regulatory_watch.json', {cache:'no-cache'});
+      if(!r.ok) return;
+      const data = await r.json();
+      const items = data.items || [];
+      if(!items.length) return;
+      const chip = document.getElementById('regChip');
+      const count = document.getElementById('regCount');
+      chip.style.display = '';
+      count.textContent = items.length;
+      const sev = items.map(i => i.last_status);
+      let color = '#9aa3b2';
+      if(sev.includes('changed')) color = '#ffb86c';
+      else if(sev.every(s => s === 'ok')) color = '#7ce38b';
+      chip.style.background = '#2a3340';
+      chip.style.color = color;
+      chip.style.borderColor = color;
+      chip.onclick = ()=>{ const p = document.getElementById('regPanel');
+        p.style.display = p.style.display === 'none' ? '' : 'none'; };
+      const body = document.getElementById('regItems');
+      body.innerHTML = items.map(it => {
+        const statusColor = ({
+          ok: '#7ce38b', changed: '#ffb86c', blocked: '#9aa3b2',
+          network_error: '#ff8080', not_yet_checked: '#9aa3b2', no_url: '#ff8080',
+        })[it.last_status] || '#9aa3b2';
+        const checked = it.last_attempted ? new Date(it.last_attempted).toLocaleString() : 'never';
+        return `<div style="border:1px solid var(--border);border-radius:4px;padding:8px;margin-bottom:6px;background:var(--panel2)">
+          <div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap">
+            <b><a href="${it.url}" target="_blank" rel="noopener" style="color:#4fa3ff">${it.name}</a></b>
+            <span style="color:var(--txt-dim)">· ${it.jurisdiction}</span>
+            <span style="color:${statusColor};margin-left:auto">● ${it.last_status||'?'}</span>
+          </div>
+          <div style="color:var(--txt-dim);font-size:11px;margin-top:4px">
+            ${it.issuer ? it.issuer + ' · ' : ''}${it.type || ''}
+          </div>
+          ${it.why_watching ? `<div style="margin-top:6px;font-size:11px">${it.why_watching}</div>` : ''}
+          <div style="color:var(--txt-dim);font-size:11px;margin-top:6px">
+            last checked: ${checked}${it.last_status_note ? ' — ' + it.last_status_note : ''}
+          </div>
+        </div>`;
+      }).join('');
+    } catch(e){ console.error('regulatory_watch fetch failed', e); }
+  }
+  loadRegulatoryWatch();
 
   // ---- insights drawer ----
   const insights=document.getElementById('insights');
