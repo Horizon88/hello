@@ -23,6 +23,10 @@ jobs:
       - name: Run scanner
         run: python scripts/scan.py
 
+      - name: Regulatory watch — re-check tracked items
+        run: python scripts/watch_regulatory.py
+        continue-on-error: true   # blocked sites shouldn't fail the build
+
       - name: Open issues for new high-rated listings
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
