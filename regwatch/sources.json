@@ -1,0 +1,84 @@
+{
+  "_comment": "Official-source watch list for regwatch. Add/remove URLs freely. 'id' must be unique and filename-safe. 'strip' is an optional list of extra regexes (Python syntax) removed from page text before hashing, to suppress noisy/volatile content for that source.",
+  "areas": [
+    {
+      "area": "Canada passport",
+      "label": "canada-passport",
+      "sources": [
+        {
+          "id": "ca-passport-fees",
+          "title": "Canada passport — fees (overview)",
+          "url": "https://www.canada.ca/en/immigration-refugees-citizenship/services/canadian-passports/fees.html"
+        },
+        {
+          "id": "ca-passport-fee-changes",
+          "title": "Canada passport — fee changes",
+          "url": "https://www.canada.ca/en/immigration-refugees-citizenship/services/canadian-passports/fees/fee-changes-passport.html"
+        },
+        {
+          "id": "ca-passport-renew-adult",
+          "title": "Canada passport — renew an adult passport",
+          "url": "https://www.canada.ca/en/immigration-refugees-citizenship/services/canadian-passports/renew-adult-passport.html"
+        },
+        {
+          "id": "ca-passport-renew-eligibility",
+          "title": "Canada passport — who can renew",
+          "url": "https://www.canada.ca/en/immigration-refugees-citizenship/services/canadian-passports/renew-adult-passport/who-can-renew.html"
+        }
+      ]
+    },
+    {
+      "area": "Thailand LTR visa",
+      "label": "thai-ltr-visa",
+      "sources": [
+        {
+          "id": "th-ltr-home",
+          "title": "Thailand LTR visa — official BOI portal",
+          "url": "https://ltr.boi.go.th/"
+        },
+        {
+          "id": "th-ltr-required-documents",
+          "title": "Thailand LTR visa — required documents",
+          "url": "https://ltr.boi.go.th/page/required-documents.html"
+        },
+        {
+          "id": "th-ltr-laws-regulations",
+          "title": "Thailand LTR visa — laws & regulations",
+          "url": "https://ltr.boi.go.th/page/laws-regulations.html"
+        }
+      ]
+    },
+    {
+      "area": "BVI companies",
+      "label": "bvi-companies",
+      "sources": [
+        {
+          "id": "bvi-fees",
+          "title": "BVI FSC — fees",
+          "url": "https://www.bvifsc.vg/fees"
+        },
+        {
+          "id": "bvi-beneficial-ownership",
+          "title": "BVI FSC — beneficial ownership",
+          "url": "https://www.bvifsc.vg/beneficial-ownership"
+        },
+        {
+          "id": "bvi-industry-updates",
+          "title": "BVI FSC — industry updates (news)",
+          "url": "https://www.bvifsc.vg/news/industry-updates"
+        }
+      ]
+    },
+    {
+      "area": "Grenada passport (CBI)",
+      "label": "grenada-cbi",
+      "sources": [
+        {
+          "id": "gd-cbi-home",
+          "title": "Grenada Citizenship by Investment — official",
+          "url": "https://www.cbi.gov.gd/"
+        }
+      ]
+    }
+  ]
+}
