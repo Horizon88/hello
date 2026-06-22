@@ -57,9 +57,19 @@ def looks_blocked(html: str) -> str | None:
 
 
 def text_sha(html: str) -> str:
-    # Strip tags and normalize whitespace before hashing — small markup
-    # changes shouldn't trigger 'changed'.
-    text = re.sub(r"<[^>]+>", " ", html)
+    # Strip tags + normalize whitespace + redact common noise (timestamps,
+    # CSRF tokens, session IDs) so the SHA reflects content drift, not
+    # cosmetic re-renders. Without this, every government page that
+    # injects a 'last updated' timestamp would trigger 'changed' weekly.
+    text = re.sub(r"<script[\s\S]*?</script>", " ", html)
+    text = re.sub(r"<style[\s\S]*?</style>", " ", text)
+    text = re.sub(r"<[^>]+>", " ", text)
+    # Strip dates / times / numbers that look like ids
+    text = re.sub(r"\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}[:\d.Z+\-]*\b", " ", text)  # ISO timestamps
+    text = re.sub(r"\b\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\b", " ", text, flags=re.I)
+    text = re.sub(r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4}\b", " ", text)
+    text = re.sub(r"\b\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm)?\b", " ", text)
+    text = re.sub(r"\b[a-f0-9]{32,}\b", " ", text)   # md5/sha-ish tokens
     text = re.sub(r"\s+", " ", text).strip()
     return hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest()
 
@@ -96,6 +106,33 @@ def check_item(item: dict) -> dict:
             "last_status_note": "unchanged" if prior_sha else "first clean snapshot",
             "last_snapshot_sha": sha,
         })
+
+    # Also check any extra_sources — newly-appearing article IDs in a search-
+    # results page count as a 'changed' signal. Useful for tracking ongoing
+    # campaigns (e.g. Thai nominee crackdown) where the canonical URL is a
+    # search query that returns new news as it's published.
+    extras = item.get("extra_sources") or []
+    if extras:
+        seen_ids = set(item.get("known_article_ids") or [])
+        new_ids = []
+        for src in extras:
+            code2, body2 = curl(src, timeout=15)
+            if code2 < 200 or code2 >= 400: continue
+            # Bangkok Post-style: contentId=news_NNNNNNN
+            for m in re.finditer(r"news_(\d+)", body2):
+                aid = m.group(1)
+                if aid not in seen_ids:
+                    new_ids.append(aid)
+                    seen_ids.add(aid)
+        if new_ids:
+            out["last_status"] = "changed"
+            out["last_status_note"] = (
+                f"{len(new_ids)} new article(s) in extra-source feeds: " +
+                ", ".join(new_ids[:5]) + (" ..." if len(new_ids) > 5 else "")
+            )
+            out["known_article_ids"] = sorted(seen_ids)
+        elif not item.get("known_article_ids"):
+            out["known_article_ids"] = sorted(seen_ids)
     return out
 
 
