@@ -651,7 +651,7 @@
           ${r.wiki_jp?`<div><div class="k">wikipedia (ja)</div><div class="v"><a href="${r.wiki_jp}" target="_blank" style="color:#4fa3ff">view article →</a></div></div>`:''}
         ` : `
           <div><div class="k">size</div><div class="v">${r.tp==='penthouse'?r.m2.toLocaleString()+' m²':r.ac+' acres ('+r.m2.toLocaleString()+' m²)'}</div></div>
-          <div><div class="k">price</div><div class="v">${r.lp?(r.lp).toLocaleString()+' '+r.cur:''} ${r.cur!=='USD'?'· $'+r.usd.toLocaleString():''}</div></div>
+          <div><div class="k">price</div><div class="v">${r.lp?Number(r.lp).toLocaleString()+' '+r.cur:''} ${r.cur!=='USD'?'· $'+r.usd.toLocaleString():''}</div></div>
           <div><div class="k">$/m²</div><div class="v">$${r.upm}</div></div>
           <div><div class="k">$/acre</div><div class="v">$${r.ac?Math.round(r.usd/r.ac).toLocaleString():'-'}</div></div>
           ${r.cf==='Thailand' && r.ac ? `<div><div class="k">$/rai</div><div class="v">$${Math.round(r.usd/(r.ac/0.3954)).toLocaleString()}<span style="color:#9aa3b2"> · ${Math.round(r.ac/0.3954).toLocaleString()} rai · ฿${Math.round(r.usd*36).toLocaleString()} total</span></div></div>` : ''}
@@ -661,7 +661,6 @@
         ${r.coast_km!=null?`<div><div class="k">coast distance</div><div class="v">${r.coast_km} km</div></div>`:''}
         ${r.ski_km!=null?`<div><div class="k">⛷ nearest ski</div><div class="v">${r.ski_km} km · ${r.ski_r||''}${r.ski_km<=0.5?' · <b style="color:#9fd96d">ski-in/out</b>':r.ski_km<=2?' · <b style="color:#9fd96d">walk to lift</b>':''}</div></div>`:''}
         ${r.terrace_zone?`<div><div class="k">🏔 Terrance zone</div><div class="v"><b style="color:#9fd96d">${r.terrace_zone}</b> · ${r.terrace_km} km · +${r.terrace_bonus} rating</div></div>`:''}
-        ${r.foreign_note?`<div><div class="k">🛂 foreign ownership</div><div class="v" style="color:${r.foreign_friction<0?'#ff8080':r.foreign_friction>0?'#9fd96d':'#9aa3b2'}">${r.foreign_friction>0?'+':''}${r.foreign_friction||0} · ${r.foreign_note}</div></div>`:''}
         ${(window.__reg && (window.__reg.byCountry[r.cf]||[]).length) ? `<div style="grid-column:1/-1"><div class="k">📜 regulatory items affecting ${r.cf}</div><div class="v" style="font-size:11px;line-height:1.45">${(window.__reg.byCountry[r.cf]||[]).map(it=>{const c=({ok:'#7ce38b',changed:'#ffb86c',blocked:'#9aa3b2',network_error:'#ff8080'})[it.last_status]||'#9aa3b2';const dl=it.__days_until!=null?` <span style="color:${it.__days_until<90?'#ff8080':it.__days_until<365?'#ffb86c':'#9aa3b2'}">(${it.deadline_label||'deadline'} ${it.__deadline_str}, ${it.__days_until<0?'expired':'in '+it.__days_until+'d'})</span>`:'';return `<div>• <a href="${it.url}" target="_blank" style="color:#4fa3ff">${it.name}</a> <span style="color:${c}">●</span>${dl}</div>`;}).join('')}</div></div>`:''}
         ${r.pid?`<div><div class="k">PID (title)</div><div class="v" style="font-family:monospace">${r.pid}</div></div>`:''}
         ${r.plan?`<div><div class="k">plan number</div><div class="v" style="font-family:monospace">${r.plan}</div></div>`:''}
