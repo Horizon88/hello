@@ -15,10 +15,11 @@
       ],
       "deadline": null,
       "added": "2026-06-17",
-      "last_attempted": "2026-06-22T05:45:01.085482Z",
+      "last_attempted": "2026-06-22T11:52:23.440142Z",
       "last_status": "blocked",
       "last_status_note": "http 200; bot-signature: radware — open the URL manually to check status",
-      "last_snapshot_sha": null
+      "last_snapshot_sha": null,
+      "known_article_ids": []
     },
     {
       "id": "ca-foreign-buyer-ban",
@@ -35,10 +36,11 @@
       "deadline": "2027-01-01",
       "deadline_label": "scheduled sunset",
       "added": "2026-06-18",
-      "last_attempted": "2026-06-22T05:45:01.906443Z",
+      "last_attempted": "2026-06-22T11:52:24.211695Z",
       "last_status": "ok",
       "last_status_note": "first clean snapshot",
-      "last_snapshot_sha": "e57e998afefe90253dcf4ea6a9ffaec28bd377b16694ec6eadfe8b7ba28426ae"
+      "last_snapshot_sha": "a8f4924887007ebb9e0618274a11467ed4f78c00d81ea6a7d1b2b6d5cc130266",
+      "known_article_ids": []
     },
     {
       "id": "bc-spec-vacancy-tax",
@@ -53,10 +55,11 @@
       ],
       "deadline": null,
       "added": "2026-06-18",
-      "last_attempted": "2026-06-22T05:45:03.220086Z",
+      "last_attempted": "2026-06-22T11:52:25.132287Z",
       "last_status": "ok",
       "last_status_note": "first clean snapshot",
-      "last_snapshot_sha": "5a5efc5ca7e139dcc21342142c00487eba62697ab54f07117d4ca97ad4ed893e"
+      "last_snapshot_sha": "db8a20799c76fe30fb31c8e003a11f9b275d44b3905c3853fbc7093aef22c87c",
+      "known_article_ids": []
     },
     {
       "id": "bc-short-term-rental-act",
@@ -71,10 +74,11 @@
       ],
       "deadline": null,
       "added": "2026-06-18",
-      "last_attempted": "2026-06-22T05:45:04.374897Z",
+      "last_attempted": "2026-06-22T11:52:25.372483Z",
       "last_status": "ok",
       "last_status_note": "first clean snapshot",
-      "last_snapshot_sha": "52bf90af930854d889ed1424f9dd7a5716ecf816ef6893c741377b8d116fd79b"
+      "last_snapshot_sha": "a05f9dd2c07c9e535635c04a1298ee1f79efb4cd9ec6fdbf40a361cb57d57984",
+      "known_article_ids": []
     },
     {
       "id": "nz-oia-residential",
@@ -89,10 +93,11 @@
       ],
       "deadline": null,
       "added": "2026-06-18",
-      "last_attempted": "2026-06-22T05:45:07.150161Z",
+      "last_attempted": "2026-06-22T11:52:25.571768Z",
       "last_status": "ok",
       "last_status_note": "first clean snapshot",
-      "last_snapshot_sha": "8324c92d14d886c3874284fac7daa3133dab247e62cf4e12ef98ce95155eb317"
+      "last_snapshot_sha": "d34bef58187fc8ac1301d4acd20b5640559afea4b63688dbcd7d4acaf0c6a744",
+      "known_article_ids": []
     },
     {
       "id": "nz-rma-reform",
@@ -107,10 +112,11 @@
       ],
       "deadline": null,
       "added": "2026-06-18",
-      "last_attempted": "2026-06-22T05:45:10.236998Z",
+      "last_attempted": "2026-06-22T11:52:31.312968Z",
       "last_status": "ok",
       "last_status_note": "first clean snapshot",
-      "last_snapshot_sha": "73d04820e029c12614765e993355265e70664876843e86cd8d57fc20cdccd3a6"
+      "last_snapshot_sha": "4ecbe8afbb01466b04b07af07cd3b1bdbbe4c4db84aae1516b93b2e2edd4a74b",
+      "known_article_ids": []
     },
     {
       "id": "ca-underused-housing-tax",
@@ -126,10 +132,11 @@
       ],
       "deadline": null,
       "added": "2026-06-18",
-      "last_attempted": "2026-06-22T05:45:10.840913Z",
+      "last_attempted": "2026-06-22T11:52:31.849129Z",
       "last_status": "blocked",
       "last_status_note": "http 503; bot-signature: ? — open the URL manually to check status",
-      "last_snapshot_sha": null
+      "last_snapshot_sha": null,
+      "known_article_ids": []
     },
     {
       "id": "jp-akiya-vacant-house",
@@ -144,10 +151,47 @@
       ],
       "deadline": null,
       "added": "2026-06-18",
-      "last_attempted": "2026-06-22T05:45:12.030580Z",
+      "last_attempted": "2026-06-22T11:52:32.138516Z",
       "last_status": "ok",
       "last_status_note": "first clean snapshot",
-      "last_snapshot_sha": "4201ae6decede559d008bf533bc37f35608abe9e13a56ac2171a50a448146b60"
+      "last_snapshot_sha": "254ac4ede870ba7cc83c02be38bf44c6b82eb2d83dc545eea89d63816f66b5be",
+      "known_article_ids": []
+    },
+    {
+      "id": "th-nominee-crackdown-2026",
+      "name": "Thai nominee crackdown — DBD + court enforcement",
+      "jurisdiction": "Thailand",
+      "issuer": "Department of Business Development (DBD) + Department of Special Investigation (DSI)",
+      "type": "enforcement campaign + pending court orders",
+      "url": "https://search.bangkokpost.com/search/result?q=nominee+property+court&category=news",
+      "why_watching": "DBD has flagged 11,426 companies on Koh Phangan + Koh Samui (~68% of all firms there) and identified 7,000+ businesses suspected of using Thai nationals as nominee shareholders to bypass the 49% foreign-ownership cap. Real estate is the primary target. If courts order unwinding within 6-12 months, ~2,400-3,000 nominee-suspect villas in Phuket and same number in Samui will hit the market. Affects every landed villa + Thai-company-held land listing — especially in Phuket west coast, Samui north/east, Phangan, Pattaya, Hua Hin.",
+      "affects": [
+        "Thailand"
+      ],
+      "deadline": null,
+      "deadline_label": "court ruling pending",
+      "added": "2026-06-22",
+      "extra_sources": [
+        "https://search.bangkokpost.com/search/result?q=nominee+property+court&category=news",
+        "https://www.thephuketnews.com/search.php?searchword=nominee",
+        "https://www.bangkokpost.com/thailand/general/3273906/100-eateries-targeted-in-antiproxy-blitz"
+      ],
+      "last_attempted": "2026-06-22T11:52:34.375147Z",
+      "last_status": "changed",
+      "last_status_note": "10 new article(s) in extra-source feeds: 3274640, 3274634, 3274565, 3274270, 3274440 ...",
+      "last_snapshot_sha": "12db4b6e57fe4c5033ba6f4ea9db4fa47b16e1d81714d7831e15d900daaca4cb",
+      "known_article_ids": [
+        "3273906",
+        "3273916",
+        "3274061",
+        "3274101",
+        "3274234",
+        "3274270",
+        "3274440",
+        "3274565",
+        "3274634",
+        "3274640"
+      ]
     }
   ]
 }
