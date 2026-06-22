@@ -25,19 +25,19 @@ jobs:
           python-version: "3.11"
 
       - name: Check official sources for changes
-        run: python regwatch/scripts/check.py
+        run: python regulations-checker/scripts/check.py
 
       - name: Open issues for changed regulations
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: python regwatch/scripts/notify.py
+        run: python regulations-checker/scripts/notify.py
 
       - name: Commit snapshot updates
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add regwatch/data/ || true
+          git add regulations-checker/data/ || true
           if ! git diff --staged --quiet; then
             git commit -m "regwatch: refresh snapshots ($(date -u +%Y-%m-%d))"
             git push
