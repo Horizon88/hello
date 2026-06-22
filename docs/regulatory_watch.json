@@ -1,5 +1,5 @@
 {
-  "_about": "Regulatory items being tracked because they could affect the land we're looking at. Updated by scripts/watch_regulatory.py during the weekly scan; the UI surfaces 'last_checked' and 'status' on the home screen.",
+  "_about": "Regulatory items being tracked because they could move the value of listings in their jurisdiction. Updated by scripts/watch_regulatory.py on the weekly cron; the UI surfaces 'last_checked' and 'status' on the home screen via the 📜 chip.",
   "items": [
     {
       "id": "nz-conservation-amendment-2025",
@@ -13,11 +13,141 @@
       "affects": [
         "New Zealand"
       ],
+      "deadline": null,
       "added": "2026-06-17",
-      "last_attempted": "2026-06-18T05:04:11.173171Z",
+      "last_attempted": "2026-06-22T05:45:01.085482Z",
       "last_status": "blocked",
       "last_status_note": "http 200; bot-signature: radware — open the URL manually to check status",
       "last_snapshot_sha": null
+    },
+    {
+      "id": "ca-foreign-buyer-ban",
+      "name": "Prohibition on the Purchase of Residential Property by Non-Canadians Act",
+      "jurisdiction": "Canada",
+      "issuer": "Government of Canada",
+      "type": "federal act (sunsetting)",
+      "url": "https://laws-lois.justice.gc.ca/eng/acts/P-25.2/index.html",
+      "why_watching": "Currently blocks non-Canadians from buying residential property in CMAs. Scheduled to expire 1 Jan 2027 unless extended. Sunset would re-open Canadian residential land to foreign buyers, likely pushing prices up. Watch for extension announcements.",
+      "affects": [
+        "British Columbia",
+        "Canada"
+      ],
+      "deadline": "2027-01-01",
+      "deadline_label": "scheduled sunset",
+      "added": "2026-06-18",
+      "last_attempted": "2026-06-22T05:45:01.906443Z",
+      "last_status": "ok",
+      "last_status_note": "first clean snapshot",
+      "last_snapshot_sha": "e57e998afefe90253dcf4ea6a9ffaec28bd377b16694ec6eadfe8b7ba28426ae"
+    },
+    {
+      "id": "bc-spec-vacancy-tax",
+      "name": "BC Speculation and Vacancy Tax",
+      "jurisdiction": "British Columbia",
+      "issuer": "Government of BC — Ministry of Finance",
+      "type": "provincial tax regime",
+      "url": "https://www2.gov.bc.ca/gov/content/taxes/speculation-vacancy-tax",
+      "why_watching": "0.5%-2% annual tax on residential property in designated areas. Designated areas have expanded twice (2024 + 2025) and the program keeps growing. Affects rental viability of BC vacation properties and the math on holding undeveloped BC land in a regulated area.",
+      "affects": [
+        "British Columbia"
+      ],
+      "deadline": null,
+      "added": "2026-06-18",
+      "last_attempted": "2026-06-22T05:45:03.220086Z",
+      "last_status": "ok",
+      "last_status_note": "first clean snapshot",
+      "last_snapshot_sha": "5a5efc5ca7e139dcc21342142c00487eba62697ab54f07117d4ca97ad4ed893e"
+    },
+    {
+      "id": "bc-short-term-rental-act",
+      "name": "BC Short-Term Rental Accommodations Act (Bill 35)",
+      "jurisdiction": "British Columbia",
+      "issuer": "Government of BC — Ministry of Housing",
+      "type": "provincial act",
+      "url": "https://www2.gov.bc.ca/gov/content/housing-tenancy/short-term-rentals",
+      "why_watching": "Restricts short-term rentals to principal residence + one secondary suite in many BC communities. Materially affects the rental yield of any BC vacation property — a key part of why some Whistler / Tofino / Okanagan listings are priced where they are.",
+      "affects": [
+        "British Columbia"
+      ],
+      "deadline": null,
+      "added": "2026-06-18",
+      "last_attempted": "2026-06-22T05:45:04.374897Z",
+      "last_status": "ok",
+      "last_status_note": "first clean snapshot",
+      "last_snapshot_sha": "52bf90af930854d889ed1424f9dd7a5716ecf816ef6893c741377b8d116fd79b"
+    },
+    {
+      "id": "nz-oia-residential",
+      "name": "Overseas Investment Act (residential land rules)",
+      "jurisdiction": "New Zealand",
+      "issuer": "Land Information NZ (LINZ) — Overseas Investment Office",
+      "type": "national investment regime",
+      "url": "https://www.linz.govt.nz/overseas-investment",
+      "why_watching": "Post-2018 amendments effectively block most non-resident foreign buyers from acquiring NZ residential land. Current government has signalled willingness to reopen for high-value buyers — any softening would re-price NZ coastal land upward.",
+      "affects": [
+        "New Zealand"
+      ],
+      "deadline": null,
+      "added": "2026-06-18",
+      "last_attempted": "2026-06-22T05:45:07.150161Z",
+      "last_status": "ok",
+      "last_status_note": "first clean snapshot",
+      "last_snapshot_sha": "8324c92d14d886c3874284fac7daa3133dab247e62cf4e12ef98ce95155eb317"
+    },
+    {
+      "id": "nz-rma-reform",
+      "name": "Resource Management Act reform",
+      "jurisdiction": "New Zealand",
+      "issuer": "Ministry for the Environment",
+      "type": "framework legislation reform",
+      "url": "https://environment.govt.nz/what-government-is-doing/areas-of-work/rma/",
+      "why_watching": "RMA is being replaced. New planning regime will redraw what's buildable on coastal NZ land, hazard-zone setbacks, and sea-level-rise rules. Direct impact on NZ coastal listings.",
+      "affects": [
+        "New Zealand"
+      ],
+      "deadline": null,
+      "added": "2026-06-18",
+      "last_attempted": "2026-06-22T05:45:10.236998Z",
+      "last_status": "ok",
+      "last_status_note": "first clean snapshot",
+      "last_snapshot_sha": "73d04820e029c12614765e993355265e70664876843e86cd8d57fc20cdccd3a6"
+    },
+    {
+      "id": "ca-underused-housing-tax",
+      "name": "Underused Housing Tax (1% annual)",
+      "jurisdiction": "Canada",
+      "issuer": "Canada Revenue Agency",
+      "type": "federal tax",
+      "url": "https://www.canada.ca/en/services/taxes/underused-housing-tax.html",
+      "why_watching": "1% annual tax on vacant/underused residential property owned by non-resident non-Canadians (and some Canadians). Stacks with BC's spec/vacancy tax. Filing obligations + audit risk affect non-resident landlords directly.",
+      "affects": [
+        "British Columbia",
+        "Canada"
+      ],
+      "deadline": null,
+      "added": "2026-06-18",
+      "last_attempted": "2026-06-22T05:45:10.840913Z",
+      "last_status": "blocked",
+      "last_status_note": "http 503; bot-signature: ? — open the URL manually to check status",
+      "last_snapshot_sha": null
+    },
+    {
+      "id": "jp-akiya-vacant-house",
+      "name": "Vacant Houses Special Measures Act (空家対策特別措置法)",
+      "jurisdiction": "Japan",
+      "issuer": "Ministry of Land, Infrastructure, Transport and Tourism (MLIT)",
+      "type": "national vacancy regime",
+      "url": "https://www.mlit.go.jp/jutakukentiku/house/jutakukentiku_house_tk3_000035.html",
+      "why_watching": "Japan's framework for designating dangerous/derelict vacant houses. Once designated 'specified vacant house', the property loses the 6× residential property-tax reduction and the municipality can force demolition. Materially affects yields + carrying costs for the abandoned-ski-resort and akiya inventory.",
+      "affects": [
+        "Japan"
+      ],
+      "deadline": null,
+      "added": "2026-06-18",
+      "last_attempted": "2026-06-22T05:45:12.030580Z",
+      "last_status": "ok",
+      "last_status_note": "first clean snapshot",
+      "last_snapshot_sha": "4201ae6decede559d008bf533bc37f35608abe9e13a56ac2171a50a448146b60"
     }
   ]
 }
