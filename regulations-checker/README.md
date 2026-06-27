@@ -14,6 +14,7 @@ snapshot stored in git.
 | Area | Official sources |
 |---|---|
 | **Canada passport** | canada.ca passport fees, fee-change notice, adult renewal + renewal eligibility |
+| **Canada citizenship (Bill C-3)** | LEGISinfo official bill record + IRCC implementation page (citizenship by descent) |
 | **Thailand LTR visa** | BOI LTR portal home, required documents, laws & regulations |
 | **BVI companies** | BVI FSC fees, beneficial ownership, industry updates |
 | **Grenada passport (CBI)** | Grenada Citizenship by Investment official site |

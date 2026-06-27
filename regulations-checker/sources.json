@@ -28,6 +28,22 @@
       ]
     },
     {
+      "area": "Canada citizenship (Bill C-3)",
+      "label": "canada-bill-c3",
+      "sources": [
+        {
+          "id": "ca-c3-legisinfo",
+          "title": "Bill C-3 (45-1) — LEGISinfo official record",
+          "url": "https://www.parl.ca/legisinfo/en/bill/45-1/c-3"
+        },
+        {
+          "id": "ca-c3-ircc-in-effect",
+          "title": "Bill C-3 — IRCC implementation (comes into effect)",
+          "url": "https://www.canada.ca/en/immigration-refugees-citizenship/news/2025/12/bill-c-3-an-act-to-amend-the-citizenship-act-2025-comes-into-effect.html"
+        }
+      ]
+    },
+    {
       "area": "Thailand LTR visa",
       "label": "thai-ltr-visa",
       "sources": [
