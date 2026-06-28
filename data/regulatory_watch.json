@@ -15,7 +15,7 @@
       ],
       "deadline": null,
       "added": "2026-06-17",
-      "last_attempted": "2026-06-22T11:52:23.440142Z",
+      "last_attempted": "2026-06-28T09:27:28.673176Z",
       "last_status": "blocked",
       "last_status_note": "http 200; bot-signature: radware — open the URL manually to check status",
       "last_snapshot_sha": null,
@@ -36,9 +36,9 @@
       "deadline": "2027-01-01",
       "deadline_label": "scheduled sunset",
       "added": "2026-06-18",
-      "last_attempted": "2026-06-22T11:52:24.211695Z",
+      "last_attempted": "2026-06-28T09:27:29.302760Z",
       "last_status": "ok",
-      "last_status_note": "first clean snapshot",
+      "last_status_note": "unchanged",
       "last_snapshot_sha": "a8f4924887007ebb9e0618274a11467ed4f78c00d81ea6a7d1b2b6d5cc130266",
       "known_article_ids": []
     },
@@ -55,9 +55,9 @@
       ],
       "deadline": null,
       "added": "2026-06-18",
-      "last_attempted": "2026-06-22T11:52:25.132287Z",
+      "last_attempted": "2026-06-28T09:27:30.413796Z",
       "last_status": "ok",
-      "last_status_note": "first clean snapshot",
+      "last_status_note": "unchanged",
       "last_snapshot_sha": "db8a20799c76fe30fb31c8e003a11f9b275d44b3905c3853fbc7093aef22c87c",
       "known_article_ids": []
     },
@@ -74,9 +74,9 @@
       ],
       "deadline": null,
       "added": "2026-06-18",
-      "last_attempted": "2026-06-22T11:52:25.372483Z",
+      "last_attempted": "2026-06-28T09:27:31.891261Z",
       "last_status": "ok",
-      "last_status_note": "first clean snapshot",
+      "last_status_note": "unchanged",
       "last_snapshot_sha": "a05f9dd2c07c9e535635c04a1298ee1f79efb4cd9ec6fdbf40a361cb57d57984",
       "known_article_ids": []
     },
@@ -93,9 +93,9 @@
       ],
       "deadline": null,
       "added": "2026-06-18",
-      "last_attempted": "2026-06-22T11:52:25.571768Z",
+      "last_attempted": "2026-06-28T09:27:33.601143Z",
       "last_status": "ok",
-      "last_status_note": "first clean snapshot",
+      "last_status_note": "unchanged",
       "last_snapshot_sha": "d34bef58187fc8ac1301d4acd20b5640559afea4b63688dbcd7d4acaf0c6a744",
       "known_article_ids": []
     },
@@ -112,10 +112,10 @@
       ],
       "deadline": null,
       "added": "2026-06-18",
-      "last_attempted": "2026-06-22T11:52:31.312968Z",
-      "last_status": "ok",
-      "last_status_note": "first clean snapshot",
-      "last_snapshot_sha": "4ecbe8afbb01466b04b07af07cd3b1bdbbe4c4db84aae1516b93b2e2edd4a74b",
+      "last_attempted": "2026-06-28T09:27:37.870790Z",
+      "last_status": "changed",
+      "last_status_note": "page text changed since previous check — review the source",
+      "last_snapshot_sha": "e10978dc6901ed3bc44604e396a312758df33712a0567479c328f493225ec40c",
       "known_article_ids": []
     },
     {
@@ -132,9 +132,9 @@
       ],
       "deadline": null,
       "added": "2026-06-18",
-      "last_attempted": "2026-06-22T11:52:31.849129Z",
-      "last_status": "blocked",
-      "last_status_note": "http 503; bot-signature: ? — open the URL manually to check status",
+      "last_attempted": "2026-06-28T09:27:38.497306Z",
+      "last_status": "network_error",
+      "last_status_note": "curl exit code 0",
       "last_snapshot_sha": null,
       "known_article_ids": []
     },
@@ -151,9 +151,9 @@
       ],
       "deadline": null,
       "added": "2026-06-18",
-      "last_attempted": "2026-06-22T11:52:32.138516Z",
+      "last_attempted": "2026-06-28T09:27:39.804183Z",
       "last_status": "ok",
-      "last_status_note": "first clean snapshot",
+      "last_status_note": "unchanged",
       "last_snapshot_sha": "254ac4ede870ba7cc83c02be38bf44c6b82eb2d83dc545eea89d63816f66b5be",
       "known_article_ids": []
     },
@@ -176,10 +176,10 @@
         "https://www.thephuketnews.com/search.php?searchword=nominee",
         "https://www.bangkokpost.com/thailand/general/3273906/100-eateries-targeted-in-antiproxy-blitz"
       ],
-      "last_attempted": "2026-06-22T11:52:34.375147Z",
+      "last_attempted": "2026-06-28T09:27:41.187247Z",
       "last_status": "changed",
-      "last_status_note": "10 new article(s) in extra-source feeds: 3274640, 3274634, 3274565, 3274270, 3274440 ...",
-      "last_snapshot_sha": "12db4b6e57fe4c5033ba6f4ea9db4fa47b16e1d81714d7831e15d900daaca4cb",
+      "last_status_note": "10 new article(s) in extra-source feeds: 3277844, 3277595, 3277620, 3277675, 3277790 ...",
+      "last_snapshot_sha": "8b88308daf0659b7161af6cad834c10e34f2c77ce88bd452780d81b405dfcea3",
       "known_article_ids": [
         "3273906",
         "3273916",
@@ -190,8 +190,44 @@
         "3274440",
         "3274565",
         "3274634",
-        "3274640"
+        "3274640",
+        "3277045",
+        "3277155",
+        "3277225",
+        "3277484",
+        "3277595",
+        "3277620",
+        "3277675",
+        "3277700",
+        "3277790",
+        "3277844"
       ]
+    },
+    {
+      "id": "tr-forest-law-amendments-2025",
+      "name": "Forest Law 6831 — recent amendments + 2/B reclassification regime",
+      "jurisdiction": "Turkey",
+      "issuer": "T.C. Tarım ve Orman Bakanlığı (Ministry of Agriculture and Forestry) + OGM",
+      "type": "framework law + ongoing amendment package",
+      "url": "https://www.ogm.gov.tr/",
+      "why_watching": "Turkey's Forest Law 6831 governs what can be built on or near forest land — material for mountain land everywhere east of the Bosphorus. 2024-2026 amendment package broadens permitted activities on forest land (mining, tourism, energy) and the long-running '2/B' regime allows reclassification of former-forest land for sale. Affects every TR mountain / east-Anatolia land listing — both the legal status of the parcel itself and what neighbours can do that changes the view-shed.",
+      "affects": [
+        "Turkey"
+      ],
+      "deadline": null,
+      "deadline_label": "amendment package live",
+      "added": "2026-06-22",
+      "extra_sources": [
+        "https://www.resmigazete.gov.tr/",
+        "https://www.mevzuat.gov.tr/MevzuatMetin/1.5.6831.pdf",
+        "https://www.hurriyetdailynews.com/economy",
+        "https://en.wikipedia.org/wiki/Forestry_in_Turkey"
+      ],
+      "last_attempted": "2026-06-28T09:27:47.560543Z",
+      "last_status": "ok",
+      "last_status_note": "first clean snapshot",
+      "last_snapshot_sha": "a4c4ba93182715057e0d5d01ad396124c15af8fd348eb0c47083c82dc6517b15",
+      "known_article_ids": []
     }
   ]
 }
