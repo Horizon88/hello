@@ -158,7 +158,8 @@
     thead th[data-k=ac],tbody td:nth-child(5),
     thead th[data-k=upm],tbody td:nth-child(6),
     thead th[data-k=v],tbody td:nth-child(8),
-    thead th[data-k=ski_km],tbody td:nth-child(9){display:none}
+    thead th[data-k=ski_km],tbody td:nth-child(9),
+    thead th[data-k=distress],tbody td:nth-child(10){display:none}
     .insights{width:88%}
     .detail-modal{max-height:94vh}
     .gallery{height:200px}
@@ -212,13 +213,14 @@
   <div class="control"><label>Ski</label><select id="ski"><option value="">any</option><option value="0.5">ski-in/out (≤0.5km)</option><option value="2">≤2 km</option><option value="10">≤10 km</option><option value="30">≤30 km</option><option value="rope">rope-tow potential</option></select></div>
   <div class="control"><label><input type="checkbox" id="terraceOnly"> 🏔 Terrance zone only</label></div>
   <div class="control"><label><input type="checkbox" id="foreignerOK"> 🛂 Foreigner-friendly only</label></div>
+  <div class="control"><label><input type="checkbox" id="distressOnly"> 🔥 Distress only</label></div>
   <div class="control"><label>Sort</label><select id="sort"><option value="r">rating</option><option value="upm">$/m²</option><option value="ac">acres</option><option value="usd">price USD</option></select></div>
   <button class="btn" id="toggleInsights">Insights ▸</button>
 </div>
 <main>
   <div id="map"></div>
   <div class="panel">
-    <table id="tbl"><thead><tr><th data-k="r" class="sorted">★</th><th data-k="cf">country</th><th data-k="rg">region</th><th data-k="a">area</th><th data-k="ac">acres</th><th data-k="upm">$/m²</th><th data-k="usd">price USD</th><th data-k="v">view</th><th data-k="ski_km">⛷ km</th><th>link</th><th></th></tr></thead><tbody id="tbody"></tbody></table>
+    <table id="tbl"><thead><tr><th data-k="r" class="sorted">★</th><th data-k="cf">country</th><th data-k="rg">region</th><th data-k="a">area</th><th data-k="ac">acres</th><th data-k="upm">$/m²</th><th data-k="usd">price USD</th><th data-k="v">view</th><th data-k="ski_km">⛷ km</th><th data-k="distress">🔥</th><th>link</th><th></th></tr></thead><tbody id="tbody"></tbody></table>
     <div class="insights" id="insights">
       <h3>📊 Patterns from your archives</h3>
       <div id="insightsBody"><p style="color:var(--txt-dim);font-size:12px">Archive listings (with a reason) to start training the model. Patterns will appear here as you accumulate signals.</p></div>
@@ -345,7 +347,7 @@
 
   const state = {
     countries: new Set(ALL_COUNTRIES),
-    type: 'all', distressedOnly: false, verifiedOnly: false, terraceOnly: false, foreignerOK: false,
+    type: 'all', distressedOnly: false, verifiedOnly: false, terraceOnly: false, foreignerOK: false, distressOnly: false,
     minR: 0, maxU: 10000, maxUsd: null, minA: null, maxA: null, minAQuick: '', view: '', ski: '',
     sortKey: 'r', sortAsc: false, showArchived: false
   };
@@ -381,6 +383,7 @@
   document.getElementById('maxUsd').onchange=e=>{state.maxUsd=e.target.value?+e.target.value:null;render();};
   document.getElementById('terraceOnly').onchange=e=>{state.terraceOnly=e.target.checked;render();};
   document.getElementById('foreignerOK').onchange=e=>{state.foreignerOK=e.target.checked;render();};
+  document.getElementById('distressOnly').onchange=e=>{state.distressOnly=e.target.checked;render();};
   document.getElementById('type').onchange=e=>{state.type=e.target.value;render();};
   document.getElementById('distressedOnly').onchange=e=>{state.distressedOnly=e.target.checked;render();};
   document.getElementById('verifiedOnly').onchange=e=>{state.verifiedOnly=e.target.checked;render();};
@@ -436,6 +439,7 @@
       }
       if(state.terraceOnly && !r.terrace_zone) return false;
       if(state.foreignerOK && (r.foreign_friction||0) < 0) return false;
+      if(state.distressOnly && (r.distress||0) < 30) return false;
       if(!state.showArchived && archives[r.u]) return false;
       return true;
     });
@@ -558,6 +562,7 @@
         <td>${r.tp==='abandoned_ski'?'':r.ac}</td><td>${r.tp==='abandoned_ski'?'':r.upm}</td><td>${r.tp==='abandoned_ski'?(r.closure_status==='closed'?'❄ closed':r.closure_status==='suspended'?'❄ susp':r.closure_status==='on hiatus'?'❄ hiatus':'❄'):fmtUsd(r.usd)}</td>
         <td>${r.tp==='abandoned_ski'?(r.year_closed?'cl. '+r.year_closed:''):r.v||''}</td>
         <td title="${r.ski_r||''}">${r.ski_km!=null ? r.ski_km : ''}</td>
+        <td style="color:${(r.distress||0)>=60?'#ff8080':(r.distress||0)>=40?'#ffb86c':'#ffd166'}">${r.distress?'🔥'+r.distress:''}</td>
         <td><a href="${r.u}" target="_blank">→</a></td>
         <td>${isArchived ? `<button class="arch-btn" data-unarch="${encodeURIComponent(r.u)}" title="restore">↺</button>` : `<button class="arch-btn" data-arch="${encodeURIComponent(r.u)}" title="archive">✕</button>`}</td>
       </tr>`;
@@ -662,6 +667,7 @@
         ${r.coast_km!=null?`<div><div class="k">coast distance</div><div class="v">${r.coast_km} km</div></div>`:''}
         ${r.ski_km!=null?`<div><div class="k">⛷ nearest ski</div><div class="v">${r.ski_km} km · ${r.ski_r||''}${r.ski_km<=0.5?' · <b style="color:#9fd96d">ski-in/out</b>':r.ski_km<=2?' · <b style="color:#9fd96d">walk to lift</b>':''}</div></div>`:''}
         ${r.terrace_zone?`<div><div class="k">🏔 Terrance zone</div><div class="v"><b style="color:#9fd96d">${r.terrace_zone}</b> · ${r.terrace_km} km · +${r.terrace_bonus} rating</div></div>`:''}
+        ${r.distress?`<div style="grid-column:1/-1"><div class="k">🔥 Distress Index</div><div class="v"><b style="color:${r.distress>=60?'#ff8080':r.distress>=40?'#ffb86c':'#ffd166'}">${r.distress}/100</b><div style="font-size:11px;color:var(--txt-dim);margin-top:4px;line-height:1.5">${(r.distress_breakdown||[]).map(p=>`• ${p[0]} <span style="color:#ffb86c">+${p[1]}</span>`).join('<br>')}</div></div></div>`:''}
         ${(window.__reg && (window.__reg.byCountry[r.cf]||[]).length) ? `<div style="grid-column:1/-1"><div class="k">📜 regulatory items affecting ${r.cf}</div><div class="v" style="font-size:11px;line-height:1.45">${(window.__reg.byCountry[r.cf]||[]).map(it=>{const c=({ok:'#7ce38b',changed:'#ffb86c',blocked:'#9aa3b2',network_error:'#ff8080'})[it.last_status]||'#9aa3b2';const dl=it.__days_until!=null?` <span style="color:${it.__days_until<90?'#ff8080':it.__days_until<365?'#ffb86c':'#9aa3b2'}">(${it.deadline_label||'deadline'} ${it.__deadline_str}, ${it.__days_until<0?'expired':'in '+it.__days_until+'d'})</span>`:'';return `<div>• <a href="${it.url}" target="_blank" style="color:#4fa3ff">${it.name}</a> <span style="color:${c}">●</span>${dl}</div>`;}).join('')}</div></div>`:''}
         ${r.pid?`<div><div class="k">PID (title)</div><div class="v" style="font-family:monospace">${r.pid}</div></div>`:''}
         ${r.plan?`<div><div class="k">plan number</div><div class="v" style="font-family:monospace">${r.plan}</div></div>`:''}
