@@ -33,11 +33,23 @@ UA = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
     "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
 )
+# Phrases that mean 'you are being blocked' — not just 'this site uses
+# Cloudflare for CDN'. Earlier version matched too eagerly.
 BOT_SIGS = [
-    "radware", "press & hold", "captcha", "verifying you are human",
-    "cf-error", "cloudflare", "imperva", "access denied to akamai",
-    "pardon our interruption", "checking your browser",
-    "just a moment", "datadome", "access denied",
+    "radware captcha",
+    "press & hold",
+    "verifying you are human",
+    "cf-error",
+    "cf-chl-bypass",
+    "imperva incapsula",
+    "access denied to akamai",
+    "pardon our interruption",
+    "checking your browser before accessing",
+    "just a moment...</title>",   # Cloudflare interstitial title, distinctive
+    "datadome",
+    "access denied</title>",
+    "you have been blocked",
+    "enable javascript and cookies to continue",
 ]
 
 
@@ -64,11 +76,36 @@ def _looks_blocked(html: str, code: int) -> bool:
     return any(s in low for s in BOT_SIGS)
 
 
-def fetch(url: str, timeout: int = 18, allow_stale: bool = True) -> tuple[str, str]:
+def fetch(url: str, timeout: int = 18, allow_stale: bool = True,
+          force: str | None = None) -> tuple[str, str]:
     """Return (body, source_tag). Empty body + 'failed' if every stage missed.
 
     allow_stale=False skips Wayback (use for live data like price scrapes
-    where a day-old cache is misleading)."""
+    where a day-old cache is misleading).
+
+    force='scraperapi' jumps straight to JS-rendering ScraperAPI — use when
+    the target is known to be Next.js / React / Angular with no
+    server-rendered listing data (Emlakjet, Zillow, Redfin, Realtor.com).
+    force='proxy' jumps straight to the residential proxy."""
+
+    # force= jumps directly to a specific stage; useful for known
+    # JS-rendered targets where 'direct' returns a hollow shell.
+    if force == "scraperapi":
+        key = os.environ.get("SCRAPER_API_KEY")
+        if key:
+            base = os.environ.get("SCRAPER_API_URL", "http://api.scraperapi.com")
+            api = f"{base}/?api_key={key}&render=true&url={urllib.parse.quote(url, safe='')}"
+            code, body = _curl(api, timeout=90)
+            if len(body) > 200 and not _looks_blocked(body, code):
+                return body, "scraperapi"
+            return body, "failed"
+    if force == "proxy":
+        proxy = os.environ.get("HTTPS_PROXY_RESI")
+        if proxy:
+            code, body = _curl(url, timeout=timeout + 5, proxy=proxy)
+            if len(body) > 200 and not _looks_blocked(body, code):
+                return body, "proxy"
+            return body, "failed"
 
     # Stage 1 — direct
     code, body = _curl(url, timeout=timeout)

@@ -24,6 +24,12 @@ jobs:
         run: python scripts/scan.py
 
       - name: Regulatory watch — re-check tracked items
+        env:
+          # Optional secrets — set these in repo Settings → Secrets & variables
+          # → Actions to escalate past bot walls. Both are optional; chain
+          # falls back gracefully if they're unset.
+          SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
+          HTTPS_PROXY_RESI: ${{ secrets.HTTPS_PROXY_RESI }}
         run: python scripts/watch_regulatory.py
         continue-on-error: true   # blocked sites shouldn't fail the build
 
