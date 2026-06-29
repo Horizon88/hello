@@ -78,20 +78,24 @@ def check_item(item: dict) -> dict:
     url = item.get("url")
     if not url:
         return {"last_status": "no_url", "last_status_note": "no url on item"}
-    code, body = curl(url)
+    # Use the unified fetch chain: direct -> wayback -> proxy -> scraperapi.
+    # Falls back automatically when env vars are set.
+    try:
+        from fetch import fetch as fetch_with_fallback
+        body, source = fetch_with_fallback(url, timeout=25)
+        if source == "failed" or len(body) < 200:
+            out = {"last_attempted": datetime.datetime.utcnow().isoformat() + "Z",
+                   "last_status": "blocked",
+                   "last_status_note": "exhausted direct/wayback/proxy/scraperapi — set HTTPS_PROXY_RESI or SCRAPER_API_KEY to escalate"}
+            return out
+    except Exception as e:
+        body, source = "", "failed"
+        out = {"last_attempted": datetime.datetime.utcnow().isoformat() + "Z",
+               "last_status": "network_error",
+               "last_status_note": f"fetch err: {e}"}
+        return out
     now = datetime.datetime.utcnow().isoformat() + "Z"
-    out = {"last_attempted": now}
-    if code in (0, -1):
-        out.update({"last_status": "network_error",
-                    "last_status_note": f"curl exit code {code}"})
-        return out
-    block_sig = looks_blocked(body)
-    if block_sig or code >= 400:
-        out.update({
-            "last_status": "blocked",
-            "last_status_note": f"http {code}; bot-signature: {block_sig or '?'} — open the URL manually to check status",
-        })
-        return out
+    out = {"last_attempted": now, "last_source": source}
     sha = text_sha(body)
     prior_sha = item.get("last_snapshot_sha")
     if prior_sha and prior_sha != sha:

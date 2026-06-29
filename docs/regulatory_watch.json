@@ -15,9 +15,9 @@
       ],
       "deadline": null,
       "added": "2026-06-17",
-      "last_attempted": "2026-06-28T09:27:28.673176Z",
+      "last_attempted": "2026-06-29T00:18:38.609123Z",
       "last_status": "blocked",
-      "last_status_note": "http 200; bot-signature: radware — open the URL manually to check status",
+      "last_status_note": "exhausted direct/wayback/proxy/scraperapi — set HTTPS_PROXY_RESI or SCRAPER_API_KEY to escalate",
       "last_snapshot_sha": null,
       "known_article_ids": []
     },
@@ -36,11 +36,12 @@
       "deadline": "2027-01-01",
       "deadline_label": "scheduled sunset",
       "added": "2026-06-18",
-      "last_attempted": "2026-06-28T09:27:29.302760Z",
+      "last_attempted": "2026-06-29T00:18:39.191696Z",
       "last_status": "ok",
       "last_status_note": "unchanged",
       "last_snapshot_sha": "a8f4924887007ebb9e0618274a11467ed4f78c00d81ea6a7d1b2b6d5cc130266",
-      "known_article_ids": []
+      "known_article_ids": [],
+      "last_source": "direct"
     },
     {
       "id": "bc-spec-vacancy-tax",
@@ -55,11 +56,12 @@
       ],
       "deadline": null,
       "added": "2026-06-18",
-      "last_attempted": "2026-06-28T09:27:30.413796Z",
+      "last_attempted": "2026-06-29T00:18:39.968529Z",
       "last_status": "ok",
       "last_status_note": "unchanged",
       "last_snapshot_sha": "db8a20799c76fe30fb31c8e003a11f9b275d44b3905c3853fbc7093aef22c87c",
-      "known_article_ids": []
+      "known_article_ids": [],
+      "last_source": "direct"
     },
     {
       "id": "bc-short-term-rental-act",
@@ -74,11 +76,12 @@
       ],
       "deadline": null,
       "added": "2026-06-18",
-      "last_attempted": "2026-06-28T09:27:31.891261Z",
+      "last_attempted": "2026-06-29T00:18:40.870736Z",
       "last_status": "ok",
       "last_status_note": "unchanged",
       "last_snapshot_sha": "a05f9dd2c07c9e535635c04a1298ee1f79efb4cd9ec6fdbf40a361cb57d57984",
-      "known_article_ids": []
+      "known_article_ids": [],
+      "last_source": "direct"
     },
     {
       "id": "nz-oia-residential",
@@ -93,11 +96,12 @@
       ],
       "deadline": null,
       "added": "2026-06-18",
-      "last_attempted": "2026-06-28T09:27:33.601143Z",
-      "last_status": "ok",
-      "last_status_note": "unchanged",
-      "last_snapshot_sha": "d34bef58187fc8ac1301d4acd20b5640559afea4b63688dbcd7d4acaf0c6a744",
-      "known_article_ids": []
+      "last_attempted": "2026-06-29T00:18:42.640735Z",
+      "last_status": "changed",
+      "last_status_note": "page text changed since previous check — review the source",
+      "last_snapshot_sha": "ddbdca66609cfe66233b54302b550c39f9bf7f4fdf475db71cd78a8fe0a9bf3b",
+      "known_article_ids": [],
+      "last_source": "direct"
     },
     {
       "id": "nz-rma-reform",
@@ -112,11 +116,12 @@
       ],
       "deadline": null,
       "added": "2026-06-18",
-      "last_attempted": "2026-06-28T09:27:37.870790Z",
-      "last_status": "changed",
-      "last_status_note": "page text changed since previous check — review the source",
+      "last_attempted": "2026-06-29T00:18:47.264972Z",
+      "last_status": "ok",
+      "last_status_note": "unchanged",
       "last_snapshot_sha": "e10978dc6901ed3bc44604e396a312758df33712a0567479c328f493225ec40c",
-      "known_article_ids": []
+      "known_article_ids": [],
+      "last_source": "direct"
     },
     {
       "id": "ca-underused-housing-tax",
@@ -132,9 +137,9 @@
       ],
       "deadline": null,
       "added": "2026-06-18",
-      "last_attempted": "2026-06-28T09:27:38.497306Z",
-      "last_status": "network_error",
-      "last_status_note": "curl exit code 0",
+      "last_attempted": "2026-06-29T00:18:49.014363Z",
+      "last_status": "blocked",
+      "last_status_note": "exhausted direct/wayback/proxy/scraperapi — set HTTPS_PROXY_RESI or SCRAPER_API_KEY to escalate",
       "last_snapshot_sha": null,
       "known_article_ids": []
     },
@@ -151,11 +156,12 @@
       ],
       "deadline": null,
       "added": "2026-06-18",
-      "last_attempted": "2026-06-28T09:27:39.804183Z",
+      "last_attempted": "2026-06-29T00:18:50.031102Z",
       "last_status": "ok",
       "last_status_note": "unchanged",
       "last_snapshot_sha": "254ac4ede870ba7cc83c02be38bf44c6b82eb2d83dc545eea89d63816f66b5be",
-      "known_article_ids": []
+      "known_article_ids": [],
+      "last_source": "direct"
     },
     {
       "id": "th-nominee-crackdown-2026",
@@ -176,10 +182,10 @@
         "https://www.thephuketnews.com/search.php?searchword=nominee",
         "https://www.bangkokpost.com/thailand/general/3273906/100-eateries-targeted-in-antiproxy-blitz"
       ],
-      "last_attempted": "2026-06-28T09:27:41.187247Z",
+      "last_attempted": "2026-06-29T00:18:51.482165Z",
       "last_status": "changed",
-      "last_status_note": "10 new article(s) in extra-source feeds: 3277844, 3277595, 3277620, 3277675, 3277790 ...",
-      "last_snapshot_sha": "8b88308daf0659b7161af6cad834c10e34f2c77ce88bd452780d81b405dfcea3",
+      "last_status_note": "6 new article(s) in extra-source feeds: 3278125, 3278170, 3278195, 3278095, 3278100 ...",
+      "last_snapshot_sha": "520e399dc6714f0078a4569ead2a63aecfd13d7e2a7c041933a79bf1e6bda317",
       "known_article_ids": [
         "3273906",
         "3273916",
@@ -200,8 +206,15 @@
         "3277675",
         "3277700",
         "3277790",
-        "3277844"
-      ]
+        "3277844",
+        "3277910",
+        "3278095",
+        "3278100",
+        "3278125",
+        "3278170",
+        "3278195"
+      ],
+      "last_source": "direct"
     },
     {
       "id": "tr-forest-law-amendments-2025",
@@ -223,11 +236,12 @@
         "https://www.hurriyetdailynews.com/economy",
         "https://en.wikipedia.org/wiki/Forestry_in_Turkey"
       ],
-      "last_attempted": "2026-06-28T09:27:47.560543Z",
+      "last_attempted": "2026-06-29T00:18:58.012921Z",
       "last_status": "ok",
-      "last_status_note": "first clean snapshot",
+      "last_status_note": "unchanged",
       "last_snapshot_sha": "a4c4ba93182715057e0d5d01ad396124c15af8fd348eb0c47083c82dc6517b15",
-      "known_article_ids": []
+      "known_article_ids": [],
+      "last_source": "direct"
     }
   ]
 }
