@@ -34,6 +34,9 @@ FULL_BACKUP = DOCS / "listings.full.json"
 # Exactly the keys docs/index.html reads off a listing object `r`.
 # Verified by grepping `r.<field>` in index.html (see task changelog).
 KEEP = (
+    # stable unique identity (scripts/add_listing_id.py) — the UI keys
+    # archives / shortlist / lookups on this, not on the non-unique `u`.
+    "id",
     # core / always-present
     "cf", "r", "rg", "a", "ac", "m2", "usd", "upm", "v", "el", "t",
     "lat", "lon", "cur", "lp", "rb", "img", "imgs", "u", "apt", "apt_km",

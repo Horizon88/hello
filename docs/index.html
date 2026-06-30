@@ -347,6 +347,44 @@
   function saveArchives(a){ localStorage.setItem(LS_KEY, JSON.stringify(a)); }
   let archives = loadArchives();
 
+  // ---- one-time migration: u-keyed stores -> id-keyed stores ----
+  // Older builds keyed archives_v1 / shortlist_v1 on `u` (the listing URL). `u`
+  // is not unique (every abandoned-ski row shares one OSM URL), so this build
+  // keys on the stable `id` instead. Remap each old u-key onto its id WHERE THE
+  // MAPPING IS UNAMBIGUOUS (a u that resolves to exactly one row). Ambiguous
+  // u-keys (many rows share that URL) can't be safely attributed to one parcel,
+  // so they are NOT silently dropped — they are parked under a `__migrate_*`
+  // sentinel key carrying the candidate ids, so user intent is preserved and
+  // visible rather than corrupted. Runs once; a `_idkeyed` marker guards re-runs.
+  const MIGRATED_KEY = 'idkeyed_migrated_v1';
+  function migrateStoreToId(store, label){
+    // Build u -> [ids] once. Keys that already look like ids ("L"+hex) are left
+    // alone so a partially-migrated or fresh store is a no-op.
+    const uToIds = {};
+    for(const r of DATA){ (uToIds[r.u] = uToIds[r.u] || []).push(r.id); }
+    const idSet = new Set(DATA.map(r=>r.id));
+    const out = {};
+    let moved=0, kept=0, ambiguous=0, dropped=0;
+    for(const [key,val] of Object.entries(store)){
+      if(idSet.has(key)){ out[key]=val; kept++; continue; }      // already an id
+      const ids = uToIds[key];
+      if(!ids){ out[key]=val; dropped++; continue; }              // unknown u — keep as-is, don't lose it
+      if(ids.length===1){ out[ids[0]]=val; moved++; }             // unambiguous u -> id
+      else {                                                       // ambiguous: park, don't guess
+        out['__migrate_ambiguous__'+key]=Object.assign({}, val, {__ambiguous_ids:ids});
+        ambiguous++;
+      }
+    }
+    if(moved||ambiguous) console.info(`[migrate ${label}] moved=${moved} kept=${kept} ambiguous=${ambiguous} unknown=${dropped}`);
+    return out;
+  }
+  function runIdMigration(){
+    if(localStorage.getItem(MIGRATED_KEY)) return;                // already migrated
+    archives = migrateStoreToId(archives, 'archives');  saveArchives(archives);
+    shortlist = migrateStoreToId(shortlist, 'shortlist'); saveShortlist(shortlist);
+    localStorage.setItem(MIGRATED_KEY, new Date().toISOString());
+  }
+
   // ---- dual-amenity engagement counter (localStorage) ----
   // Cheapest honest answer to "are people engaging with flagged rows?". We tally
   // detail-opens / outbound-clicks / shortlist-stars on dual rows vs all rows, so
@@ -488,7 +526,7 @@
       if(state.foreignerOK && (r.foreign_friction||0) < 0) return false;
       if(state.distressOnly && (r.distress||0) < 30) return false;
       if(state.dualOnly && r.dual!==true) return false;
-      if(!state.showArchived && archives[r.u]) return false;
+      if(!state.showArchived && archives[r.id]) return false;
       return true;
     });
   }
@@ -519,8 +557,8 @@
     // count tags per region
     const regionTags = {};      // {region: {tag: count}}
     const regionTotal = {};     // {region: total archived}
-    Object.entries(archives).forEach(([u,a])=>{
-      const r = DATA.find(x=>x.u===u);
+    Object.entries(archives).forEach(([id,a])=>{
+      const r = DATA.find(x=>x.id===id);
       if(!r) return;
       const key = `${r.cf}|${r.rg}`;
       regionTotal[key] = (regionTotal[key]||0)+1;
@@ -530,15 +568,15 @@
       });
     });
     // a region's tag "sticks" once it appears 2+ times → flag remaining listings in that region with that tag
-    const flags = {}; // {url: ['tag x N',...]}
+    const flags = {}; // {id: ['tag x N',...]}
     DATA.forEach(r=>{
       const key = `${r.cf}|${r.rg}`;
       const tt = regionTags[key];
       if(!tt) return;
       Object.entries(tt).forEach(([tag,n])=>{
-        if(n>=2 && !archives[r.u]){
-          flags[r.u] = flags[r.u]||[];
-          flags[r.u].push(`${tag}×${n} in region`);
+        if(n>=2 && !archives[r.id]){
+          flags[r.id] = flags[r.id]||[];
+          flags[r.id].push(`${tag}×${n} in region`);
         }
       });
     });
@@ -565,7 +603,7 @@
     all.filter(r=>r.lat).forEach(r=>{
       const isAbandoned = r.tp==='abandoned_ski';
       const color = isAbandoned ? '#9aa3b2' : (COLORS[r.cf]||'#999');
-      const isFlagged = !!flags[r.u];
+      const isFlagged = !!flags[r.id];
       const size = Math.max(6, Math.min(16, 4+r.r/8));
       let m;
       if(isAbandoned){
@@ -578,13 +616,13 @@
       } else {
         m = L.circleMarker([r.lat,r.lon],{radius:size,color:isFlagged?'#ffb86c':'#fff',weight:isFlagged?2:1,fillColor:color,fillOpacity:.85});
       }
-      const flagHtml = isFlagged ? `<div class="lp-k" style="color:#c47800">⚠ ${flags[r.u].join(', ')}</div>` : '';
+      const flagHtml = isFlagged ? `<div class="lp-k" style="color:#c47800">⚠ ${flags[r.id].join(', ')}</div>` : '';
       if(isAbandoned){
         m.bindPopup(`<div class="lp-r" style="color:${color}">❄ ${r.r}</div>
           <div><b>${r.a}</b></div>
           <div>${r.rg}, Japan · ${r.closure_status||'unknown'}${r.year_closed?' '+r.year_closed:''}</div>
           <div class="lp-k">geo: ${r.geocode_src||'?'}</div>
-          <div style="margin-top:6px;display:flex;gap:6px"><button onclick="window.__detail('${r.u.replace(/'/g,'%27')}')">details</button>${r.wiki_jp?`<a href="${r.wiki_jp}" target="_blank">wiki →</a>`:''}</div>`);
+          <div style="margin-top:6px;display:flex;gap:6px"><button onclick="window.__detail('${r.id}')">details</button>${r.wiki_jp?`<a href="${r.wiki_jp}" target="_blank">wiki →</a>`:''}</div>`);
       } else {
         m.bindPopup(`<div class="lp-r" style="color:${color}">★ ${r.r}</div>
           <div><b>${r.cf}</b> — ${r.rg} ${r.a}</div>
@@ -592,9 +630,9 @@
           <div>${fmtUsd(r.usd)} · <b>$${r.upm}/m²</b></div>
           <div class="lp-k">${r.t||''} · ${r.rb||''}</div>
           ${flagHtml}
-          <div style="margin-top:6px;display:flex;gap:6px"><button onclick="window.__detail('${r.u.replace(/'/g,'%27')}')">details</button><a href="${r.u}" target="_blank">listing →</a></div>`);
+          <div style="margin-top:6px;display:flex;gap:6px"><button onclick="window.__detail('${r.id}')">details</button><a href="${r.u}" target="_blank">listing →</a></div>`);
       }
-      m.on('click',()=>{highlightUrl=r.u;renderTable(all);openDetail(r);});
+      m.on('click',()=>{highlightUrl=r.id;renderTable(all);openDetail(r);});
       markers.push(m);
     });
     cluster.addLayers(markers);
@@ -607,11 +645,11 @@
     const rows = sortRows(all).slice(0, 600);
     const html = rows.map(r=>{
       const color=COLORS[r.cf]||'#999';
-      const isArchived = !!archives[r.u];
-      const isFlagged = !!activeFlags[r.u];
-      const cls = (highlightUrl===r.u?'hi ':'') + (isArchived?'archived ':'') + (isFlagged && !isArchived?'flagged ':'');
-      const flagBadge = isFlagged ? `<span class="flag" title="${activeFlags[r.u].join(', ')}">⚠</span>` : '';
-      return `<tr class="${cls}" data-u="${r.u}">
+      const isArchived = !!archives[r.id];
+      const isFlagged = !!activeFlags[r.id];
+      const cls = (highlightUrl===r.id?'hi ':'') + (isArchived?'archived ':'') + (isFlagged && !isArchived?'flagged ':'');
+      const flagBadge = isFlagged ? `<span class="flag" title="${activeFlags[r.id].join(', ')}">⚠</span>` : '';
+      return `<tr class="${cls}" data-id="${r.id}">
         <td class="r ${ratingClass(r.r)}">${r.r}${flagBadge}</td>
         <td><span class="dot" style="background:${color}"></span>${r.cf.replace('British Columbia','BC').replace('New Zealand','NZ')}</td>
         <td>${r.rg}</td><td>${r.a}</td>
@@ -620,7 +658,7 @@
         <td title="${r.ski_r||''}">${r.ski_km!=null ? r.ski_km : ''}</td>
         <td style="color:${(r.distress||0)>=60?'#ff8080':(r.distress||0)>=40?'#ffb86c':'#ffd166'}">${r.distress?'🔥'+r.distress:''}</td>
         <td><a href="${r.u}" target="_blank">→</a></td>
-        <td>${isArchived ? `<button class="arch-btn" data-unarch="${encodeURIComponent(r.u)}" title="restore">↺</button>` : `<button class="arch-btn" data-arch="${encodeURIComponent(r.u)}" title="archive">✕</button>`}</td>
+        <td>${isArchived ? `<button class="arch-btn" data-unarch="${encodeURIComponent(r.id)}" title="restore">↺</button>` : `<button class="arch-btn" data-arch="${encodeURIComponent(r.id)}" title="archive">✕</button>`}</td>
       </tr>`;
     }).join('');
     tbody.innerHTML = html || '<tr><td colspan="10" style="padding:20px;text-align:center;color:#666">no matches — loosen filters or check "show archived"</td></tr>';
@@ -633,8 +671,8 @@
       tr.onclick=(e)=>{
         if(e.target.tagName==='BUTTON') return;          // archive/restore buttons
         if(e.target.tagName==='A') return;                // explicit link arrow — let native behavior handle
-        const u=tr.dataset.u, r=DATA.find(x=>x.u===u);
-        highlightUrl=u;
+        const id=tr.dataset.id, r=DATA.find(x=>x.id===id);
+        highlightUrl=id;
         if(r && r.lat){ map.flyTo([r.lat,r.lon],11,{duration:.6}); }
         document.querySelectorAll('tbody tr').forEach(t=>t.classList.remove('hi'));
         tr.classList.add('hi');
@@ -694,8 +732,8 @@
       detailImg.innerHTML=`<div>No image available — open listing for photos</div>`;
     }
     detailImg.insertAdjacentHTML('beforeend',`<span class="badge" style="border-left:3px solid ${color};padding-left:8px">${r.cf}</span><button class="close" id="detailClose">×</button>`);
-    const flag = activeFlags && activeFlags[r.u] ? `<div class="detail-flag">⚠ Auto-flag: ${activeFlags[r.u].join(', ')}</div>` : '';
-    const arch = archives[r.u] ? `<div class="detail-arch-info">📦 Archived${archives[r.u].tags && archives[r.u].tags.length?': '+archives[r.u].tags.join(', '):''}${archives[r.u].reason?' — "'+archives[r.u].reason+'"':''}</div>` : '';
+    const flag = activeFlags && activeFlags[r.id] ? `<div class="detail-flag">⚠ Auto-flag: ${activeFlags[r.id].join(', ')}</div>` : '';
+    const arch = archives[r.id] ? `<div class="detail-arch-info">📦 Archived${archives[r.id].tags && archives[r.id].tags.length?': '+archives[r.id].tags.join(', '):''}${archives[r.id].reason?' — "'+archives[r.id].reason+'"':''}</div>` : '';
     const ratingC = ratingClass(r.r);
     detailBody.innerHTML = `
       <div class="detail-rating ${ratingC}" style="color:${ratingC==='s90'?'#7ce38b':ratingC==='s80'?'#9fd96d':ratingC==='s70'?'#d9e57c':ratingC==='s60'?'#e5b87c':'#fff'}">★ ${r.r}<span class="rb">${r.rb||''}</span></div>
@@ -735,17 +773,17 @@
       </div>
       ${r.lat?`<div id="detailMap"></div>`:`<div id="detailMap" class="empty">no coordinates available</div>`}
       <div class="detail-actions">
-        ${archives[r.u]
+        ${archives[r.id]
           ? `<button class="btn" id="detailUnarch">↺ Restore from archive</button>`
           : `<button class="btn" id="detailArch">✕ Archive (give reason)</button>`}
-        <button class="btn" id="detailPromote" style="${shortlist[r.u]?'border-color:#ffd166;color:#ffd166':''}">★ ${shortlist[r.u]?'Shortlisted (edit)':'Promote'}</button>
-        ${shortlist[r.u]?`<button class="btn" id="detailFindSimilar">Find similar →</button>`:''}
+        <button class="btn" id="detailPromote" style="${shortlist[r.id]?'border-color:#ffd166;color:#ffd166':''}">★ ${shortlist[r.id]?'Shortlisted (edit)':'Promote'}</button>
+        ${shortlist[r.id]?`<button class="btn" id="detailFindSimilar">Find similar →</button>`:''}
         <a class="btn primary" href="${r.u}" target="_blank" rel="noopener">Open listing →</a>
       </div>`;
     document.getElementById('detailClose').onclick=()=>detailBg.classList.remove('show');
-    const ab=document.getElementById('detailArch'); if(ab) ab.onclick=()=>{ detailBg.classList.remove('show'); openArchive(r.u); };
-    const ub=document.getElementById('detailUnarch'); if(ub) ub.onclick=()=>{ delete archives[r.u]; saveArchives(archives); detailBg.classList.remove('show'); render(); };
-    const pb=document.getElementById('detailPromote'); if(pb) pb.onclick=()=>{ detailBg.classList.remove('show'); openPromote(r.u); };
+    const ab=document.getElementById('detailArch'); if(ab) ab.onclick=()=>{ detailBg.classList.remove('show'); openArchive(r.id); };
+    const ub=document.getElementById('detailUnarch'); if(ub) ub.onclick=()=>{ delete archives[r.id]; saveArchives(archives); detailBg.classList.remove('show'); render(); };
+    const pb=document.getElementById('detailPromote'); if(pb) pb.onclick=()=>{ detailBg.classList.remove('show'); openPromote(r.id); };
     const fs=document.getElementById('detailFindSimilar'); if(fs) fs.onclick=()=>{ detailBg.classList.remove('show'); openShortlistView(); };
     const ol=detailBody.querySelector('a.btn.primary[href]'); if(ol) ol.addEventListener('click',()=>bumpDualMetric('outbound', r.dual===true));
     detailBg.classList.add('show');
@@ -768,19 +806,19 @@
   const modalInfo=document.getElementById('modalInfo');
   const tagBox=document.getElementById('tagBox');
   const reasonInp=document.getElementById('reason');
-  let pendingUrl=null;
+  let pendingId=null;
   let pendingTags=new Set();
-  function openArchive(url){
-    const r=DATA.find(x=>x.u===url);
+  function openArchive(id){
+    const r=DATA.find(x=>x.id===id);
     if(!r) return;
-    pendingUrl=url; pendingTags=new Set();
+    pendingId=id; pendingTags=new Set();
     reasonInp.value='';
     tagBox.querySelectorAll('.tag').forEach(t=>t.classList.remove('on'));
-    modalInfo.innerHTML=`<b>★ ${r.r}</b> · ${r.cf} · ${r.rg} ${r.a}<br>${r.ac} ac · $${r.upm}/m² · ${fmtUsd(r.usd)}<br><a href="${url}" target="_blank" style="color:#4fa3ff">view listing</a>`;
+    modalInfo.innerHTML=`<b>★ ${r.r}</b> · ${r.cf} · ${r.rg} ${r.a}<br>${r.ac} ac · $${r.upm}/m² · ${fmtUsd(r.usd)}<br><a href="${r.u}" target="_blank" style="color:#4fa3ff">view listing</a>`;
     modalBg.classList.add('show');
   }
-  window.__archive = openArchive; // expose for popup buttons
-  window.__detail = (u)=>{ const r=DATA.find(x=>x.u===decodeURIComponent(u.replace(/%27/g,"'"))); if(r) openDetail(r); };
+  window.__archive = openArchive; // expose for popup buttons (id-keyed)
+  window.__detail = (id)=>{ const r=DATA.find(x=>x.id===id); if(r) openDetail(r); };
   tagBox.querySelectorAll('.tag').forEach(t=>{
     t.onclick=()=>{
       const tag=t.dataset.tag;
@@ -790,8 +828,8 @@
   });
   document.getElementById('cancelArch').onclick=()=>modalBg.classList.remove('show');
   document.getElementById('saveArch').onclick=()=>{
-    if(!pendingUrl) return;
-    archives[pendingUrl]={tags:Array.from(pendingTags), reason:reasonInp.value.trim(), ts:Date.now()};
+    if(!pendingId) return;
+    archives[pendingId]={tags:Array.from(pendingTags), reason:reasonInp.value.trim(), ts:Date.now()};
     saveArchives(archives);
     modalBg.classList.remove('show');
     render();
@@ -809,18 +847,18 @@
   const promoteInfo = document.getElementById('promoteInfo');
   const promoteTagBox = document.getElementById('promoteTagBox');
   const promoteReason = document.getElementById('promoteReason');
-  let pendingPromoteUrl = null;
+  let pendingPromoteId = null;
   let pendingPromoteTags = new Set();
-  function openPromote(url){
-    const r = DATA.find(x=>x.u===url); if(!r) return;
-    const existing = shortlist[url];
-    pendingPromoteUrl = url;
+  function openPromote(id){
+    const r = DATA.find(x=>x.id===id); if(!r) return;
+    const existing = shortlist[id];
+    pendingPromoteId = id;
     pendingPromoteTags = new Set(existing?.tags || []);
     promoteReason.value = existing?.reason || '';
     promoteTagBox.querySelectorAll('.tag').forEach(t=>{
       t.classList.toggle('on', pendingPromoteTags.has(t.dataset.tag));
     });
-    promoteInfo.innerHTML = `<b>★ ${r.r}</b> · ${r.cf} · ${r.rg} ${r.a||''}<br>${r.ac} ac · $${r.upm}/m² · ${fmtUsd(r.usd)}<br><a href="${url}" target="_blank" style="color:#4fa3ff">view listing</a>`;
+    promoteInfo.innerHTML = `<b>★ ${r.r}</b> · ${r.cf} · ${r.rg} ${r.a||''}<br>${r.ac} ac · $${r.upm}/m² · ${fmtUsd(r.usd)}<br><a href="${r.u}" target="_blank" style="color:#4fa3ff">view listing</a>`;
     promoteBg.classList.add('show');
   }
   window.__promote = openPromote;
@@ -833,10 +871,10 @@
   });
   document.getElementById('cancelPromote').onclick=()=>promoteBg.classList.remove('show');
   document.getElementById('savePromote').onclick=()=>{
-    if(!pendingPromoteUrl) return;
-    const _isNewStar = !shortlist[pendingPromoteUrl];
-    const _pr = DATA.find(x=>x.u===pendingPromoteUrl);
-    shortlist[pendingPromoteUrl]={tags:Array.from(pendingPromoteTags), reason:promoteReason.value.trim(), ts:Date.now()};
+    if(!pendingPromoteId) return;
+    const _isNewStar = !shortlist[pendingPromoteId];
+    const _pr = DATA.find(x=>x.id===pendingPromoteId);
+    shortlist[pendingPromoteId]={tags:Array.from(pendingPromoteTags), reason:promoteReason.value.trim(), ts:Date.now()};
     saveShortlist(shortlist);
     if(_isNewStar) bumpDualMetric('star', _pr && _pr.dual===true);
     promoteBg.classList.remove('show');
@@ -895,12 +933,12 @@
   function findSimilar(seedRows, k){
     if(!seedRows.length) return [];
     const ref=centroid(seedRows);
-    const seedUrls=new Set(seedRows.map(r=>r.u));
+    const seedIds=new Set(seedRows.map(r=>r.id));
     const scored=[];
     for(const r of DATA){
-      if(seedUrls.has(r.u)) continue;
-      if(archives[r.u]) continue;
-      if(shortlist[r.u]) continue;
+      if(seedIds.has(r.id)) continue;
+      if(archives[r.id]) continue;
+      if(shortlist[r.id]) continue;
       const f=featureVec(r);
       const {d, why}=distance(f, ref);
       scored.push({r, d, why});
@@ -922,9 +960,9 @@
     const img=(r.imgs && r.imgs[0]) || r.img || '';
     const whyTxt=why && why.length ? `<div class="why">${why.join(' · ')}</div>` : '';
     const action=isPick
-      ? `<button class="btn" data-unpromote="${encodeURIComponent(r.u)}">remove</button>`
-      : `<button class="btn primary" data-promote="${encodeURIComponent(r.u)}">+ shortlist</button>`;
-    return `<div class="sl-card" data-detail="${encodeURIComponent(r.u)}">
+      ? `<button class="btn" data-unpromote="${encodeURIComponent(r.id)}">remove</button>`
+      : `<button class="btn primary" data-promote="${encodeURIComponent(r.id)}">+ shortlist</button>`;
+    return `<div class="sl-card" data-detail="${encodeURIComponent(r.id)}">
       <div class="sl-img"${img?` style="background-image:url('${img.replace(/'/g,"%27")}')"`:''}></div>
       <div class="sl-meta">
         <div class="title">★${r.r} · ${r.cf.replace('British Columbia','BC').replace('New Zealand','NZ')} · ${r.rg||''}</div>
@@ -934,21 +972,21 @@
     </div>`;
   }
   function openShortlistView(){
-    const urls=Object.keys(shortlist);
-    shortlistCountEl.textContent = urls.length ? `· ${urls.length} listings` : '';
-    if(!urls.length){
+    const ids=Object.keys(shortlist);
+    shortlistCountEl.textContent = ids.length ? `· ${ids.length} listings` : '';
+    if(!ids.length){
       shortlistBody.innerHTML='<p style="color:var(--txt-dim);padding:16px">Nothing on the shortlist yet. Click a listing → <b>★ Promote</b> to add it.</p>';
       shortlistBg.classList.add('show'); return;
     }
     const groups={};
-    for(const u of urls){
-      const meta=shortlist[u];
+    for(const id of ids){
+      const meta=shortlist[id];
       const key=(meta.tags && meta.tags.length) ? meta.tags.slice().sort().join(' + ') : (meta.reason || 'untagged');
-      (groups[key]=groups[key]||[]).push(u);
+      (groups[key]=groups[key]||[]).push(id);
     }
     const html=[];
-    for(const [name, gUrls] of Object.entries(groups)){
-      const gRows=gUrls.map(u=>DATA.find(r=>r.u===u)).filter(Boolean);
+    for(const [name, gIds] of Object.entries(groups)){
+      const gRows=gIds.map(id=>DATA.find(r=>r.id===id)).filter(Boolean);
       const similar=findSimilar(gRows, 12);
       html.push(`<div class="sl-group">
         <h4>${name} <span class="ct">${gRows.length} picked · ${similar.length} similar</span></h4>
@@ -964,7 +1002,7 @@
       el.onclick=(e)=>{
         if(e.target.tagName==='BUTTON') return;
         shortlistBg.classList.remove('show');
-        const r=DATA.find(x=>x.u===decodeURIComponent(el.dataset.detail));
+        const r=DATA.find(x=>x.id===decodeURIComponent(el.dataset.detail));
         if(r) openDetail(r);
       };
     });
@@ -1112,6 +1150,8 @@
     r.readAsText(f);
   };
 
+  runIdMigration();
+  refreshShortlistChip();
   render();
   refreshDualMetric();
 })();
