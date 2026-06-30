@@ -45,6 +45,8 @@ KEEP = (
     "distress", "distress_breakdown", "size_mismatch",
     "fullfloor", "duplex", "terrace_km", "terrace_bonus", "terrace_zone",
     "npa", "structural_warn",
+    # dual-amenity lens (scripts/dual_amenity.py) — badge + filter layer over r
+    "dual", "dual_s",
 )
 
 COORD_KEYS = ("lat", "lon")
