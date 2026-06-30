@@ -21,7 +21,49 @@ jobs:
           python-version: "3.11"
 
       - name: Run scanner
+        id: scan
+        # Don't let a degraded/aborted scan kill the whole job — we still want
+        # to commit any good data and surface the health summary below.
+        continue-on-error: true
         run: python scripts/scan.py
+
+      - name: Surface scan health
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, os, pathlib
+          p = pathlib.Path("data/scan_health.json")
+          summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          if not p.exists():
+              line = "Scan health: no data/scan_health.json written (scanner crashed before emitting one)."
+              print(line)
+              if summary:
+                  open(summary, "a").write("### Weekly scan health\n\n" + line + "\n")
+              raise SystemExit(0)
+          h = json.loads(p.read_text())
+          lines = [
+              "### Weekly scan health",
+              "",
+              f"- Status: **{h.get('status','?')}**",
+              f"- Sources attempted: {h.get('attempted','?')}  succeeded: {h.get('succeeded','?')}  empty: {h.get('empty','?')}  failed: {h.get('failed','?')}",
+              f"- Total rows: {h.get('total_rows','?')}  new DD candidates: {h.get('new_dd','?')}",
+              "",
+              "| Source | Status | Rows |",
+              "| --- | --- | --- |",
+          ]
+          for name, s in (h.get("sources") or {}).items():
+              lines.append(f"| {name} | {s.get('status','?')} | {s.get('rows',0)} |")
+          out = "\n".join(lines) + "\n"
+          print(out)
+          if summary:
+              open(summary, "a").write(out + "\n")
+          # Fail the job loudly on a no-data abort; warn (don't fail) on degraded.
+          if h.get("status") == "aborted_no_data":
+              raise SystemExit("scan aborted: all sources empty/failed")
+          if h.get("degraded"):
+              print("::warning title=Weekly scan degraded::"
+                    f"{h.get('failed',0)} failed / {h.get('empty',0)} empty sources this run")
+          PY
 
       - name: Regulatory watch — re-check tracked items
         env:

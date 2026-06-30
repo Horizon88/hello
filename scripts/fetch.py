@@ -27,7 +27,44 @@ Returns (body, source_tag) where source_tag is one of:
   'direct' | 'wayback' | 'proxy' | 'scraperapi' | 'failed'
 """
 from __future__ import annotations
-import os, re, subprocess, urllib.parse
+import os, re, subprocess, sys, urllib.parse
+
+# --- Paid-stage spend cap -------------------------------------------------
+# Stages 3 (residential proxy / CF relay) and 4 (ScraperAPI) cost money per
+# request. A scraper that loops over hundreds of URLs where the free stages
+# all miss would otherwise hit the paid stages an unbounded number of times.
+# Cap the number of paid attempts per process run; once reached, fetch()
+# stops escalating and returns whatever the free stages produced (tagged
+# 'failed'), so callers degrade instead of running up a bill.
+#
+# Override per run with PAID_FETCH_CAP (int). 0 disables paid stages entirely;
+# a negative value means "no cap" (legacy behaviour).
+def _paid_cap() -> int:
+    try:
+        return int(os.environ.get("PAID_FETCH_CAP", "40"))
+    except ValueError:
+        return 40
+
+_PAID_CALLS = 0
+
+
+def _paid_budget_left() -> bool:
+    """True if another paid-stage attempt is within budget."""
+    cap = _paid_cap()
+    if cap < 0:
+        return True
+    return _PAID_CALLS < cap
+
+
+def _spend_paid() -> None:
+    """Record one paid-stage attempt; log when the cap is reached."""
+    global _PAID_CALLS
+    _PAID_CALLS += 1
+    cap = _paid_cap()
+    if cap >= 0 and _PAID_CALLS == cap:
+        print(f"[fetch] paid-fetch cap reached ({cap}); further proxy/ScraperAPI "
+              f"escalation disabled for this run (set PAID_FETCH_CAP to change).",
+              file=sys.stderr, flush=True)
 
 UA = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -102,13 +139,19 @@ def fetch(url: str, timeout: int = 18, allow_stale: bool = True,
     # force= jumps directly to a specific stage; useful for known
     # JS-rendered targets where 'direct' returns a hollow shell.
     if force == "relay":
+        if not _paid_budget_left():
+            return "", "failed"
+        _spend_paid()
         code, body = _try_relay(url, timeout=timeout + 10)
         if not _looks_blocked(body, code) and len(body) > 200:
             return body, "cf-relay"
         return body, "failed"
     if force == "scraperapi":
         key = os.environ.get("SCRAPER_API_KEY")
+        if key and not _paid_budget_left():
+            return "", "failed"   # capped — don't fall through to the free chain
         if key:
+            _spend_paid()
             base = os.environ.get("SCRAPER_API_URL", "http://api.scraperapi.com")
             api = f"{base}/?api_key={key}&render=true&url={urllib.parse.quote(url, safe='')}"
             code, body = _curl(api, timeout=90)
@@ -124,7 +167,10 @@ def fetch(url: str, timeout: int = 18, allow_stale: bool = True,
             return body, "failed"
     if force == "proxy":
         proxy = os.environ.get("HTTPS_PROXY_RESI")
+        if proxy and not _paid_budget_left():
+            return "", "failed"   # capped — don't fall through to the free chain
         if proxy:
+            _spend_paid()
             code, body = _curl(url, timeout=timeout + 5, proxy=proxy)
             if len(body) > 200 and not _looks_blocked(body, code):
                 return body, "proxy"
@@ -150,14 +196,17 @@ def fetch(url: str, timeout: int = 18, allow_stale: bool = True,
 
     # Stage 3a — Cloudflare Worker relay (the relay itself goes through
     # IPRoyal residential proxy — bypasses sandbox proxy-host block).
-    code, body = _try_relay(url, timeout=timeout + 15)
-    if code and not _looks_blocked(body, code) and len(body) > 200:
-        return body, "cf-relay"
+    if os.environ.get("CF_RELAY_URL") and _paid_budget_left():
+        _spend_paid()
+        code, body = _try_relay(url, timeout=timeout + 15)
+        if code and not _looks_blocked(body, code) and len(body) > 200:
+            return body, "cf-relay"
 
     # Stage 3b — direct residential proxy (only works when the caller's
     # network can reach proxy gateways; Claude sandbox can't).
     proxy = os.environ.get("HTTPS_PROXY_RESI")
-    if proxy:
+    if proxy and _paid_budget_left():
+        _spend_paid()
         code, body = _curl(url, timeout=timeout + 5, proxy=proxy)
         if not _looks_blocked(body, code) and len(body) > 200:
             return body, "proxy"
@@ -165,7 +214,8 @@ def fetch(url: str, timeout: int = 18, allow_stale: bool = True,
     # Stage 4 — ScraperAPI (or compatible). Two-step: basic first, then premium
     # on protected-domain rejection.
     key = os.environ.get("SCRAPER_API_KEY")
-    if key:
+    if key and _paid_budget_left():
+        _spend_paid()
         base = os.environ.get("SCRAPER_API_URL", "http://api.scraperapi.com")
         api = f"{base}/?api_key={key}&render=true&url={urllib.parse.quote(url, safe='')}"
         code, body = _curl(api, timeout=60)

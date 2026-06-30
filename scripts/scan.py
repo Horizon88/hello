@@ -434,27 +434,72 @@ def main() -> int:
         ("Japan", scrape_suumo_jp),
     ]
     all_rows: list[dict] = []
+    # Per-source health record, written to data/scan_health.json so a run that
+    # silently degrades (a source goes dark, returns empty, or raises) is
+    # VISIBLE rather than just producing a thinner dataset.
+    health = {
+        "run_started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "sources": {},          # name -> {status, rows, error}
+        "attempted": 0,
+        "succeeded": 0,
+        "failed": 0,
+        "empty": 0,
+        "total_rows": 0,
+    }
     for name, fn in sources:
+        health["attempted"] += 1
         try:
             rs = fn()
             print(f"{name}: {len(rs)} listings", flush=True)
             all_rows.extend(rs)
+            if rs:
+                health["succeeded"] += 1
+                health["sources"][name] = {"status": "ok", "rows": len(rs)}
+            else:
+                # Empty is suspicious for these sources (they normally return
+                # dozens-to-hundreds). Flag it, but don't crash — a genuinely
+                # empty week is possible.
+                health["empty"] += 1
+                health["sources"][name] = {"status": "empty", "rows": 0}
+                print(f"{name} WARNING: returned 0 listings", file=sys.stderr, flush=True)
         except Exception as e:  # one source failing shouldn't kill the run
+            health["failed"] += 1
+            health["sources"][name] = {"status": "error", "rows": 0, "error": str(e)[:300]}
             print(f"{name} ERROR: {e}", file=sys.stderr, flush=True)
+
+    health["total_rows"] = len(all_rows)
 
     for r in all_rows:
         rate(r)
 
-    # Output latest.csv
+    # --- Data-integrity guard -------------------------------------------------
+    # Never overwrite a good latest.csv with an empty/near-empty one. If every
+    # source failed (or returned nothing), the run degraded so badly that the
+    # output would wipe the last good snapshot — keep the old data, write the
+    # health record, and exit non-zero so the workflow surfaces it.
     cols = ["rating", "country", "region", "area", "m2", "acres", "view", "elev_m",
             "price_local", "currency", "price_usd", "usd_per_m2", "usd_per_acre",
             "title", "source", "rating_breakdown", "listing_link"]
     latest = DATA / "latest.csv"
-    with latest.open("w", newline="") as f:
+    health_path = DATA / "scan_health.json"
+
+    if not all_rows:
+        msg = "ALL sources empty/failed — refusing to overwrite latest.csv"
+        health["status"] = "aborted_no_data"
+        health["note"] = msg
+        health_path.write_text(json.dumps(health, indent=2))
+        print(f"FATAL: {msg}", file=sys.stderr, flush=True)
+        return 1
+
+    # Output latest.csv (atomically, so a crash mid-write can't truncate the
+    # file the UI / downstream steps read).
+    tmp = latest.with_suffix(".csv.tmp")
+    with tmp.open("w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore")
         w.writeheader()
         for r in sorted(all_rows, key=lambda x: -x["rating"]):
             w.writerow(r)
+    os.replace(tmp, latest)
 
     # Diff against seen.json — identify NEW high-rated
     seen_path = DATA / "seen.json"
@@ -474,6 +519,19 @@ def main() -> int:
     # Update seen
     new_seen = seen | {listing_id(r) for r in all_rows}
     seen_path.write_text(json.dumps(sorted(new_seen)))
+
+    # Finalize + write the health record. 'degraded' when too many sources
+    # missed; the workflow inspects this to warn/fail loudly. Override the
+    # threshold with SCAN_MAX_FAILED (default: more than half the sources).
+    bad = health["failed"] + health["empty"]
+    max_failed = int(os.environ.get("SCAN_MAX_FAILED", str(len(sources) // 2 + 1)))
+    health["new_dd"] = len(new_dd)
+    health["degraded"] = bad >= max_failed
+    health["status"] = "degraded" if health["degraded"] else "ok"
+    health_path.write_text(json.dumps(health, indent=2))
+    if health["degraded"]:
+        print(f"WARNING: degraded run — {bad}/{health['attempted']} sources "
+              f"failed or empty (threshold {max_failed})", file=sys.stderr, flush=True)
 
     return 0
 
