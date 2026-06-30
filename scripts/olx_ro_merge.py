@@ -86,7 +86,7 @@ for r in raw:
         "lat":lat,"lon":lng,
         "cur": r["cur"], "lp": str(r["price"]),
         "rb":"+".join(rb),
-        "img":"","imgs":[],
+        "img": r.get("img","") or "", "imgs": [r["img"]] if r.get("img") else [],
         "u": r["url"] or f"https://www.olx.ro/d/oferta/-ID{r['id']}.html",
         "apt":"","apt_km":None,
         "name": r.get("title","")[:140],
