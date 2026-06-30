@@ -1,0 +1,416 @@
+[
+  {
+    "name": "Whistler Blackcomb",
+    "lat": 50.1163,
+    "lon": -122.9574,
+    "region": "CA-BC"
+  },
+  {
+    "name": "Revelstoke Mountain",
+    "lat": 50.9558,
+    "lon": -118.1656,
+    "region": "CA-BC"
+  },
+  {
+    "name": "Big White",
+    "lat": 49.7261,
+    "lon": -118.9381,
+    "region": "CA-BC"
+  },
+  {
+    "name": "Sun Peaks",
+    "lat": 50.8825,
+    "lon": -119.905,
+    "region": "CA-BC"
+  },
+  {
+    "name": "Kicking Horse",
+    "lat": 51.2858,
+    "lon": -117.05,
+    "region": "CA-BC"
+  },
+  {
+    "name": "Fernie Alpine",
+    "lat": 49.4633,
+    "lon": -115.095,
+    "region": "CA-BC"
+  },
+  {
+    "name": "Panorama",
+    "lat": 50.4683,
+    "lon": -116.2197,
+    "region": "CA-BC"
+  },
+  {
+    "name": "Red Mountain",
+    "lat": 49.0989,
+    "lon": -117.8053,
+    "region": "CA-BC"
+  },
+  {
+    "name": "Whitewater",
+    "lat": 49.4256,
+    "lon": -117.1567,
+    "region": "CA-BC"
+  },
+  {
+    "name": "Cypress Mountain",
+    "lat": 49.3947,
+    "lon": -123.2086,
+    "region": "CA-BC"
+  },
+  {
+    "name": "Mt Washington",
+    "lat": 49.7472,
+    "lon": -125.3122,
+    "region": "CA-BC"
+  },
+  {
+    "name": "Shames Mountain",
+    "lat": 54.5917,
+    "lon": -128.9067,
+    "region": "CA-BC"
+  },
+  {
+    "name": "Hudson Bay Mountain",
+    "lat": 54.7997,
+    "lon": -127.2853,
+    "region": "CA-BC"
+  },
+  {
+    "name": "Lake Louise",
+    "lat": 51.4419,
+    "lon": -116.1758,
+    "region": "CA-AB"
+  },
+  {
+    "name": "Mt Tremblant",
+    "lat": 46.2103,
+    "lon": -74.5856,
+    "region": "CA-QC"
+  },
+  {
+    "name": "Blue Mountain",
+    "lat": 44.5036,
+    "lon": -80.3092,
+    "region": "CA-ON"
+  },
+  {
+    "name": "Niseko United",
+    "lat": 42.8642,
+    "lon": 140.6981,
+    "region": "JP-HK"
+  },
+  {
+    "name": "Hakuba",
+    "lat": 36.6928,
+    "lon": 137.8217,
+    "region": "JP-NA"
+  },
+  {
+    "name": "Nozawa Onsen",
+    "lat": 36.9239,
+    "lon": 138.4356,
+    "region": "JP-NA"
+  },
+  {
+    "name": "Furano",
+    "lat": 43.4106,
+    "lon": 142.4231,
+    "region": "JP-HK"
+  },
+  {
+    "name": "Rusutsu",
+    "lat": 42.735,
+    "lon": 140.8786,
+    "region": "JP-HK"
+  },
+  {
+    "name": "Tomamu",
+    "lat": 43.0728,
+    "lon": 142.6786,
+    "region": "JP-HK"
+  },
+  {
+    "name": "Yuzawa Naeba",
+    "lat": 36.8569,
+    "lon": 138.7836,
+    "region": "JP-NG"
+  },
+  {
+    "name": "Otaru Tenguyama",
+    "lat": 43.1844,
+    "lon": 141.0072,
+    "region": "JP-HK"
+  },
+  {
+    "name": "Aspen Snowmass",
+    "lat": 39.2095,
+    "lon": -106.9486,
+    "region": "USA-CO"
+  },
+  {
+    "name": "Vail",
+    "lat": 39.6403,
+    "lon": -106.3742,
+    "region": "USA-CO"
+  },
+  {
+    "name": "Park City",
+    "lat": 40.6514,
+    "lon": -111.5078,
+    "region": "USA-UT"
+  },
+  {
+    "name": "Jackson Hole",
+    "lat": 43.5875,
+    "lon": -110.8281,
+    "region": "USA-WY"
+  },
+  {
+    "name": "Big Sky",
+    "lat": 45.2858,
+    "lon": -111.4011,
+    "region": "USA-MT"
+  },
+  {
+    "name": "Erciyes",
+    "lat": 38.5278,
+    "lon": 35.5594,
+    "region": "TR-Kayseri"
+  },
+  {
+    "name": "Paland\u00f6ken",
+    "lat": 39.8772,
+    "lon": 41.2842,
+    "region": "TR-Erzurum"
+  },
+  {
+    "name": "Sar\u0131kam\u0131\u015f",
+    "lat": 40.3169,
+    "lon": 42.5772,
+    "region": "TR-Kars"
+  },
+  {
+    "name": "Uluda\u011f",
+    "lat": 40.0936,
+    "lon": 29.1361,
+    "region": "TR-Bursa"
+  },
+  {
+    "name": "Kartalkaya",
+    "lat": 40.6311,
+    "lon": 31.7758,
+    "region": "TR-Bolu"
+  },
+  {
+    "name": "Kartepe",
+    "lat": 40.6878,
+    "lon": 30.1989,
+    "region": "TR-Kocaeli"
+  },
+  {
+    "name": "Davraz",
+    "lat": 37.7917,
+    "lon": 30.8333,
+    "region": "TR-Isparta"
+  },
+  {
+    "name": "Sakl\u0131kent (Antalya)",
+    "lat": 36.8333,
+    "lon": 30.35,
+    "region": "TR-Antalya"
+  },
+  {
+    "name": "Ilgaz Y\u0131ld\u0131ztepe",
+    "lat": 41.0825,
+    "lon": 33.7886,
+    "region": "TR-Kastamonu"
+  },
+  {
+    "name": "Hesarek (Bart\u0131n)",
+    "lat": 41.4544,
+    "lon": 32.4322,
+    "region": "TR-Bart\u0131n"
+  },
+  {
+    "name": "Bozda\u011f",
+    "lat": 38.3083,
+    "lon": 28.0867,
+    "region": "TR-\u0130zmir"
+  },
+  {
+    "name": "Yedig\u00f6ller",
+    "lat": 40.5631,
+    "lon": 31.7506,
+    "region": "TR-Bolu"
+  },
+  {
+    "name": "K\u00f6ro\u011flu",
+    "lat": 40.6356,
+    "lon": 31.6086,
+    "region": "TR-Bolu"
+  },
+  {
+    "name": "Karag\u00f6l",
+    "lat": 40.3344,
+    "lon": 41.4925,
+    "region": "TR-Erzurum"
+  },
+  {
+    "name": "Konakl\u0131 (Ni\u011fde)",
+    "lat": 37.9483,
+    "lon": 34.7361,
+    "region": "TR-Ni\u011fde"
+  },
+  {
+    "name": "Bing\u00f6l Yola\u00e7t\u0131",
+    "lat": 39.1583,
+    "lon": 41.275,
+    "region": "TR-Bing\u00f6l"
+  },
+  {
+    "name": "Hakkari Mergab\u00fctan",
+    "lat": 37.6275,
+    "lon": 43.7906,
+    "region": "TR-Hakkari"
+  },
+  {
+    "name": "Ovac\u0131k (Tunceli)",
+    "lat": 39.3789,
+    "lon": 39.2364,
+    "region": "TR-Tunceli"
+  },
+  {
+    "name": "Yaln\u0131z\u00e7am (Ardahan)",
+    "lat": 41.0633,
+    "lon": 42.4961,
+    "region": "TR-Ardahan"
+  },
+  {
+    "name": "Zigana",
+    "lat": 40.6356,
+    "lon": 39.3833,
+    "region": "TR-G\u00fcm\u00fc\u015fhane"
+  },
+  {
+    "name": "Erzincan Ergan",
+    "lat": 39.6722,
+    "lon": 39.3725,
+    "region": "TR-Erzincan"
+  },
+  {
+    "name": "C\u0131b\u0131ltepe (Sar\u0131kam\u0131\u015f)",
+    "lat": 40.3036,
+    "lon": 42.5797,
+    "region": "TR-Kars"
+  },
+  {
+    "name": "Poiana Brasov",
+    "lat": 45.5938,
+    "lon": 25.553,
+    "region": "RO"
+  },
+  {
+    "name": "Predeal",
+    "lat": 45.5039,
+    "lon": 25.5742,
+    "region": "RO"
+  },
+  {
+    "name": "Sinaia",
+    "lat": 45.35,
+    "lon": 25.538,
+    "region": "RO"
+  },
+  {
+    "name": "Busteni",
+    "lat": 45.408,
+    "lon": 25.536,
+    "region": "RO"
+  },
+  {
+    "name": "Azuga",
+    "lat": 45.453,
+    "lon": 25.553,
+    "region": "RO"
+  },
+  {
+    "name": "Ranca",
+    "lat": 45.37,
+    "lon": 23.579,
+    "region": "RO"
+  },
+  {
+    "name": "Vatra Dornei",
+    "lat": 47.35,
+    "lon": 25.358,
+    "region": "RO"
+  },
+  {
+    "name": "Straja",
+    "lat": 45.317,
+    "lon": 23.15,
+    "region": "RO"
+  },
+  {
+    "name": "Parang",
+    "lat": 45.295,
+    "lon": 23.507,
+    "region": "RO"
+  },
+  {
+    "name": "Harghita Madaras",
+    "lat": 46.52,
+    "lon": 25.58,
+    "region": "RO"
+  },
+  {
+    "name": "Borsa Olimpica",
+    "lat": 47.668,
+    "lon": 24.753,
+    "region": "RO"
+  },
+  {
+    "name": "Cavnic",
+    "lat": 47.65,
+    "lon": 23.877,
+    "region": "RO"
+  },
+  {
+    "name": "Arieseni Vartop",
+    "lat": 46.438,
+    "lon": 22.647,
+    "region": "RO"
+  },
+  {
+    "name": "Paltinis",
+    "lat": 45.665,
+    "lon": 23.945,
+    "region": "RO"
+  },
+  {
+    "name": "Balea Lac",
+    "lat": 45.602,
+    "lon": 24.619,
+    "region": "RO"
+  },
+  {
+    "name": "Bran",
+    "lat": 45.52,
+    "lon": 25.368,
+    "region": "RO"
+  },
+  {
+    "name": "Rasnov",
+    "lat": 45.595,
+    "lon": 25.463,
+    "region": "RO"
+  },
+  {
+    "name": "Calimani Gura Haitii",
+    "lat": 47.183,
+    "lon": 25.233,
+    "region": "RO"
+  }
+]
