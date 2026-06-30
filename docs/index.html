@@ -231,6 +231,7 @@
 <footer>
   <span id="count">…</span>
   <span>map: 732 with coords (TH/NZ/BC); table: all 2,274</span>
+  <span id="dualMetric" style="color:#8fcfe8"></span>
   <span class="right">
     <label style="cursor:pointer"><input type="checkbox" id="showArch"> show archived (<span id="archN">0</span>)</label>
     <button class="btn" id="exportBtn">⬇ export archives</button>
@@ -345,6 +346,34 @@
   }
   function saveArchives(a){ localStorage.setItem(LS_KEY, JSON.stringify(a)); }
   let archives = loadArchives();
+
+  // ---- dual-amenity engagement counter (localStorage) ----
+  // Cheapest honest answer to "are people engaging with flagged rows?". We tally
+  // detail-opens / outbound-clicks / shortlist-stars on dual rows vs all rows, so
+  // the share can be read off without a backend. Decisions live in archives/
+  // shortlist; this is a pure interaction tally and never affects the ranking.
+  const DUAL_METRIC_KEY = 'dual_metric_v1';
+  function loadDualMetric(){
+    try { return Object.assign({detail:0,outbound:0,star:0,dual_detail:0,dual_outbound:0,dual_star:0}, JSON.parse(localStorage.getItem(DUAL_METRIC_KEY)||'{}')); }
+    catch(e){ return {detail:0,outbound:0,star:0,dual_detail:0,dual_outbound:0,dual_star:0}; }
+  }
+  let dualMetric = loadDualMetric();
+  function bumpDualMetric(kind, isDual){
+    dualMetric[kind] = (dualMetric[kind]||0)+1;
+    if(isDual) dualMetric['dual_'+kind] = (dualMetric['dual_'+kind]||0)+1;
+    localStorage.setItem(DUAL_METRIC_KEY, JSON.stringify(dualMetric));
+    refreshDualMetric();
+  }
+  function refreshDualMetric(){
+    const el=document.getElementById('dualMetric');
+    if(!el) return;
+    const ev=dualMetric.detail+dualMetric.outbound+dualMetric.star;
+    const dv=dualMetric.dual_detail+dualMetric.dual_outbound+dualMetric.dual_star;
+    if(!ev){ el.textContent=''; return; }
+    const pct=Math.round(100*dv/ev);
+    el.textContent=`🌊⛰️ dual engagement: ${dv}/${ev} (${pct}%)`;
+    el.title=`detail ${dualMetric.dual_detail}/${dualMetric.detail} · outbound ${dualMetric.dual_outbound}/${dualMetric.outbound} · star ${dualMetric.dual_star}/${dualMetric.star} — share of interactions landing on coastal+ski flagged rows`;
+  }
 
   const state = {
     countries: new Set(ALL_COUNTRIES),
@@ -464,6 +493,14 @@
     });
   }
   function sortRows(rows){
+    // Dual-amenity lens: when the chip is ON, surface the best coastal+ski
+    // parcels by sorting on dual_s desc — the whole point of the lens is that
+    // these rows are buried ~rank 5,000 under the size-dominant `r`. This is a
+    // view-only override that NEVER touches state.sortKey or the default sort;
+    // toggling the chip off restores the user's chosen sort exactly.
+    if(state.dualOnly){
+      return rows.slice().sort((a,b)=>(b.dual_s||0)-(a.dual_s||0));
+    }
     const k=state.sortKey, dir=state.sortAsc?1:-1;
     return rows.slice().sort((a,b)=>{
       const av=a[k], bv=b[k];
@@ -579,7 +616,7 @@
         <td><span class="dot" style="background:${color}"></span>${r.cf.replace('British Columbia','BC').replace('New Zealand','NZ')}</td>
         <td>${r.rg}</td><td>${r.a}</td>
         <td>${r.tp==='abandoned_ski'?'':r.ac}</td><td>${r.tp==='abandoned_ski'?'':r.upm}</td><td>${r.tp==='abandoned_ski'?(r.closure_status==='closed'?'❄ closed':r.closure_status==='suspended'?'❄ susp':r.closure_status==='on hiatus'?'❄ hiatus':'❄'):fmtUsd(r.usd)}</td>
-        <td>${r.tp==='abandoned_ski'?(r.year_closed?'cl. '+r.year_closed:''):(r.v||'')}${r.dual===true?` <span class="dual-badge" title="coastal + ski-accessible · dual score ${r.dual_s}">🌊⛰️</span>`:''}</td>
+        <td>${r.tp==='abandoned_ski'?(r.year_closed?'cl. '+r.year_closed:''):(r.v||'')}${r.dual===true?` <span class="dual-badge" title="coastal + ski-accessible · dual score ${r.dual_s}/100 · coast ${r.coast_km}km / ski ${r.ski_km}km">🌊⛰️</span>`:''}</td>
         <td title="${r.ski_r||''}">${r.ski_km!=null ? r.ski_km : ''}</td>
         <td style="color:${(r.distress||0)>=60?'#ff8080':(r.distress||0)>=40?'#ffb86c':'#ffd166'}">${r.distress?'🔥'+r.distress:''}</td>
         <td><a href="${r.u}" target="_blank">→</a></td>
@@ -617,6 +654,7 @@
   const detailImg=document.getElementById('detailImg');
   const detailBody=document.getElementById('detailBody');
   function openDetail(r){
+    bumpDualMetric('detail', r.dual===true);
     const color=COLORS[r.cf]||'#999';
     // imgs[] is the multi-image gallery; r.img is the legacy single thumb. Merge & dedupe.
     const gallery = Array.from(new Set([...(r.imgs||[]), r.img].filter(Boolean)));
@@ -664,7 +702,7 @@
       <h3>${r.rg} ${r.a?' · '+r.a:''}</h3>
       <div class="sub">${r.v||'no view'}${r.view_verified===true?' <span style="color:#7ce38b">✓ verified</span>':r.view_verified===false?' <span style="color:#ff8080">✗ unverified</span>':''} · ${r.t||'title unspecified'} · src: ${r.cur||''}</div>
       ${flag}${arch}
-      ${r.dual===true?`<div class="detail-flag" style="background:#10303a;color:#bfe9ff;border-color:#2070a0">🌊⛰️ Coastal + ski-accessible — dual-amenity score ${r.dual_s}/100</div>`:''}
+      ${r.dual===true?`<div class="detail-flag" style="background:#10303a;color:#bfe9ff;border-color:#2070a0">🌊⛰️ Coastal + ski-accessible — dual-amenity score <b>${r.dual_s}/100</b><div style="font-size:11px;color:#8fcfe8;margin-top:4px;line-height:1.5">• 🌊 coast <b>${r.coast_km} km</b>${r.coast_km<=1?' · waterfront':r.coast_km<=10?' · sea-proximate':''}<br>• ⛰️ ski <b>${r.ski_km} km</b>${r.ski_km<=0.5?' · ski-in/out':r.ski_km<=2?' · walk to lift':''}</div></div>`:''}
       ${r.structural_warn?`<div class="detail-flag" style="background:#3a2a10;color:#ffb060;border-color:#7a5020">⚠ Structural concern: ${r.structural_warn}</div>`:''}
       ${r.size_mismatch?`<div class="detail-flag" style="background:#2a2010;color:#ffd060;border-color:#6a5020">⚠ Listing size vs official parcel: ${r.size_mismatch}× — verify which parcels the sale covers</div>`:''}
       ${r.npa?`<div class="detail-flag" style="background:#3a1a1a;color:#ff9090;border-color:#702030">🏦 NPA / Bank repossession (BAM) — disposal sale</div>`:(r.distressed?`<div class="detail-flag" style="background:#2a1a3a;color:#d49aff;border-color:#5a3070">💎 Distressed: bottom-quartile $/m² in ${r.rg}</div>`:'')}
@@ -709,6 +747,7 @@
     const ub=document.getElementById('detailUnarch'); if(ub) ub.onclick=()=>{ delete archives[r.u]; saveArchives(archives); detailBg.classList.remove('show'); render(); };
     const pb=document.getElementById('detailPromote'); if(pb) pb.onclick=()=>{ detailBg.classList.remove('show'); openPromote(r.u); };
     const fs=document.getElementById('detailFindSimilar'); if(fs) fs.onclick=()=>{ detailBg.classList.remove('show'); openShortlistView(); };
+    const ol=detailBody.querySelector('a.btn.primary[href]'); if(ol) ol.addEventListener('click',()=>bumpDualMetric('outbound', r.dual===true));
     detailBg.classList.add('show');
     if(r.lat){
       setTimeout(()=>{
@@ -795,8 +834,11 @@
   document.getElementById('cancelPromote').onclick=()=>promoteBg.classList.remove('show');
   document.getElementById('savePromote').onclick=()=>{
     if(!pendingPromoteUrl) return;
+    const _isNewStar = !shortlist[pendingPromoteUrl];
+    const _pr = DATA.find(x=>x.u===pendingPromoteUrl);
     shortlist[pendingPromoteUrl]={tags:Array.from(pendingPromoteTags), reason:promoteReason.value.trim(), ts:Date.now()};
     saveShortlist(shortlist);
+    if(_isNewStar) bumpDualMetric('star', _pr && _pr.dual===true);
     promoteBg.classList.remove('show');
     refreshShortlistChip();
     render();
@@ -1071,6 +1113,7 @@
   };
 
   render();
+  refreshDualMetric();
 })();
 </script>
 </body>
