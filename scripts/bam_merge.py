@@ -140,9 +140,12 @@ print(f"type counts: {type_counts.most_common()}", file=sys.stderr)
 print(f"skipped: non-matching-type={n_skipped_type} no-coord={n_skipped_no_coord} too-small={n_skipped_small}", file=sys.stderr)
 print(f"keeping: {len(rows)}", file=sys.stderr)
 
-# Merge: strip prior src:bam rows for idempotency
+# Merge: strip prior BAM rows (any bam.co.th URL or src:bam tag — covers
+# legacy /en/npa rows from the first scraper too).
 existing = json.load(open("/home/user/hello/docs/listings.json"))
-existing = [e for e in existing if "src:bam" not in (e.get("rb","") or "")]
+def is_bam(e):
+    return "src:bam" in (e.get("rb","") or "") or "bam.co.th" in (e.get("u","") or "")
+existing = [e for e in existing if not is_bam(e)]
 existing_urls = {e.get("u") for e in existing}
 rows = [r for r in rows if r["u"] not in existing_urls]
 merged = existing + rows

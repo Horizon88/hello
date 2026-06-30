@@ -215,6 +215,7 @@
   <div class="control"><label><input type="checkbox" id="terraceOnly"> 🏔 Terrance zone only</label></div>
   <div class="control"><label><input type="checkbox" id="foreignerOK"> 🛂 Foreigner-friendly only</label></div>
   <div class="control"><label><input type="checkbox" id="distressOnly"> 🔥 Distress only</label></div>
+  <div class="control"><label><input type="checkbox" id="npaOnly"> 🏦 NPA/bank-disposal only</label></div>
   <div class="control"><label>Sort</label><select id="sort"><option value="r">rating</option><option value="upm">$/m²</option><option value="ac">acres</option><option value="usd">price USD</option></select></div>
   <button class="btn" id="toggleInsights">Insights ▸</button>
 </div>
@@ -348,7 +349,7 @@
 
   const state = {
     countries: new Set(ALL_COUNTRIES),
-    type: 'all', distressedOnly: false, verifiedOnly: false, terraceOnly: false, foreignerOK: false, distressOnly: false,
+    type: 'all', distressedOnly: false, verifiedOnly: false, terraceOnly: false, foreignerOK: false, distressOnly: false, npaOnly: false,
     minR: 0, maxU: 10000, maxUsd: null, minA: null, maxA: null, minAQuick: '', view: '', ski: '',
     sortKey: 'r', sortAsc: false, showArchived: false
   };
@@ -385,6 +386,7 @@
   document.getElementById('terraceOnly').onchange=e=>{state.terraceOnly=e.target.checked;render();};
   document.getElementById('foreignerOK').onchange=e=>{state.foreignerOK=e.target.checked;render();};
   document.getElementById('distressOnly').onchange=e=>{state.distressOnly=e.target.checked;render();};
+  document.getElementById('npaOnly').onchange=e=>{state.npaOnly=e.target.checked;render();};
   document.getElementById('type').onchange=e=>{state.type=e.target.value;render();};
   document.getElementById('distressedOnly').onchange=e=>{state.distressedOnly=e.target.checked;render();};
   document.getElementById('verifiedOnly').onchange=e=>{state.verifiedOnly=e.target.checked;render();};
@@ -441,6 +443,7 @@
       if(state.terraceOnly && !r.terrace_zone) return false;
       if(state.foreignerOK && (r.foreign_friction||0) < 0) return false;
       if(state.distressOnly && (r.distress||0) < 30) return false;
+      if(state.npaOnly && !r.npa) return false;
       if(!state.showArchived && archives[r.u]) return false;
       return true;
     });
@@ -670,6 +673,8 @@
         ${r.terrace_zone?`<div><div class="k">🏔 Terrance zone</div><div class="v"><b style="color:#9fd96d">${r.terrace_zone}</b> · ${r.terrace_km} km · +${r.terrace_bonus} rating</div></div>`:''}
         ${r.distress?`<div style="grid-column:1/-1"><div class="k">🔥 Distress Index</div><div class="v"><b style="color:${r.distress>=60?'#ff8080':r.distress>=40?'#ffb86c':'#ffd166'}">${r.distress}/100</b><div style="font-size:11px;color:var(--txt-dim);margin-top:4px;line-height:1.5">${(r.distress_breakdown||[]).map(p=>`• ${p[0]} <span style="color:#ffb86c">+${p[1]}</span>`).join('<br>')}</div></div></div>`:''}
         ${(window.__reg && (window.__reg.byCountry[r.cf]||[]).length) ? `<div style="grid-column:1/-1"><div class="k">📜 regulatory items affecting ${r.cf}</div><div class="v" style="font-size:11px;line-height:1.45">${(window.__reg.byCountry[r.cf]||[]).map(it=>{const c=({ok:'#7ce38b',changed:'#ffb86c',blocked:'#9aa3b2',network_error:'#ff8080'})[it.last_status]||'#9aa3b2';const dl=it.__days_until!=null?` <span style="color:${it.__days_until<90?'#ff8080':it.__days_until<365?'#ffb86c':'#9aa3b2'}">(${it.deadline_label||'deadline'} ${it.__deadline_str}, ${it.__days_until<0?'expired':'in '+it.__days_until+'d'})</span>`:'';return `<div>• <a href="${it.url}" target="_blank" style="color:#4fa3ff">${it.name}</a> <span style="color:${c}">●</span>${dl}</div>`;}).join('')}</div></div>`:''}
+        ${(r.bed||r.bath)?`<div><div class="k">rooms</div><div class="v">${r.bed?r.bed+' bed':''}${(r.bed&&r.bath)?' · ':''}${r.bath?r.bath+' bath':''}</div></div>`:''}
+        ${r.grade?`<div><div class="k">BAM grade</div><div class="v"><b style="color:${r.grade==='A'?'#7ce38b':r.grade==='C'?'#ff8080':'#ffd166'}">${r.grade}</b></div></div>`:''}
         ${r.pid?`<div><div class="k">PID (title)</div><div class="v" style="font-family:monospace">${r.pid}</div></div>`:''}
         ${r.plan?`<div><div class="k">plan number</div><div class="v" style="font-family:monospace">${r.plan}</div></div>`:''}
         ${r.owner_type?`<div><div class="k">owner type</div><div class="v">${r.owner_type}</div></div>`:''}
