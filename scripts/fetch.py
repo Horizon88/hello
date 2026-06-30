@@ -96,6 +96,13 @@ def fetch(url: str, timeout: int = 18, allow_stale: bool = True,
             base = os.environ.get("SCRAPER_API_URL", "http://api.scraperapi.com")
             api = f"{base}/?api_key={key}&render=true&url={urllib.parse.quote(url, safe='')}"
             code, body = _curl(api, timeout=90)
+            # ScraperAPI returns a small 'Request failed... premium=true' message
+            # for protected domains; auto-escalate when we see it.
+            if "premium=true" in body or "ultra_premium=true" in body or (len(body) < 400 and "Request failed" in body):
+                api2 = api + "&premium=true"
+                code, body = _curl(api2, timeout=120)
+                if len(body) > 200 and not _looks_blocked(body, code):
+                    return body, "scraperapi_premium"
             if len(body) > 200 and not _looks_blocked(body, code):
                 return body, "scraperapi"
             return body, "failed"
@@ -132,12 +139,18 @@ def fetch(url: str, timeout: int = 18, allow_stale: bool = True,
         if not _looks_blocked(body, code) and len(body) > 200:
             return body, "proxy"
 
-    # Stage 4 — ScraperAPI (or compatible)
+    # Stage 4 — ScraperAPI (or compatible). Two-step: basic first, then premium
+    # on protected-domain rejection.
     key = os.environ.get("SCRAPER_API_KEY")
     if key:
         base = os.environ.get("SCRAPER_API_URL", "http://api.scraperapi.com")
         api = f"{base}/?api_key={key}&render=true&url={urllib.parse.quote(url, safe='')}"
         code, body = _curl(api, timeout=60)
+        if "premium=true" in body or (len(body) < 400 and "Request failed" in body):
+            api2 = api + "&premium=true"
+            code, body = _curl(api2, timeout=120)
+            if not _looks_blocked(body, code) and len(body) > 200:
+                return body, "scraperapi_premium"
         if not _looks_blocked(body, code) and len(body) > 200:
             return body, "scraperapi"
 
