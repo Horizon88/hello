@@ -96,6 +96,29 @@ def annotate(data):
         x["dual"] = True
         x["dual_s"] = ds
         flagged += 1
+
+    # Data-integrity invariant: a row flagged dual:true must carry a usable
+    # dual_s (numeric, > 0) and the coast/ski distances the UI displays. A
+    # partial/failed regen that wrote dual:true with a missing/zero dual_s would
+    # be silently sorted to the bottom of the lens; fail loudly instead of
+    # writing a corrupt file.
+    for x in land:
+        if x.get("dual") is not True:
+            continue
+        ds = x.get("dual_s")
+        if not isinstance(ds, (int, float)) or isinstance(ds, bool) or ds <= 0:
+            raise SystemExit(
+                f"dual-integrity: row flagged dual:true with bad dual_s={ds!r} "
+                f"(cf={x.get('cf')!r}, rg={x.get('rg')!r}) — refusing to write"
+            )
+        for fld in ("coast_km", "ski_km"):
+            v = x.get(fld)
+            if not isinstance(v, (int, float)) or isinstance(v, bool):
+                raise SystemExit(
+                    f"dual-integrity: row flagged dual:true with bad {fld}={v!r} "
+                    f"(cf={x.get('cf')!r}, rg={x.get('rg')!r}) — refusing to write"
+                )
+
     return flagged, len(land), len(shared)
 
 

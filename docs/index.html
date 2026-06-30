@@ -616,7 +616,7 @@
         <td><span class="dot" style="background:${color}"></span>${r.cf.replace('British Columbia','BC').replace('New Zealand','NZ')}</td>
         <td>${r.rg}</td><td>${r.a}</td>
         <td>${r.tp==='abandoned_ski'?'':r.ac}</td><td>${r.tp==='abandoned_ski'?'':r.upm}</td><td>${r.tp==='abandoned_ski'?(r.closure_status==='closed'?'❄ closed':r.closure_status==='suspended'?'❄ susp':r.closure_status==='on hiatus'?'❄ hiatus':'❄'):fmtUsd(r.usd)}</td>
-        <td>${r.tp==='abandoned_ski'?(r.year_closed?'cl. '+r.year_closed:''):(r.v||'')}${r.dual===true?` <span class="dual-badge" title="coastal + ski-accessible · dual score ${r.dual_s}/100 · coast ${r.coast_km}km / ski ${r.ski_km}km">🌊⛰️</span>`:''}</td>
+        <td>${r.tp==='abandoned_ski'?(r.year_closed?'cl. '+r.year_closed:''):(r.v||'')}${r.dual===true?` <span class="dual-badge" title="coastal + ski-accessible · dual score ${r.dual_s}/100 · coast ${r.coast_km!=null?r.coast_km+'km':'—'} / ski ${r.ski_km!=null?r.ski_km+'km':'—'}">🌊⛰️</span>`:''}</td>
         <td title="${r.ski_r||''}">${r.ski_km!=null ? r.ski_km : ''}</td>
         <td style="color:${(r.distress||0)>=60?'#ff8080':(r.distress||0)>=40?'#ffb86c':'#ffd166'}">${r.distress?'🔥'+r.distress:''}</td>
         <td><a href="${r.u}" target="_blank">→</a></td>
@@ -702,7 +702,7 @@
       <h3>${r.rg} ${r.a?' · '+r.a:''}</h3>
       <div class="sub">${r.v||'no view'}${r.view_verified===true?' <span style="color:#7ce38b">✓ verified</span>':r.view_verified===false?' <span style="color:#ff8080">✗ unverified</span>':''} · ${r.t||'title unspecified'} · src: ${r.cur||''}</div>
       ${flag}${arch}
-      ${r.dual===true?`<div class="detail-flag" style="background:#10303a;color:#bfe9ff;border-color:#2070a0">🌊⛰️ Coastal + ski-accessible — dual-amenity score <b>${r.dual_s}/100</b><div style="font-size:11px;color:#8fcfe8;margin-top:4px;line-height:1.5">• 🌊 coast <b>${r.coast_km} km</b>${r.coast_km<=1?' · waterfront':r.coast_km<=10?' · sea-proximate':''}<br>• ⛰️ ski <b>${r.ski_km} km</b>${r.ski_km<=0.5?' · ski-in/out':r.ski_km<=2?' · walk to lift':''}</div></div>`:''}
+      ${r.dual===true?`<div class="detail-flag" style="background:#10303a;color:#bfe9ff;border-color:#2070a0">🌊⛰️ Coastal + ski-accessible — dual-amenity score <b>${r.dual_s}/100</b><div style="font-size:11px;color:#8fcfe8;margin-top:4px;line-height:1.5">• 🌊 coast <b>${r.coast_km!=null?r.coast_km+' km':'—'}</b>${r.coast_km==null?'':r.coast_km<=1?' · waterfront':r.coast_km<=10?' · sea-proximate':''}<br>• ⛰️ ski <b>${r.ski_km!=null?r.ski_km+' km':'—'}</b>${r.ski_km==null?'':r.ski_km<=0.5?' · ski-in/out':r.ski_km<=2?' · walk to lift':''}</div></div>`:''}
       ${r.structural_warn?`<div class="detail-flag" style="background:#3a2a10;color:#ffb060;border-color:#7a5020">⚠ Structural concern: ${r.structural_warn}</div>`:''}
       ${r.size_mismatch?`<div class="detail-flag" style="background:#2a2010;color:#ffd060;border-color:#6a5020">⚠ Listing size vs official parcel: ${r.size_mismatch}× — verify which parcels the sale covers</div>`:''}
       ${r.npa?`<div class="detail-flag" style="background:#3a1a1a;color:#ff9090;border-color:#702030">🏦 NPA / Bank repossession (BAM) — disposal sale</div>`:(r.distressed?`<div class="detail-flag" style="background:#2a1a3a;color:#d49aff;border-color:#5a3070">💎 Distressed: bottom-quartile $/m² in ${r.rg}</div>`:'')}
