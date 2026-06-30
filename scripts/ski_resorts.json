@@ -412,5 +412,71 @@
     "lat": 47.183,
     "lon": 25.233,
     "region": "RO"
+  },
+  {
+    "name": "Kasprowy Wierch",
+    "lat": 49.235,
+    "lon": 19.982,
+    "region": "PL"
+  },
+  {
+    "name": "Zakopane Nosal",
+    "lat": 49.284,
+    "lon": 20.009,
+    "region": "PL"
+  },
+  {
+    "name": "Szczyrk",
+    "lat": 49.718,
+    "lon": 19.029,
+    "region": "PL"
+  },
+  {
+    "name": "Wisla",
+    "lat": 49.642,
+    "lon": 18.868,
+    "region": "PL"
+  },
+  {
+    "name": "Korbielow",
+    "lat": 49.567,
+    "lon": 19.352,
+    "region": "PL"
+  },
+  {
+    "name": "Karpacz",
+    "lat": 50.77,
+    "lon": 15.75,
+    "region": "PL"
+  },
+  {
+    "name": "Szklarska Poreba",
+    "lat": 50.829,
+    "lon": 15.524,
+    "region": "PL"
+  },
+  {
+    "name": "Bialka Tatrzanska",
+    "lat": 49.417,
+    "lon": 20.11,
+    "region": "PL"
+  },
+  {
+    "name": "Krynica-Zdroj",
+    "lat": 49.422,
+    "lon": 20.959,
+    "region": "PL"
+  },
+  {
+    "name": "Ustrzyki Gorne",
+    "lat": 49.07,
+    "lon": 22.663,
+    "region": "PL"
+  },
+  {
+    "name": "Czarna Gora PL",
+    "lat": 49.317,
+    "lon": 20.2,
+    "region": "PL"
   }
 ]
