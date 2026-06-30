@@ -50,8 +50,12 @@ export default {
     const targetPort = t.port || (isHttps ? '443' : '80');
 
     try {
-      // 1. TCP socket to IPRoyal
-      const socket = connect({ hostname: proxyHost, port: parseInt(proxyPort) });
+      // 1. TCP socket to IPRoyal (secureTransport=starttls so we can upgrade
+      //    to TLS after the CONNECT handshake)
+      const socket = connect(
+        { hostname: proxyHost, port: parseInt(proxyPort) },
+        { secureTransport: "starttls", allowHalfOpen: false }
+      );
 
       // 2. HTTP CONNECT to tunnel to the target
       const auth = btoa(`${user}:${pass}`);
