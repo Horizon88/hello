@@ -482,11 +482,22 @@
       render(); };
   });
 
-  // ---- map ----
-  const map = L.map('map',{worldCopyJump:true}).setView([20,100],3);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO', maxZoom:19, subdomains:'abcd'}).addTo(map);
-  const cluster = L.markerClusterGroup({maxClusterRadius:40, chunkedLoading:true});
-  map.addLayer(cluster);
+  // ---- map (optional) ----
+  // Leaflet + markercluster load from a third-party CDN. If that CDN is
+  // unreachable (outage, offline, strict CSP, blocked network), `L` is
+  // undefined and this init throws. The map is a secondary feature — never let
+  // its absence take down the core listings table. Degrade to table-only.
+  let map = null, cluster = null;
+  try {
+    map = L.map('map',{worldCopyJump:true}).setView([20,100],3);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO', maxZoom:19, subdomains:'abcd'}).addTo(map);
+    cluster = L.markerClusterGroup({maxClusterRadius:40, chunkedLoading:true});
+    map.addLayer(cluster);
+  } catch(e){
+    console.warn('map unavailable (Leaflet failed to load) — table-only mode:', e && e.message);
+    const mapEl = document.getElementById('map');
+    if(mapEl){ mapEl.style.display = 'none'; }
+  }
 
   function filt(rows){
     return rows.filter(r=>{
@@ -597,7 +608,8 @@
     const all = filt(DATA);
     counter.textContent = `${all.length} listings · ${all.filter(r=>r.lat).length} on map · top rating ${(all.length?Math.max(...all.map(r=>r.r)).toFixed(1):'—')} · ${Object.keys(flags).length} flagged by archive patterns`;
 
-    // markers
+    // markers (only when the map actually loaded)
+    if(cluster){
     cluster.clearLayers();
     const markers=[];
     all.filter(r=>r.lat).forEach(r=>{
@@ -636,6 +648,7 @@
       markers.push(m);
     });
     cluster.addLayers(markers);
+    }
 
     renderTable(all);
     renderInsights(regionTags);
@@ -673,7 +686,7 @@
         if(e.target.tagName==='A') return;                // explicit link arrow — let native behavior handle
         const id=tr.dataset.id, r=DATA.find(x=>x.id===id);
         highlightUrl=id;
-        if(r && r.lat){ map.flyTo([r.lat,r.lon],11,{duration:.6}); }
+        if(r && r.lat && map){ map.flyTo([r.lat,r.lon],11,{duration:.6}); }
         document.querySelectorAll('tbody tr').forEach(t=>t.classList.remove('hi'));
         tr.classList.add('hi');
         if(r) openDetail(r);
@@ -787,7 +800,7 @@
     const fs=document.getElementById('detailFindSimilar'); if(fs) fs.onclick=()=>{ detailBg.classList.remove('show'); openShortlistView(); };
     const ol=detailBody.querySelector('a.btn.primary[href]'); if(ol) ol.addEventListener('click',()=>bumpDualMetric('outbound', r.dual===true));
     detailBg.classList.add('show');
-    if(r.lat){
+    if(r.lat && typeof L !== 'undefined'){
       setTimeout(()=>{
         const el=document.getElementById('detailMap');
         if(!el || el._lm) return;
