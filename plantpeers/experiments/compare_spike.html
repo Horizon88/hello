@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PlantPeers — Compare offers (spike)</title>
+<!-- HACK/FAKE: throwaway prototype. No backend, no build step, all data inline below.
+     Purpose: prove how "pick the best offer on quality+trust, not price" FEELS on mobile.
+     Framing built here: RECOMMENDED PICK + CHALLENGERS-AS-TRADEOFFS. -->
+<style>
+  :root{
+    --bg:#0f1511; --card:#18211b; --card2:#1e2a22; --line:#2a382e;
+    --ink:#eaf3ec; --sub:#9db4a5; --leaf:#4ea86b; --leaf2:#7fd39a;
+    --gold:#e9c46a; --warn:#e08a5a; --pill:#22302786;
+    --shadow:0 6px 22px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    max-width:430px; margin:0 auto; padding:0 0 96px;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* --- top request bar --- */
+  .req{position:sticky;top:0;z-index:20;background:linear-gradient(#0f1511,#0f1511f2);
+    padding:14px 16px 12px;border-bottom:1px solid var(--line);backdrop-filter:blur(6px)}
+  .req h1{margin:0;font-size:17px;font-weight:700;letter-spacing:.2px}
+  .req .latin{color:var(--sub);font-style:italic;font-size:12.5px}
+  .req .want{margin-top:6px;font-size:12.5px;color:var(--leaf2);display:flex;gap:6px;flex-wrap:wrap}
+  .req .want b{color:var(--ink);font-weight:600}
+  .live{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--sub);
+    margin-top:8px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--leaf);
+    box-shadow:0 0 0 0 var(--leaf);animation:pulse 1.8s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(78,168,107,.6)}70%{box-shadow:0 0 0 7px rgba(78,168,107,0)}100%{box-shadow:0 0 0 0 rgba(78,168,107,0)}}
+
+  .sectlbl{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--sub);
+    margin:18px 16px 8px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .sectlbl .rule{flex:1;height:1px;background:var(--line)}
+
+  /* --- offer cards --- */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;
+    margin:0 12px 14px;overflow:hidden;box-shadow:var(--shadow)}
+  .card.pick{border-color:var(--leaf);box-shadow:0 0 0 1px var(--leaf),0 8px 26px rgba(0,0,0,.5)}
+  .pickbanner{background:linear-gradient(90deg,#2f7a4d,#4ea86b);color:#fff;
+    font-size:12px;font-weight:700;letter-spacing:.4px;padding:7px 14px;
+    display:flex;align-items:center;gap:7px}
+  .pickbanner .why{margin-left:auto;font-weight:600;opacity:.9;font-size:11px}
+
+  .photo{height:180px;background-size:cover;background-position:center;position:relative}
+  .card.chall .photo{height:132px}
+  .photo .price{position:absolute;right:10px;bottom:10px;background:#0d130fdd;
+    padding:6px 11px;border-radius:12px;font-weight:700;font-size:15px;border:1px solid var(--line)}
+  .photo .price small{color:var(--sub);font-weight:500;font-size:10.5px;display:block;text-align:right}
+  .photo .ships{position:absolute;left:10px;bottom:10px;background:#0d130fcc;color:var(--leaf2);
+    font-size:11px;padding:4px 9px;border-radius:10px;font-weight:600}
+
+  .body{padding:12px 14px 14px}
+  .seller{display:flex;align-items:center;gap:9px}
+  .av{width:34px;height:34px;border-radius:50%;background-size:cover;flex:none;border:1px solid var(--line)}
+  .seller .h{font-weight:700;font-size:14px}
+  .stars{color:var(--gold);font-size:12.5px;letter-spacing:1px}
+  .seller .meta{color:var(--sub);font-size:11.5px}
+  .badges{display:flex;gap:5px;flex-wrap:wrap;margin:9px 0 2px}
+  .badge{font-size:10.5px;padding:3px 8px;border-radius:999px;background:var(--pill);
+    color:var(--leaf2);border:1px solid #2f4636;font-weight:600}
+  .badge.doa{color:var(--gold);border-color:#4a4022}
+
+  /* value meter — the anti-price-anchor centerpiece */
+  .value{margin:12px 0 4px}
+  .value .top{display:flex;justify-content:space-between;font-size:11.5px;color:var(--sub);margin-bottom:5px}
+  .value .top b{color:var(--ink)}
+  .bar{height:9px;border-radius:6px;background:#101712;overflow:hidden;display:flex}
+  .bar span{height:100%}
+  .bar .q{background:var(--leaf2)}
+  .bar .t{background:var(--leaf)}
+  .bar .p{background:var(--gold)}
+  .legend{display:flex;gap:12px;margin-top:6px;font-size:10.5px;color:var(--sub)}
+  .legend i{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle}
+
+  .specs{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-top:12px;font-size:12.5px}
+  .specs div{display:flex;justify-content:space-between;border-bottom:1px dashed #24322a;padding-bottom:4px}
+  .specs span{color:var(--sub)}
+
+  .tradeoff{margin-top:12px;background:#20170f;border:1px solid #4a3320;border-radius:12px;
+    padding:9px 11px;font-size:12px;color:#f0c9a3;display:flex;gap:8px;align-items:flex-start}
+  .tradeoff.good{background:#12211a;border-color:#2f4636;color:var(--leaf2)}
+  .tradeoff b{color:#ffd9b0}
+  .tradeoff.good b{color:var(--leaf2)}
+
+  .reviewq{margin-top:12px;font-size:12.5px;color:var(--sub);font-style:italic;
+    border-left:3px solid var(--leaf);padding:2px 0 2px 10px}
+  .reviewq b{color:var(--ink);font-style:normal}
+
+  .pickbtn{margin-top:14px;width:100%;padding:13px;border:none;border-radius:13px;
+    font-size:15px;font-weight:700;cursor:pointer;background:var(--leaf);color:#08120b}
+  .card.chall .pickbtn{background:transparent;color:var(--leaf2);border:1.5px solid #35513f}
+
+  /* compare toggle */
+  .toolbar{display:flex;gap:8px;margin:0 12px 6px}
+  .toolbar button{flex:1;background:var(--card2);border:1px solid var(--line);color:var(--sub);
+    padding:9px;border-radius:11px;font-size:12.5px;font-weight:600;cursor:pointer}
+  .toolbar button.on{background:var(--leaf);color:#08120b;border-color:var(--leaf)}
+
+  /* awarded overlay */
+  .sheet{position:fixed;inset:0;background:#07100a;z-index:60;display:none;
+    flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:30px}
+  .sheet.show{display:flex;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .sheet .big{font-size:52px}
+  .sheet h2{margin:10px 0 4px}
+  .sheet p{color:var(--sub);max-width:300px}
+  .sheet .why2{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:14px 16px;margin-top:16px;text-align:left;font-size:13px;max-width:320px}
+  .sheet .why2 li{margin:4px 0;color:var(--leaf2)}
+  .sheet button{margin-top:22px;background:var(--leaf);border:none;color:#08120b;
+    font-weight:700;padding:12px 26px;border-radius:12px;font-size:15px}
+  .foot{color:#5f7566;font-size:10.5px;text-align:center;margin:22px 16px 0}
+</style>
+</head>
+<body>
+
+<!-- FAKE: request header hardcoded for one buyer looking at one plant -->
+<div class="req">
+  <h1>Monstera adansonii <span style="font-weight:400">— medium</span></h1>
+  <div class="latin">Monstera adansonii · ~6&quot; pot</div>
+  <div class="want">
+    <span>You asked for:</span>
+    <b>bushy &amp; full</b><b>under $60 shipped</b><b>by next week</b>
+  </div>
+  <div class="live"><span class="dot"></span> 4 sellers competing · sorted by best overall value</div>
+</div>
+
+<div class="toolbar">
+  <button id="tabValue" class="on" onclick="setMode('value')">Best value</button>
+  <button id="tabSpecs" onclick="setMode('specs')">Compare specs</button>
+</div>
+
+<div class="sectlbl"><span class="rule"></span> Recommended for you <span class="rule"></span></div>
+<div id="feed"></div>
+
+<div class="foot">
+  SPIKE — mock data, no backend. The point is the <b>feel</b> of choosing on quality+trust.
+</div>
+
+<!-- award confirmation -->
+<div class="sheet" id="sheet">
+  <div class="big">🌿</div>
+  <h2 id="sh_h">Offer awarded</h2>
+  <p id="sh_p"></p>
+  <div class="why2"><div style="color:#eaf3ec;font-weight:700;margin-bottom:6px">Why you picked it</div><ul id="sh_why" style="margin:0;padding-left:18px"></ul></div>
+  <button onclick="document.getElementById('sheet').classList.remove('show')">Done</button>
+</div>
+
+<script>
+/* ============================================================
+   HACK/FAKE: all mock data + scoring inline. Throwaway.
+   Photos are inline SVG data-URIs so nothing loads from a CDN
+   (repo lesson: no third-party dependency that can break the page).
+   ============================================================ */
+
+function leafSVG(hex, count){ // fake plant photo: N little leaves on a tone
+  let leaves='';
+  for(let i=0;i<count;i++){
+    const x=40+ (i%3)*90 + (i>2?30:0), y=60+Math.floor(i/3)*80;
+    leaves+=`<g transform="translate(${x},${y}) rotate(${-25+i*17})"><path d="M0 0 C40 -30 70 -10 60 40 C20 55 -10 30 0 0 Z" fill="${hex}" opacity="0.92"/><path d="M6 8 L52 34" stroke="#0c1a10" stroke-width="2" opacity=".4"/></g>`;
+  }
+  const svg=`<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'><rect width='400' height='300' fill='#101a12'/><rect x='150' y='210' width='100' height='80' rx='6' fill='#5b4130'/>${leaves}</svg>`;
+  return "data:image/svg+xml;utf8,"+encodeURIComponent(svg);
+}
+function avSVG(hex){
+  const s=`<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60'><rect width='60' height='60' fill='${hex}'/><circle cx='30' cy='24' r='11' fill='#0c1a10' opacity='.5'/><rect x='14' y='40' width='32' height='22' rx='11' fill='#0c1a10' opacity='.5'/></svg>`;
+  return "data:image/svg+xml;utf8,"+encodeURIComponent(s);
+}
+function stars(r){const f=Math.round(r);return '★★★★★'.slice(0,f)+'☆☆☆☆☆'.slice(0,5-f);}
+
+// FAKE offers for one Monstera adansonii request
+const OFFERS=[
+  {id:'o1',handle:'@fernandflora',avatar:'#3b6b4a',rating:4.9,sales:312,
+   badges:['✓ Verified','DOA guarantee','Fast shipper'],
+   photo:leafSVG('#57b479',6),
+   specs:{Height:'15 in',Leaves:'6, no rips',Nodes:'7',Pot:'6 in nursery',Health:'Pristine',Phenotype:'wide-form ✓'},
+   price:39, ship:8, eta:3,
+   review:{who:'plantmom_kc',text:'Bushiest adansonii I&rsquo;ve gotten. Packed like a museum piece.'},
+   q:95, t:97 /* quality & trust 0-100, FAKE */},
+  {id:'o2',handle:'@budgetjungle',avatar:'#6b5a3b',rating:4.1,sales:27,
+   badges:['New seller'],
+   photo:leafSVG('#7f9a5c',2),
+   specs:{Height:'9 in',Leaves:'2, 1 yellowing',Nodes:'3',Pot:'4 in',Health:'Minor stress',Phenotype:'unconfirmed'},
+   price:24, ship:12, eta:8,
+   review:{who:'firsttimer',text:'Cheap but arrived a bit droopy. Bounced back eventually.'},
+   q:52, t:58},
+  {id:'o3',handle:'@leaflab_pnw',avatar:'#3b5a6b',rating:4.7,sales:128,
+   badges:['✓ Verified','Ships in pot'],
+   photo:leafSVG('#4fa2b4',7),
+   specs:{Height:'18 in',Leaves:'7, mature',Nodes:'8',Pot:'6 in ceramic',Health:'Excellent',Phenotype:'wide-form ✓'},
+   price:47, ship:9, eta:4,
+   review:{who:'monstera_addict',text:'Big and mature, real ceramic pot was a nice touch.'},
+   q:90, t:88},
+  {id:'o4',handle:'@potandsoil',avatar:'#5a3b6b',rating:4.6,sales:64,
+   badges:['DOA guarantee'],
+   photo:leafSVG('#8f6bd0',4),
+   specs:{Height:'12 in',Leaves:'4, healthy',Nodes:'5',Pot:'5 in',Health:'Good',Phenotype:'wide-form ✓'},
+   price:34, ship:10, eta:5,
+   review:{who:'greenhouse_jen',text:'Solid mid-size plant, fair price, no surprises.'},
+   q:78, t:82},
+];
+
+/* HACK: composite value score. Deliberately weights quality+trust heavily and
+   treats price only as a mild tie-breaker — this is the whole thesis, that the
+   default ranking is NOT cheapest-first. */
+function score(o){
+  const total = o.price + o.ship;
+  const priceScore = Math.max(0, 100 - (total-40)*1.6); // gentle, capped influence
+  return 0.42*o.q + 0.42*o.t + 0.16*priceScore;
+}
+OFFERS.forEach(o=>o.value=score(o));
+OFFERS.sort((a,b)=>b.value-a.value);
+
+// trade-off copy vs the top pick — reframes "cheaper" as "what you give up"
+function tradeoff(o, top){
+  const dPrice=(o.price+o.ship)-(top.price+top.ship);
+  if(o.id===top.id){
+    return {good:true, html:`<b>Best overall.</b> Top-rated seller, exact wide-form phenotype, fullest plant — and still inside your budget.`};
+  }
+  if(dPrice<0){ // cheaper
+    const give=[];
+    if(o.q < top.q-10) give.push('a smaller / less full plant');
+    if(o.t < top.t-10) give.push('a less-proven seller ('+o.sales+' sales)');
+    if(o.eta > top.eta) give.push((o.eta)+'-day shipping');
+    return {good:false, html:`<b>$${Math.abs(dPrice)} cheaper</b> — but you&rsquo;d accept ${give.join(', ')||'lower specs'}.`};
+  }
+  const gain=[];
+  if(o.q>top.q-5) gain.push('a larger, mature plant');
+  if(o.specs.Pot.includes('ceramic')) gain.push('ceramic pot included');
+  return {good:false, html:`<b>$${dPrice} more</b> — you&rsquo;d get ${gain.join(', ')||'a small upgrade'}. Worth it?`};
+}
+
+let MODE='value';
+function setMode(m){
+  MODE=m;
+  document.getElementById('tabValue').classList.toggle('on',m==='value');
+  document.getElementById('tabSpecs').classList.toggle('on',m==='specs');
+  render();
+}
+
+function card(o, isPick, top){
+  const t=tradeoff(o,top);
+  const total=o.price+o.ship;
+  const qW=Math.round(o.q*0.42), tW=Math.round(o.t*0.42), pW=Math.max(4,Math.round((total<=48?18:8)));
+  const showSpecs = MODE==='specs' || isPick;
+  return `
+  <div class="card ${isPick?'pick':'chall'}">
+    ${isPick?`<div class="pickbanner">🏆 BEST OVERALL <span class="why">quality + trust match</span></div>`:''}
+    <div class="photo" style="background-image:url(${o.photo})">
+      <div class="ships">🚚 ${o.eta}-day · $${o.ship} ship</div>
+      <div class="price">$${o.price}<small>$${total} shipped</small></div>
+    </div>
+    <div class="body">
+      <div class="seller">
+        <div class="av" style="background-image:url(${avSVG(o.avatar)})"></div>
+        <div>
+          <div class="h">${o.handle}</div>
+          <div class="meta"><span class="stars">${stars(o.rating)}</span> ${o.rating} · ${o.sales} sales</div>
+        </div>
+      </div>
+      <div class="badges">${o.badges.map(b=>`<span class="badge ${b.includes('DOA')?'doa':''}">${b}</span>`).join('')}</div>
+
+      <div class="value">
+        <div class="top"><span>Overall value</span><b>${Math.round(o.value)}/100</b></div>
+        <div class="bar"><span class="q" style="width:${qW}%"></span><span class="t" style="width:${tW}%"></span><span class="p" style="width:${pW}%"></span></div>
+        <div class="legend"><span><i style="background:var(--leaf2)"></i>Plant quality</span><span><i style="background:var(--leaf)"></i>Seller trust</span><span><i style="background:var(--gold)"></i>Price</span></div>
+      </div>
+
+      <div class="tradeoff ${t.good?'good':''}">${t.good?'✔':'⚖'}<div>${t.html}</div></div>
+
+      ${showSpecs?`<div class="specs">${Object.entries(o.specs).map(([k,v])=>`<div><span>${k}</span> ${v}</div>`).join('')}</div>`:''}
+
+      <div class="reviewq">&ldquo;${o.review.text}&rdquo; <b>— ${o.review.who}</b></div>
+
+      <button class="pickbtn" onclick="award('${o.id}')">${isPick?'Award this offer ✓':'Pick '+o.handle}</button>
+    </div>
+  </div>`;
+}
+
+function render(){
+  const top=OFFERS[0];
+  const feed=document.getElementById('feed');
+  let html=card(top,true,top);
+  html+=`<div class="sectlbl"><span class="rule"></span> Challengers · ${OFFERS.length-1} more <span class="rule"></span></div>`;
+  html+=OFFERS.slice(1).map(o=>card(o,false,top)).join('');
+  feed.innerHTML=html;
+}
+
+function award(id){
+  const o=OFFERS.find(x=>x.id===id), top=OFFERS[0];
+  document.getElementById('sh_h').textContent='Awarded to '+o.handle;
+  document.getElementById('sh_p').innerHTML=`Your Monstera adansonii is on the way — <b>$${o.price+o.ship} shipped</b>, arriving in ~${o.eta} days.`;
+  const why=[];
+  why.push(`Rated ${o.rating}★ across ${o.sales} sales`);
+  o.badges.forEach(b=>why.push(b.replace('✓ ','')));
+  why.push(`${o.specs.Leaves} · ${o.specs.Height} · ${o.specs.Phenotype} phenotype`);
+  if(id!==top.id) why.push('You chose this over the recommended pick — noted for next time');
+  document.getElementById('sh_why').innerHTML=why.map(w=>`<li>${w}</li>`).join('');
+  document.getElementById('sheet').classList.add('show');
+}
+
+render();
+
+/* FAKE: fabricate a "new offer just arrived" beat to convey the compete dynamic.
+   Fires once ~4s after load, re-sorts, subtle so it doesn't hijack the demo. */
+setTimeout(()=>{
+  const live=document.querySelector('.live');
+  if(live) live.innerHTML='<span class="dot"></span> New offer from @greenthumbco just arrived · re-ranked';
+},4200);
+</script>
+</body>
+</html>
