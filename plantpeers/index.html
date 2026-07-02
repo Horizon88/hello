@@ -254,6 +254,8 @@
   <div class="chips" id="filters"></div>
   <div class="grid" id="catalog"></div>
   <div class="foot">MVP prototype · mock data, no backend · buyer picks the offer most likely to become a living plant, not the cheapest cup.</div>
+  <!-- PMF instrument: per-session award tally (see metrics module). Blank until first award. -->
+  <div class="foot" id="metrics-foot" style="margin-top:6px"></div>
 </section>
 
 <!-- ========== 2. REQUEST ========== -->
@@ -903,6 +905,11 @@ function award(id){
   cr.request.awarded_offer=o.id;
   var s=o._s;
 
+  // OBSERVE ONLY — tally this award for PMF (does not affect ranking/scoring/flow).
+  var cheapestTotal=cr.offers.reduce(function(mn,x){var t=x.price+x.shipping; return t<mn?t:mn;}, Infinity);
+  recordAward(o, top, cheapestTotal);
+  renderMetrics();
+
   document.getElementById('sh_h').textContent='Awarded to '+o.handle;
   document.getElementById('sh_p').innerHTML='Your '+esc(cr.plant.common_name)+' is on the way — <b>$'+(o.price+o.shipping)+' shipped</b>, '+esc(o.stageLabel.toLowerCase())+', arriving in ~'+o.eta_days+' days.';
 
@@ -927,6 +934,68 @@ function closeSheet(){
   go('catalog');
 }
 
+/* ============================================================
+   PMF INSTRUMENT — per-session award metrics (localStorage only, no backend).
+   Purpose: prove the apparatus (survival forecast, verified badges, trade-off
+   ribbons, skill selector) actually CHANGES BEHAVIOR — buyers pick the offer
+   most likely to LIVE + a trusted (ledger-verified) lab, not the cheapest cup.
+   OBSERVE ONLY: recordAward() runs after the award decision is made; it does
+   NOT touch ranking, scoring, or the award flow's behavior. One award appends
+   one compact record to plantpeers_award_metrics_v1. Monotonic counter is a
+   simple incrementing index (tally length + 1) — no Date.now() dependency.
+
+   Each field is a hypothesis about PMF:
+   - cheapest  → H1: the apparatus makes buyers pick a NON-cheapest offer.
+                 If most awards are cheapest, the "survival > price" thesis isn't
+                 landing and we're just a price board.
+   - verified  → H2: verified-lab badges pull awards toward ledger-grounded labs
+                 (confidence tier verified/thin) over unverified self-reporters.
+   - is_top    → H3: the BEST-ODDS ranking is trusted — buyers follow the #1 pick.
+   - surv_gap / price_vs_cheapest → H4: when a buyer OVERRIDES the rec, what did
+                 they trade? (survival points given up vs dollars saved) — tells us
+                 whether overrides are rational bargain-hunting or the rec is wrong.
+   - skill     → H5: behavior segments by TC experience (beginners should lean on
+                 the forecast/verified labs harder than pros).
+   ============================================================ */
+var METRICS_KEY = 'plantpeers_award_metrics_v1';
+function loadMetrics(){
+  try { var raw = localStorage.getItem(METRICS_KEY); return raw ? JSON.parse(raw) : []; }
+  catch(e){ return []; }   // private mode / disabled storage: degrade to no-op
+}
+function recordAward(o, top, cheapestTotal){
+  var chosenTotal = o.price + o.shipping;
+  var rec = {
+    n: 0,                                             // monotonic counter, set below
+    offer_id: o.id,
+    plant_id: o.plant_id,
+    skill: skill,                                     // buyer TC experience at award
+    cheapest: chosenTotal === cheapestTotal,          // chosen IS a lowest-total offer?
+    verified: o.confidence !== 'unverified',          // ledger tier verified|thin vs unverified
+    is_top: o.id === top.id,                          // chosen == #1 BEST-ODDS pick?
+    surv_gap: Math.round((top._s.pAtLeastOne - o._s.pAtLeastOne) * 1000) / 1000, // top - chosen survival
+    price_vs_cheapest: chosenTotal - cheapestTotal    // $ paid above the cheapest cup
+  };
+  var arr = loadMetrics();
+  rec.n = arr.length + 1;
+  arr.push(rec);
+  try { localStorage.setItem(METRICS_KEY, JSON.stringify(arr)); } catch(e){}
+  return rec;
+}
+/* Unobtrusive summary line, blank until the first award. */
+function renderMetrics(){
+  var el = document.getElementById('metrics-foot');
+  if(!el) return;
+  var m = loadMetrics();
+  if(!m.length){ el.innerHTML=''; return; }
+  var total = m.length;
+  var notCheapest = m.filter(function(r){ return !r.cheapest; }).length;
+  var verifiedN   = m.filter(function(r){ return r.verified; }).length;
+  var followed    = m.filter(function(r){ return r.is_top; }).length;
+  el.innerHTML = "buyers choosing survival over price: <b style='color:#7fd39a'>"+notCheapest+"/"+total+
+    "</b> ("+pct(notCheapest/total)+") · verified labs: <b style='color:#7fd39a'>"+pct(verifiedN/total)+
+    "</b> · followed rec: <b style='color:#7fd39a'>"+pct(followed/total)+"</b>";
+}
+
 /* ---------- boot ---------- */
 loadData().then(function(errs){
   if(errs.length){
@@ -935,6 +1004,7 @@ loadData().then(function(errs){
   }
   renderFilters();
   renderCatalog();
+  renderMetrics();
   document.getElementById('q').addEventListener('input', renderCatalog);
 }).catch(function(){
   document.getElementById('dataerr').innerHTML="<div class='banner'>Failed to load data. Serve this folder with <b>python -m http.server</b> and reload.</div>";
