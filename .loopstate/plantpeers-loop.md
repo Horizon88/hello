@@ -28,3 +28,13 @@ cadence: run a real round, commit+push, then schedule next wakeup; stop at deadl
 - L12 = outcome-spine PROTOTYPE spike (explore #1: mint ledger from award->checkin->claim events, client-side sim). Then HOLD for user product decision.
 - L12 outcome-spine spike: SHIPPED (1601706). experiments/outcome_spine_spike.html mints ledger from events; trust converges to hidden truth; participation sliders; anti-gaming (denier honor-rate hit, churn->prior). Frames founder decision. Prototyper.
 - L13 = security review (XSS in innerHTML string-template rendering of user content).
+- L13 security review + L13b fix: SHIPPED (ffd2fb5). Quote-aware esc(); id->data-attr delegation; hero_img scheme allowlist; numeric coercion. Exploit-blocked (control-tested); app intact, gamer last.
+
+## MILESTONE (after L13b): comprehensive build complete. Transition to heartbeat cadence.
+Remaining backlog (paced, lower priority — do 1 per wake if genuinely worth it, else hold):
+- [ ] audit #10: post-award "my orders/requests" state + notify lab it WON (dead-end today)
+- [ ] accessibility pass (aria/labels/contrast/focus order on mobile)
+- [ ] seed-data richness (more varieties/labs/offers for a fuller demo)
+- [ ] plantpeers README + short landing/pitch page
+- [ ] BLOCKED ON USER: #1 outcome spine (identity+escrow+checkin+claim) — needs product policy; L12 spike demonstrates the mechanism.
+Stop heavy multi-agent rounds unless clearly high-value; re-verify + re-arm otherwise; stop at deadline 09:10Z or when backlog exhausted.
