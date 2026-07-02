@@ -666,13 +666,18 @@ function survival(o){
   var sk = SKILL[skill];
   // per-plantlet survival depends on STAGE (later stage = risk already retired by the lab)
   var perPlant;
-  if(o.stage==='invitro')        perPlant = o.contam_deflask * sk;  // buyer must deflask; skill matters a lot
-  else if(o.stage==='deflasked') perPlant = 0.90;                   // rooted already; skill barely matters
-  else                            perPlant = 0.98;                  // acclimated, already growing in soil
+  // Later stages retire risk, but the LAB's establishment ledger (contam_deflask)
+  // still shows through: a 47%-establishment lab and a 95% one differ even when
+  // both ship deflasked/acclimated. Floor + ledger-scaled term (invitro unchanged).
+  if(o.stage==='invitro')        perPlant = o.contam_deflask * sk;      // buyer must deflask; skill matters a lot
+  else if(o.stage==='deflasked') perPlant = 0.80 + 0.18*o.contam_deflask; // rooted, but lab establishment still matters
+  else                            perPlant = 0.90 + 0.09*o.contam_deflask; // acclimated: mostly retired, ledger nudges
   // cup-level contamination. A replacement guarantee makes the buyer whole,
   // so effective loss is small; without one, a contaminated cup is a total loss.
   var effContam = o.replace ? o.contam*0.15 : o.contam;
-  var pClean = 1 - effContam;
+  // Acclimated plants are already growing in soil — the cup-contamination risk is
+  // RETIRED, so pClean doesn't apply. Cup stages (invitro/deflasked) still carry it.
+  var pClean = (o.stage==='acclimated') ? 1 : (1 - effContam);
   var n = o.plantlets;
   var pAtLeastOne = pClean * (1 - Math.pow(1-perPlant, n)); // P(cup usable) * P(>=1 plantlet survives)
   var expLive = pClean * n * perPlant;                      // expected surviving plantlets
@@ -690,8 +695,11 @@ function labTrust(o){
   var ratingScore = (o.rating||0)/5;
   var volScore = Math.min(1, Math.log10((o.sales||0)+1)/Math.log10(500));
   var certScore = Math.min(1, (o.certsCount||0)/2);
-  var raw = 0.32*contamScore + 0.20*deflaskScore + 0.14*ratingScore
-          + 0.10*volScore + 0.12*certScore + 0.12*(o.replace?1:0);
+  // Honor rate (honored/filed): a lab that DENIES filed contamination claims
+  // scores low here and loses trust. No claims filed yet (or no ledger) = neutral.
+  var honorScore = (o.honorRate!=null) ? o.honorRate : 0.85;
+  var raw = 0.30*contamScore + 0.18*deflaskScore + 0.12*ratingScore
+          + 0.08*volScore + 0.10*certScore + 0.10*(o.replace?1:0) + 0.12*honorScore;
   return Math.round(raw*100);
 }
 
@@ -700,7 +708,9 @@ function labTrust(o){
 function score(o){
   var s = o._s;
   var survScore = s.pAtLeastOne*100;
-  var priceScore = Math.max(0, 100 - (s.costPerLive-15)*1.5); // gentle, capped
+  // Clamp to [0,100] so value can't exceed its 20% weight (a very cheap cup used
+  // to push priceScore >100 and inflate the score past the card bar, which caps it).
+  var priceScore = Math.max(0, Math.min(100, 100 - (s.costPerLive-15)*1.5));
   return 0.45*survScore + 0.35*o._lt + 0.20*priceScore;
 }
 
@@ -709,6 +719,20 @@ function recompute(arr){
   arr.forEach(function(o){ o._s=survival(o); o._lt=labTrust(o); });
   arr.forEach(function(o){ o._score=score(o); });
   arr.sort(function(a,b){ return b._score-a._score; });
+  enforceVerifiedFirst(arr);
+}
+/* An offer may hold the #1 slot only if it has witnessed outcomes (a real ledger,
+   tier != unverified). A no-ledger / churned lab is 'unverified'. */
+function rankEligibleForTop(o){ return o.confidence!=='unverified'; }
+/* Anti-gaming hard rule: a no/thin-ledger (unverified) offer cannot rank first
+   while any ledger-backed offer exists. Stops the churn attack — re-register,
+   drop the ledger, claim 0%/100% — from ever topping the board. arr is already
+   score-sorted, so the first eligible offer found is the best-scoring one. */
+function enforceVerifiedFirst(arr){
+  if(arr.length<2 || rankEligibleForTop(arr[0])) return;
+  for(var i=1;i<arr.length;i++){
+    if(rankEligibleForTop(arr[i])){ arr.unshift(arr.splice(i,1)[0]); return; }
+  }
 }
 
 /* Trade-off copy vs the top pick — reframes "cheaper" into TC-specific concessions. */
@@ -874,19 +898,36 @@ function enrich(raw){
     o.hasLedger = true;
     o.shipments = lg.shipments;
     o.checkins = lg.checkins_responded;
-    o.contamVerified  = lg.honored_claims / lg.shipments;              // raw witnessed rate
+    // Witnessed contamination is derived from FILED claims (every buyer-reported
+    // bad cup the platform saw), NOT honored ones — so a lab can't look cleaner
+    // by DENYING claims. Fall back to honored_claims only for legacy rows.
+    var filed = (lg.filed_claims!=null) ? lg.filed_claims : lg.honored_claims;
+    o.filedClaims = filed; o.honoredClaims = lg.honored_claims;
+    o.contamVerified  = filed / lg.shipments;                          // raw witnessed rate
     o.deflaskVerified = lg.establishment_confirmed / lg.checkins_responded;
+    // Honor rate is a SEPARATE trust signal: of the claims buyers filed, how many
+    // the lab actually honored. Denying filed claims drops this and HURTS trust.
+    o.honorRate = filed>0 ? lg.honored_claims/filed : 1;
     o.confidence = confidenceTier(lg.shipments, lg.checkins_responded);
     // effective values actually fed to survival()/labTrust(): ledger shrunk to prior.
-    // When the ledger is thin the estimate sits near the prior regardless of the
-    // claim, so an unproven optimistic claim is discounted rather than rewarded.
-    o.contam         = betaMean(lg.honored_claims, lg.shipments, CONTAM_PRIOR, CONTAM_STRENGTH);
+    o.contam         = betaMean(filed, lg.shipments, CONTAM_PRIOR, CONTAM_STRENGTH);
     o.contam_deflask = betaMean(lg.establishment_confirmed, lg.checkins_responded, DEFLASK_PRIOR, DEFLASK_STRENGTH);
+    if(o.confidence==='unverified'){
+      // Ledger too thin to believe: pin to the cautious prior. An essentially
+      // unproven claim can never look BETTER than the platform prior.
+      o.contam = Math.max(CONTAM_PRIOR, o.contam);
+      o.contam_deflask = Math.min(DEFLASK_PRIOR, o.contam_deflask);
+    }
   } else {
-    // no ledger at all: degrade gracefully to the claim, labeled self-reported.
+    // No ledger at all (e.g. a churned / re-registered lab). DO NOT trust the
+    // claim: pin to the cautious prior so dropping the ledger and claiming
+    // 0%/100% buys nothing. Such an offer is also barred from the #1 slot
+    // (see enforceVerifiedFirst) until it has witnessed outcomes.
     o.hasLedger = false; o.confidence = 'unverified';
-    o.contam = o.contamClaimed; o.contam_deflask = o.deflaskClaimed;
+    o.contam = Math.max(CONTAM_PRIOR, o.contamClaimed);
+    o.contam_deflask = Math.min(DEFLASK_PRIOR, o.deflaskClaimed);
     o.contamVerified = null; o.deflaskVerified = null;
+    o.honorRate = null; o.filedClaims = 0; o.honoredClaims = 0;
   }
   o.certsCount = (s.certs? s.certs.length : 0);
   // Replacement guarantee: defaults to the SELLER's standing policy (buyer-side,
@@ -969,27 +1010,33 @@ function labStatBox(kind, o){
   var isContam = kind==='contam';
   var eff      = isContam ? o.contam : o.contam_deflask;              // what the ranking uses
   var claimed  = isContam ? o.contamClaimed : o.deflaskClaimed;
-  var verified = isContam ? o.contamVerified : o.deflaskVerified;
   var n        = isContam ? o.shipments : o.checkins;
   var label    = isContam ? 'Contamination rate' : 'Deflask success';
   var cls      = isContam ? (eff<=0.03?'good':(eff<=0.10?'mid':'bad'))
                           : (eff>=0.85?'good':(eff>=0.70?'mid':'bad'));
   var big, sub, badge;
   if(!o.hasLedger){
-    big = pct(claimed);
-    sub = "lower is better";
-    badge = "<span class='lbadge claim'>self-reported</span>";
+    // No ledger: ranking uses the cautious prior (eff), NOT the claim.
+    big = pct(eff);
+    sub = "claimed <s>"+pct(claimed)+"</s> · no outcomes yet";
+    badge = "<span class='lbadge claim'>unverified · claim discounted</span>";
   } else if(o.confidence==='unverified'){
     // thin sample: don't trust the claim; ranking uses the cautious prior
     big = pct(eff);
     sub = "claimed <s>"+pct(claimed)+"</s> · only "+n+" outcome"+(n===1?'':'s');
     badge = "<span class='lbadge claim'>unverified · claim discounted · only "+n+" outcomes</span>";
+  } else if(o.confidence==='thin'){
+    // limited history: NOT "verified" — show the SAME shrunk value the ranking uses.
+    var divergeT = Math.abs(eff-claimed)>=0.03;
+    big = pct(eff);
+    sub = divergeT ? "lab claimed <s>"+pct(claimed)+"</s>" : "lab claimed "+pct(claimed);
+    badge = "<span class='lbadge thin'>limited history · "+n+" outcomes</span>";
   } else {
-    // verified / thin: headline the witnessed number
-    big = pct(verified);
-    var diverge = Math.abs(verified-claimed)>=0.03;
+    // verified: show the shrunk value the ranking uses (≈ witnessed at this N).
+    var diverge = Math.abs(eff-claimed)>=0.03;
+    big = pct(eff);
     sub = diverge ? "lab claimed <s>"+pct(claimed)+"</s>" : "lab claimed "+pct(claimed);
-    badge = "<span class='lbadge "+(o.confidence==='thin'?'thin':'verified')+"'>✓ verified by "+n+" outcomes</span>";
+    badge = "<span class='lbadge verified'>✓ verified by "+n+" outcomes</span>";
   }
   return "<div class='labstat'><div class='k'>"+label+"</div>"+
     "<div class='v "+cls+"'>"+big+"</div>"+
@@ -1009,8 +1056,8 @@ function riskBlock(o){
 function card(o, isPick, top){
   var s=o._s, t=tradeoff(o,top);
   var survScore=s.pAtLeastOne*100;
-  var priceScore=Math.max(0,100-(s.costPerLive-15)*1.5);
-  var qW=Math.round(0.45*survScore), tW=Math.round(0.35*o._lt), pW=Math.round(0.20*Math.min(100,priceScore));
+  var priceScore=Math.max(0,Math.min(100,100-(s.costPerLive-15)*1.5)); // same clamp score() uses
+  var qW=Math.round(0.45*survScore), tW=Math.round(0.35*o._lt), pW=Math.round(0.20*priceScore);
   var showSpecs = MODE==='specs' || isPick;
   var photo=cupSVG(o.photo_hue||'#57b479', o.plantlets, o.stage);
   var stageCls = o.stage==='invitro' ? 'invitro' : '';
@@ -1327,10 +1374,13 @@ function renderLabLedger(){
   var ccls=o.contam<=0.03?'good':(o.contam<=0.10?'mid':'bad');
   var dcls=o.contam_deflask>=0.85?'good':(o.contam_deflask>=0.70?'mid':'bad');
   var unv = o.confidence==='unverified';
-  var badgeC = unv ? "<span class='l-badge thin'>only "+(o.shipments||0)+" outcomes · unverified</span>"
-                   : "<span class='l-badge'>✓ verified by "+o.shipments+" outcomes</span>";
-  var badgeD = unv ? "<span class='l-badge thin'>only "+(o.checkins||0)+" check-ins · unverified</span>"
-                   : "<span class='l-badge'>✓ verified by "+o.checkins+" check-ins</span>";
+  var thin = o.confidence==='thin';
+  var badgeC = unv  ? "<span class='l-badge thin'>only "+(o.shipments||0)+" outcomes · unverified</span>"
+             : thin ? "<span class='l-badge thin'>limited history · "+o.shipments+" outcomes</span>"
+                    : "<span class='l-badge'>✓ verified by "+o.shipments+" outcomes</span>";
+  var badgeD = unv  ? "<span class='l-badge thin'>only "+(o.checkins||0)+" check-ins · unverified</span>"
+             : thin ? "<span class='l-badge thin'>limited history · "+o.checkins+" check-ins</span>"
+                    : "<span class='l-badge'>✓ verified by "+o.checkins+" check-ins</span>";
   document.getElementById('lab-ledger').innerHTML=
     "<div class='l-ledger'>"+
       "<div class='who'>"+

@@ -10,7 +10,7 @@
     "response_time": "~2h",
     "contamination_rate_claimed": 0.02,
     "deflask_success_rate_claimed": 0.92,
-    "ledger": { "shipments": 240, "honored_claims": 7, "checkins_responded": 180, "establishment_confirmed": 166 },
+    "ledger": { "shipments": 240, "honored_claims": 7, "filed_claims": 8, "checkins_responded": 180, "establishment_confirmed": 166 },
     "certs": ["Sterile-lab certified", "Phyto-clean stock"],
     "replacement_policy": { "covers": true, "text": "Free replacement if a cup arrives contaminated" }
   },
@@ -25,7 +25,7 @@
     "response_time": "~1d",
     "contamination_rate_claimed": 0.02,
     "deflask_success_rate_claimed": 0.90,
-    "ledger": { "shipments": 240, "honored_claims": 48, "checkins_responded": 150, "establishment_confirmed": 70 },
+    "ledger": { "shipments": 240, "honored_claims": 48, "filed_claims": 60, "checkins_responded": 150, "establishment_confirmed": 70 },
     "certs": [],
     "replacement_policy": { "covers": false, "text": "No replacement — all sales final" }
   },
@@ -40,7 +40,7 @@
     "response_time": "~5h",
     "contamination_rate_claimed": 0.06,
     "deflask_success_rate_claimed": 0.78,
-    "ledger": { "shipments": 95, "honored_claims": 7, "checkins_responded": 60, "establishment_confirmed": 47 },
+    "ledger": { "shipments": 95, "honored_claims": 7, "filed_claims": 9, "checkins_responded": 60, "establishment_confirmed": 47 },
     "certs": ["Verified lab"],
     "replacement_policy": { "covers": true, "text": "Replaces contaminated cups within 5 days" }
   },
@@ -55,7 +55,7 @@
     "response_time": "~8h",
     "contamination_rate_claimed": 0.01,
     "deflask_success_rate_claimed": 0.98,
-    "ledger": { "shipments": 150, "honored_claims": 3, "checkins_responded": 110, "establishment_confirmed": 106 },
+    "ledger": { "shipments": 150, "honored_claims": 3, "filed_claims": 3, "checkins_responded": 110, "establishment_confirmed": 106 },
     "certs": ["Verified lab"],
     "replacement_policy": { "covers": true, "text": "DOA + establishment guarantee, 14 days" }
   },
@@ -70,7 +70,7 @@
     "response_time": "~3h",
     "contamination_rate_claimed": 0.02,
     "deflask_success_rate_claimed": 0.90,
-    "ledger": { "shipments": 205, "honored_claims": 6, "checkins_responded": 140, "establishment_confirmed": 128 },
+    "ledger": { "shipments": 205, "honored_claims": 6, "filed_claims": 7, "checkins_responded": 140, "establishment_confirmed": 128 },
     "certs": ["Sterile-lab certified"],
     "replacement_policy": { "covers": true, "text": "Free replacement on contaminated cups" }
   },
@@ -85,7 +85,7 @@
     "response_time": "~12h",
     "contamination_rate_claimed": 0.09,
     "deflask_success_rate_claimed": 0.70,
-    "ledger": { "shipments": 48, "honored_claims": 5, "checkins_responded": 30, "establishment_confirmed": 21 },
+    "ledger": { "shipments": 48, "honored_claims": 5, "filed_claims": 8, "checkins_responded": 30, "establishment_confirmed": 21 },
     "certs": ["Verified lab"],
     "replacement_policy": { "covers": false, "text": "No replacement — buyer assumes contamination risk" }
   },
@@ -100,7 +100,7 @@
     "response_time": "~4h",
     "contamination_rate_claimed": 0.03,
     "deflask_success_rate_claimed": 0.88,
-    "ledger": { "shipments": 176, "honored_claims": 6, "checkins_responded": 118, "establishment_confirmed": 104 },
+    "ledger": { "shipments": 176, "honored_claims": 6, "filed_claims": 7, "checkins_responded": 118, "establishment_confirmed": 104 },
     "certs": ["Sterile-lab certified", "Verified lab"],
     "replacement_policy": { "covers": true, "text": "Replaces contaminated cups within 7 days" }
   },
@@ -115,7 +115,7 @@
     "response_time": "~2d",
     "contamination_rate_claimed": 0.02,
     "deflask_success_rate_claimed": 0.93,
-    "ledger": { "shipments": 5, "honored_claims": 0, "checkins_responded": 2, "establishment_confirmed": 2 },
+    "ledger": { "shipments": 5, "honored_claims": 0, "filed_claims": 0, "checkins_responded": 2, "establishment_confirmed": 2 },
     "certs": [],
     "replacement_policy": { "covers": false, "text": "No replacement offered" }
   }
