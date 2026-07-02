@@ -17,3 +17,5 @@ cadence: run a real round, commit+push, then schedule next wakeup; stop at deadl
 - L4 Sweeper de-cruft + placeholders: SHIPPED (90faadb). Removed write-only persist() + dead fields; redesigned placeholders; caught+fixed SVG data-URI encoding bug (raw parens/quotes truncated url()) via shared svgURI(). Placeholders now paint.
 - L5 Grower instrumentation: SHIPPED (3a82f37). award_metrics_v1 tally (survival-over-price / verified-lab / followed-rec / override gap / skill); catalog footer. Observe-only. Verified one-award writes + rates move.
 - L6 Maintainer integrity: SHIPPED (470d834). scripts/validate_data.py (refs, ledger sanity, golden anti-gaming ranking) PASSes real data / fails bad edits; catalog graceful-degradation empty-state. Verified teeth.
+- L7 lab-side / two-sided marketplace: SHIPPED (df8edf5). Lab console + offer builder w/ locked verified ledger, live projected rank, coach (guarantee +3 ranks vs price cut 0). Shared model (no drift). Buyer ranking byte-identical. Prototyper+Builder.
+- L8 = completeness-critic round (find weakest link) then act on top finding.
