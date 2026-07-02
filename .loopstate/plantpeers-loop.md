@@ -1,0 +1,15 @@
+# plantpeers autonomous loop
+started_utc: 2026-07-02T09:10:22Z (1782983422)
+deadline_utc: 2026-07-03T09:10:22Z (1783069822)
+cadence: run a real round, commit+push, then schedule next wakeup; stop at deadline or when out of high-value work.
+
+## Roadmap (reorder as signal dictates)
+- [ ] L3  Trust/anti-gaming: verified outcomes vs self-reported stats (THE ballgame for TC)
+- [ ] L4  Sweeper: real plant/cup photos (kill the dark placeholders) + card polish
+- [ ] L5  Grower: instrument award-not-cheapest rate; buyer onboarding/skill capture
+- [ ] L6  Maintainer: data-integrity guards + reliability of the (future) live-offer feed
+- [ ] L7  Prototyper: seller/lab-side flow (submit an offer to an open request)
+- [ ] L8  Discovery: search/browse depth, "watch this variety", request feed
+- [ ] Lx  Completeness critic round: what's missing / weakest link
+
+## Log
