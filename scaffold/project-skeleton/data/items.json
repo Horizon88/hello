@@ -1,0 +1,4 @@
+[
+  { "title": "First item", "subtitle": "Edit scaffold/project-skeleton/data/items.json to shape your data." },
+  { "title": "Second item", "subtitle": "The skeleton loads this via fetch and degrades gracefully if it fails." }
+]
