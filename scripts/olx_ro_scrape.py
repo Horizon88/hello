@@ -79,20 +79,36 @@ def parse_cards(html, judet_label):
         })
     return rows
 
+_LAT_PATS = [
+    re.compile(r'"latitude"\s*:\s*"?([-\d.]+)[^"\d.]'),
+    re.compile(r'\\"lat\\"\s*:\s*([-\d.]+)'),
+    re.compile(r'\blat\\?\"?\s*:\s*\\?\"?([-\d.]+)'),
+]
+_LNG_PATS = [
+    re.compile(r'"longitude"\s*:\s*"?([-\d.]+)[^"\d.]'),
+    re.compile(r'\\"lng\\"\s*:\s*([-\d.]+)'),
+    re.compile(r'\blng\\?\"?\s*:\s*\\?\"?([-\d.]+)'),
+    re.compile(r'\blon\\?\"?\s*:\s*\\?\"?([-\d.]+)'),
+]
 def fetch_detail_coords(url, timeout=30):
-    """Extract lat/lng from OLX detail page."""
+    """Extract lat/lng from OLX RO detail (escaped JSON in Next.js stream)."""
     body = via_relay(url, timeout)
     if not body or len(body) < 50000:
         return None, None
-    m = re.search(r'"latitude"\s*:\s*"?([-\d.]+).{0,40}"longitude"\s*:\s*"?([-\d.]+)', body)
-    if m:
-        try: return float(m.group(1)), float(m.group(2))
-        except: pass
-    # Fallback patterns
-    m = re.search(r'latitude["\s:]+([-\d.]+).{0,40}longitude["\s:]+([-\d.]+)', body)
-    if m:
-        try: return float(m.group(1)), float(m.group(2))
-        except: pass
+    lat = lng = None
+    for p in _LAT_PATS:
+        m = p.search(body)
+        if m:
+            try: lat = float(m.group(1)); break
+            except: pass
+    for p in _LNG_PATS:
+        m = p.search(body)
+        if m:
+            try: lng = float(m.group(1)); break
+            except: pass
+    # RO is roughly 43-48 N, 20-30 E
+    if lat and lng and 42 < lat < 49 and 19 < lng < 31:
+        return lat, lng
     return None, None
 
 if __name__ == "__main__":
