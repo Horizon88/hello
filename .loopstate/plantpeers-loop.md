@@ -13,3 +13,4 @@ cadence: run a real round, commit+push, then schedule next wakeup; stop at deadl
 - [ ] Lx  Completeness critic round: what's missing / weakest link
 
 ## Log
+- L3 verified-outcome trust: SHIPPED (3d95284). Outcome ledger + beta-shrinkage; gamer lab caught (89->67, to last), honest labs hold, unverified pulled to prior. Prototyper+Builder.
