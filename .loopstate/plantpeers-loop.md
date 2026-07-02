@@ -24,3 +24,5 @@ cadence: run a real round, commit+push, then schedule next wakeup; stop at deadl
 - L10 = #9 shared model module + #7 skill divergence (last tractable round). Then #1 outcome-spine + #4 request-inputs need user product input -> slow cadence.
 - L10 shared model.js + skill-divergence fix: SHIPPED (b4347f7). One model.js consumed by app+validator (node), -133 lines index.html; lab projection frozen skill + late-offer consistency. Sweeper.
 - L11 = #4 fold request target/budget into ranking objective (last clearly-valuable no-backend round). Then L12 = outcome-spine PROTOTYPE spike (explore #1 w/o committing product/backend), then HOLD (long wakeup) pending user product decision.
+- L11 request-needs into ranking: SHIPPED (3392f02). target-fit multiplier on survival + soft budget penalty + over-budget/late flags; anti-gaming preserved; needs-move-ranking golden case. Grower.
+- L12 = outcome-spine PROTOTYPE spike (explore #1: mint ledger from award->checkin->claim events, client-side sim). Then HOLD for user product decision.
