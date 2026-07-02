@@ -76,19 +76,35 @@ async function proxyFetchHttp(target, env) {
   return buf;
 }
 
-async function renderFetch(target, env, waitMs) {
+async function renderFetch(target, env, waitMs, waitUntil) {
   if (!env.MYBROWSER) throw new Error('MYBROWSER binding missing — check wrangler.toml [browser]');
-  const browser = await puppeteer.launch(env.MYBROWSER);
+  // Free tier caps concurrent browsers — retry a couple times on 429
+  let browser, lastErr;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try { browser = await puppeteer.launch(env.MYBROWSER); break; }
+    catch (e) {
+      lastErr = e;
+      if (String(e).includes('429') || String(e).includes('Rate limit')) {
+        await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+        continue;
+      }
+      throw e;
+    }
+  }
+  if (!browser) throw lastErr;
   try {
     const page = await browser.newPage();
     await page.setUserAgent(UA);
     await page.setViewport({ width: 1280, height: 1000 });
-    await page.goto(target, { waitUntil: 'networkidle0', timeout: 30000 });
-    if (waitMs > 0) await new Promise(r => setTimeout(r, Math.min(waitMs, 10000)));
+    // networkidle0 is strict and times out on ad-heavy sites; default to
+    // domcontentloaded which is enough for scraping the initial listing HTML.
+    const wu = waitUntil || 'domcontentloaded';
+    await page.goto(target, { waitUntil: wu, timeout: 45000 });
+    if (waitMs > 0) await new Promise(r => setTimeout(r, Math.min(waitMs, 12000)));
     const html = await page.content();
     return html;
   } finally {
-    await browser.close();
+    try { await browser.close(); } catch {}
   }
 }
 
@@ -113,7 +129,8 @@ export default {
 
     try {
       if (render === '1' || render === 'true') {
-        const html = await renderFetch(target, env, waitMs);
+        const waitUntil = url.searchParams.get('waitUntil');
+        const html = await renderFetch(target, env, waitMs, waitUntil);
         return new Response(html, {
           status: 200,
           headers: {
