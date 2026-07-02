@@ -4,6 +4,36 @@ Grounding doc for the venture studio team. Any role working in `plantpeers/`
 reads this first. (Convention: every project in this repo carries its own
 `CONTEXT.md`.)
 
+## Current focus: tissue culture (as of L2)
+
+plantpeers is narrowing to **tissue-culture (TC) plants** — plantlets propagated
+in vitro in sterile nutrient gel, sold as cups/flasks/jars (rare aroids like
+Philodendron/Monstera/Anthurium, begonias, orchids, syngonium, etc.). Buyers go
+TC for cheap access to rare/variegated plants, pest/disease-free stock, and
+multiple plantlets per cup.
+
+Why this sharpens the mechanic: TC is an inherently **high-trust, high-risk**
+purchase. The buyer can't inspect the plant, and real failure modes exist —
+**contamination** (mold/bacteria ruins a cup), **deflasking failure** (moving a
+plantlet from sterile gel to soil is the hard part; beginners lose many),
+**unstable variegation/phenotype**, and difficult **acclimation**. So "the buyer
+picks the best offer on quality + trust, not the cheapest" is *more* right here
+than for established plants — the whole product leans into de-risking a TC buy.
+
+New signals that matter for TC (extend the data model / scoring accordingly):
+- **Offer (lab's competing bid):** `stage` (in-vitro cup → deflasked/rooted →
+  acclimated), `plantlets_per_cup`, `plantlet_size`, `phenotype_stability` /
+  variegation %, `medium`, whether acclimation support/guide is included.
+- **Seller = lab/propagator reputation:** `contamination_rate` (buyer-reported,
+  lower is better), `deflask_success_rate`, sterility/lab certifications,
+  **replacement policy for contaminated cups**, acclimation support.
+- **Quality** should be TC-native: reward more/larger plantlets, later/safer
+  stage, stable phenotype, healthy medium. **Trust** should fold in
+  contamination rate, deflask success, and contamination-replacement guarantee —
+  the things that actually determine whether the buyer ends up with a live plant.
+
+Everything below still holds; the catalog, offers, and scoring shift to TC.
+
 ## What it is
 
 A peer-to-peer plant marketplace. Buyers browse a **static catalog** of plant
