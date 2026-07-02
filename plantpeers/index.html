@@ -370,6 +370,39 @@
     border-radius:12px;padding:11px 13px;margin-top:9px;text-align:center;font-weight:700}
   .l-note{font-size:10.5px;color:#7f9488;margin:10px 12px 0;line-height:1.5}
   .l-note b{color:#9db4a5}
+
+  /* ============================================================
+     MY ORDERS (buyer) + LAB "YOU WON" (L14) — closes the post-award dead-end.
+     On award we persist a compact order to plantpeers_orders_v1; the buyer
+     revisits it here and the winning lab derives its "✓ Won" state from the
+     same records. Reuses card/nav styling; mobile-first.
+     ============================================================ */
+  .ordersbtn{margin-top:10px;font-size:12px;font-weight:700;color:var(--leaf2);border:1px solid #2f4636;
+    background:#12211a;padding:6px 12px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+  .ordersbtn .cnt{background:var(--leaf);color:#08120b;font-weight:800;border-radius:999px;padding:0 7px;font-size:11px}
+  .order{background:var(--card);border:1px solid var(--line);border-radius:16px;margin:10px 12px 0;padding:13px 14px;box-shadow:var(--shadow)}
+  .order .or-top{display:flex;align-items:flex-start;gap:10px}
+  .order .or-h{font-weight:800;font-size:15px;flex:1;line-height:1.25}
+  .order .or-price{font-weight:800;font-size:15px;text-align:right;flex:none}
+  .order .or-price small{display:block;color:var(--sub);font-weight:500;font-size:10px}
+  .order .or-lab{color:var(--sub);font-size:12.5px;margin-top:4px}
+  .order .or-lab b{color:var(--leaf2)}
+  .order .or-surv{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sub);margin-top:9px}
+  .order .or-surv b{color:var(--ink)}
+  .order .or-gauge{--pct:80;width:22px;height:22px;border-radius:50%;flex:none;
+    background:conic-gradient(var(--leaf2) calc(var(--pct)*1%),#101712 0)}
+  .order .or-want{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+  .order .or-want span{font-size:11px;background:var(--pill);border:1px solid #2f4636;color:var(--ink);padding:3px 8px;border-radius:999px}
+  .order .or-why{margin-top:11px;width:100%;padding:10px;border:1px solid #35513f;background:transparent;
+    color:var(--leaf2);border-radius:12px;font-size:13px;font-weight:700;cursor:pointer}
+  .labwon{background:#12211a;border:1px solid #2f4636;border-radius:14px;margin:10px 12px 0;padding:11px 13px}
+  .labwon .lw-top{display:flex;align-items:center;gap:10px}
+  .labwon .lw-h{font-weight:800;font-size:14px;flex:1;line-height:1.25}
+  .labwon .lw-won{font-size:11px;font-weight:800;color:#08120b;background:var(--leaf2);padding:3px 9px;border-radius:999px;flex:none}
+  .labwon .lw-want{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .labwon .lw-want span{font-size:11px;background:var(--pill);border:1px solid #2f4636;color:var(--ink);padding:3px 8px;border-radius:999px}
+  .labwon .lw-price{font-size:12px;color:var(--sub);margin-top:8px}
+  .labwon .lw-price b{color:var(--leaf2)}
 </style>
 </head>
 <body>
@@ -380,6 +413,8 @@
     <button class="rolebtn" id="rolebtn" onclick="toggleRole()">I&#39;m a lab &#9656;</button>
     <div class="brand"><span class="mark">&#129514;</span> plantpeers</div>
     <div class="tagline">Buy rare plants as tissue culture. Labs compete on the odds it lives.</div>
+    <!-- My orders entry point — filled by renderOrdersEntry() only when >=1 order exists -->
+    <div id="orders-entry"></div>
   </div>
   <div id="dataerr"></div>
   <div class="search"><input id="q" type="search" placeholder="Search TC varieties by name…" autocomplete="off"></div>
@@ -455,6 +490,17 @@
   <div class="foot" id="compare-foot">Ranked by odds it lives (0.45) + lab trust (0.35) + value per surviving plant (0.20). Cheapest cup &#8800; most likely to live.</div>
 </section>
 
+<!-- ========== MY ORDERS (L14) — buyer revisits awarded orders ========== -->
+<section id="view-orders" class="view">
+  <div class="topbar">
+    <button class="back" onclick="go('catalog')">&#8592; Catalog</button>
+    <div class="brand" style="font-size:15px"><span class="mark">&#129514;</span> My orders</div>
+    <div class="tagline">Labs you awarded &#183; reopen why each one won.</div>
+  </div>
+  <div id="orders-list"></div>
+  <div class="foot">Awarded orders are saved on this device (localStorage, no backend). Tap an order to reopen its &ldquo;why you picked it&rdquo; detail.</div>
+</section>
+
 <!-- ========== LAB MODE (L7) — the sell side ========== -->
 
 <!-- L1. LAB PICKER (no real auth — pick which lab you are) -->
@@ -475,6 +521,9 @@
     <div class="brand" style="font-size:15px"><span class="mark">&#129514;</span> Open buyer requests</div>
     <div class="tagline" id="lab-who"></div>
   </div>
+  <!-- L14: requests this lab WON, derived from persisted buyer orders (seller_id==this lab). Hidden when none. -->
+  <div class="sectlbl" id="labwon-sect" style="display:none"><span class="rule"></span> &#10003; You won <span class="rule"></span></div>
+  <div id="labwon-list"></div>
   <div class="sectlbl"><span class="rule"></span> Buyers waiting for offers <span class="rule"></span></div>
   <div id="labreq-list"></div>
   <div class="foot">These are live buyer requests with status <b>open</b>. Tap one to build your competing offer.</div>
@@ -522,7 +571,7 @@
   <p id="sh_p"></p>
   <div id="sh_override"></div>
   <div class="why2"><div style="color:#eaf3ec;font-weight:700;margin-bottom:6px">Why this gives you the best odds</div><ul id="sh_why" style="margin:0;padding-left:18px"></ul></div>
-  <button onclick="closeSheet()">Back to catalog</button>
+  <button id="sh_close" onclick="closeSheet()">Back to catalog</button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -702,7 +751,7 @@ function loadData(){
 
 /* ---------- navigation ---------- */
 function go(view){
-  ['catalog','request','compare','labpicker','labrequests','laboffer'].forEach(function(v){
+  ['catalog','request','compare','orders','labpicker','labrequests','laboffer'].forEach(function(v){
     document.getElementById('view-'+v).classList.toggle('active', v===view);
   });
   // the sticky projected-rank bar belongs to the offer builder only
@@ -1063,9 +1112,6 @@ function award(id){
   recordAward(o, top, cheapestTotal);
   renderMetrics();
 
-  document.getElementById('sh_h').textContent='Awarded to '+o.handle;
-  document.getElementById('sh_p').innerHTML='Your '+esc(cr.plant.common_name)+' is on the way — <b>$'+(o.price+o.shipping)+' shipped</b>, '+esc(o.stageLabel.toLowerCase())+', arriving in ~'+Number(o.eta_days)+' days.';
-
   var why=[];
   why.push(Math.round(s.pAtLeastOne*100)+'% odds of ending up with a living plant');
   why.push('≈ '+s.expLive.toFixed(1)+' expected survivors from '+o.plantlets+' plantlet'+(o.plantlets>1?'s':''));
@@ -1079,20 +1125,137 @@ function award(id){
     why.push('Ships in ~'+Number(o.eta_days)+' days — past your requested deadline');
   why.push(o.stageLabel+' · '+pct(o.contam)+' lab contamination rate');
   why.push(o.replace? o.replaceText : 'No replacement — $'+(o.price+o.shipping)+' at risk');
-  document.getElementById('sh_why').innerHTML=why.map(function(w){return '<li>'+esc(w)+'</li>';}).join('');
 
+  // The compact payload that drives BOTH the live sheet and the persisted order,
+  // so a reopened order shows the exact same "why you picked it" detail.
+  var data={
+    handle:o.handle, plant_name:cr.plant.common_name, price:o.price+o.shipping,
+    stage_label:o.stageLabel, eta_days:Number(o.eta_days), why:why,
+    override:(o.id!==top.id) ? { handle:top.handle, pct:Math.round(top._s.pAtLeastOne*100) } : null
+  };
+
+  recordOrder(o, cr, s, data);  // persist so the buyer can revisit + the winning lab sees it won
+  renderOrdersEntry();
+  showAwardSheet(data, 'catalog');
+}
+/* Populate + show the award sheet from a compact payload. Shared by a live award
+   and a reopened order (openOrderDetail) so the two never diverge. All order-
+   derived strings go through esc — no XSS surface even for stored fields. */
+var sheetReturn='catalog';
+function showAwardSheet(data, ret){
+  sheetReturn=ret||'catalog';
+  document.getElementById('sh_h').textContent='Awarded to '+data.handle;
+  document.getElementById('sh_p').innerHTML='Your '+esc(data.plant_name)+' is on the way — <b>$'+Number(data.price)+' shipped</b>, '+esc(String(data.stage_label||'').toLowerCase())+', arriving in ~'+Number(data.eta_days)+' days.';
   var ov=document.getElementById('sh_override');
-  if(o.id!==top.id){
-    ov.innerHTML="⚖ You picked a challenger over the best-odds pick ("+esc(top.handle)+", "+Math.round(top._s.pAtLeastOne*100)+"% it lives). That's your call — you stay in control.";
+  if(data.override){
+    ov.innerHTML="⚖ You picked a challenger over the best-odds pick ("+esc(data.override.handle)+", "+Number(data.override.pct)+"% it lives). That's your call — you stay in control.";
     ov.style.display='block';
   } else {
     ov.innerHTML=''; ov.style.display='none';
   }
+  document.getElementById('sh_why').innerHTML=(data.why||[]).map(function(w){return '<li>'+esc(w)+'</li>';}).join('');
+  var cb=document.getElementById('sh_close'); if(cb) cb.textContent = (ret==='orders') ? 'Back to my orders' : 'Back to catalog';
   document.getElementById('sheet').classList.add('show');
 }
 function closeSheet(){
   document.getElementById('sheet').classList.remove('show');
-  go('catalog');
+  if(sheetReturn==='orders'){ renderOrders(); go('orders'); }
+  else { renderOrdersEntry(); go('catalog'); }
+}
+
+/* ============================================================
+   MY ORDERS (L14) — closes the post-award dead-end. On award we persist a
+   compact order record to plantpeers_orders_v1 (loadX/saveX with try/catch, the
+   same pattern as role + metrics). The buyer revisits awarded orders here and
+   the winning lab derives its "✓ Won" state from the SAME records — no backend,
+   no notification channel. Monotonic counter n = max(existing n)+1 (NO Date.now).
+   Order shape:
+     { n, request_id, plant_id, plant_name, awarded_offer_id, seller_id,
+       seller_handle, price(total shipped), awarded_survival(0..1), skill,
+       needs{target,budget,deadline}, + stage_label/eta_days/why/override to
+       reopen the exact award detail }
+   ============================================================ */
+var ORDERS_KEY='plantpeers_orders_v1';
+function loadOrders(){ try{ var raw=localStorage.getItem(ORDERS_KEY); return raw?JSON.parse(raw):[]; }catch(e){ return []; } }
+function saveOrders(arr){ try{ localStorage.setItem(ORDERS_KEY, JSON.stringify(arr)); }catch(e){} }
+function recordOrder(o, cr, s, data){
+  var full=loadOrders();
+  var maxN=full.reduce(function(mx,od){ return od.n>mx?od.n:mx; }, 0); // monotonic, no Date.now
+  // one order per request: a re-award of the same request replaces its prior record
+  var arr=full.filter(function(od){ return od.request_id!==cr.request.id; });
+  var notes=cr.request.notes||{};
+  arr.push({
+    n:maxN+1,
+    request_id:cr.request.id,
+    plant_id:cr.plant.id,
+    plant_name:cr.plant.common_name,
+    awarded_offer_id:o.id,
+    seller_id:o.seller_id,
+    seller_handle:o.handle,
+    price:o.price+o.shipping,
+    awarded_survival:Math.round(s.pAtLeastOne*1000)/1000,
+    skill:skill,
+    needs:{ target:notes.target||'', budget:notes.budget||'', deadline:notes.deadline||'' },
+    // detail-reopen payload (plain data; re-rendered through esc)
+    stage_label:data.stage_label, eta_days:data.eta_days, why:data.why, override:data.override
+  });
+  saveOrders(arr);
+}
+function orderWants(od){
+  return [od.needs&&od.needs.target, od.needs&&od.needs.budget, od.needs&&od.needs.deadline]
+    .filter(Boolean).map(function(w){ return "<span>"+esc(w)+"</span>"; }).join('');
+}
+/* Header pill — only rendered when >=1 order exists (keeps a clean first run). */
+function renderOrdersEntry(){
+  var el=document.getElementById('orders-entry'); if(!el) return;
+  var n=loadOrders().length;
+  el.innerHTML = n ? "<button class='ordersbtn js-orders'>&#128230; My orders <span class='cnt'>"+n+"</span></button>" : '';
+}
+function openOrders(){ renderOrders(); go('orders'); }
+function renderOrders(){
+  var el=document.getElementById('orders-list'); if(!el) return;
+  var orders=loadOrders().slice().sort(function(a,b){ return b.n-a.n; }); // newest first
+  if(!orders.length){ el.innerHTML="<div class='empty'>No orders yet. Award a lab's offer and it will show up here.</div>"; return; }
+  el.innerHTML=orders.map(function(od){
+    var pctLives=Math.round((od.awarded_survival||0)*100);
+    var wants=orderWants(od);
+    return "<div class='order'>"+
+      "<div class='or-top'><div class='or-h'>"+esc(od.plant_name)+"</div>"+
+        "<div class='or-price'>$"+Number(od.price)+"<small>shipped</small></div></div>"+
+      "<div class='or-lab'>Won by <b>"+esc(od.seller_handle)+"</b></div>"+
+      "<div class='or-surv'><span class='or-gauge' style='--pct:"+pctLives+"'></span> "+
+        "<b>"+pctLives+"%</b> odds it lives — the survival forecast you picked</div>"+
+      (wants?"<div class='or-want'>"+wants+"</div>":"")+
+      "<button class='or-why js-order-why' data-order-n='"+esc(od.n)+"'>Why you picked it &#9656;</button>"+
+    "</div>";
+  }).join('');
+}
+function openOrderDetail(n){
+  var od=loadOrders().filter(function(x){ return String(x.n)===String(n); })[0];
+  if(!od) return;
+  showAwardSheet({
+    handle:od.seller_handle, plant_name:od.plant_name, price:od.price,
+    stage_label:od.stage_label, eta_days:od.eta_days, why:od.why||[], override:od.override||null
+  }, 'orders');
+}
+/* Lab side: the winning lab sees which requests its offers WON, derived from the
+   same persisted orders (order.seller_id === acting lab). Self-contained from the
+   order record so it survives a reload even though session requests do not. */
+function renderLabWon(){
+  var sect=document.getElementById('labwon-sect'), el=document.getElementById('labwon-list');
+  if(!sect || !el || !LAB) return;
+  var wins=loadOrders().filter(function(od){ return od.seller_id===LAB.sellerId; })
+                       .sort(function(a,b){ return b.n-a.n; });
+  if(!wins.length){ sect.style.display='none'; el.innerHTML=''; return; }
+  sect.style.display='';
+  el.innerHTML=wins.map(function(od){
+    var wants=orderWants(od);
+    return "<div class='labwon'>"+
+      "<div class='lw-top'><div class='lw-h'>"+esc(od.plant_name)+"</div><div class='lw-won'>&#10003; Won</div></div>"+
+      (wants?"<div class='lw-want'><span style='background:none;border:none;color:var(--sub);padding:0'>buyer asked:</span>"+wants+"</div>":"")+
+      "<div class='lw-price'>Winning price <b>$"+Number(od.price)+" shipped</b></div>"+
+    "</div>";
+  }).join('');
 }
 
 /* ============================================================
@@ -1232,6 +1395,7 @@ function renderLabRequests(){
   var o=enrich({ seller_id:LAB.sellerId, plant_id:'_', stage:'invitro', plantlets_per_cup:1, price:0, shipping:0 });
   document.getElementById('lab-who').innerHTML =
     "Acting as <b style='color:#eaf3ec'>"+esc(s.handle)+"</b> · verified ledger: "+pct(o.contam)+" contamination, "+pct(o.contam_deflask)+" deflask";
+  renderLabWon(); // surface any requests this lab already won (from persisted orders)
   var reqs=openRequestsList();
   var el=document.getElementById('labreq-list');
   if(!reqs.length){ el.innerHTML="<div class='empty'>No open buyer requests right now. Check back soon.</div>"; return; }
@@ -1572,6 +1736,8 @@ function wireDelegation(){
   on('filters', '.chip', function(t){ setFilter(t.dataset.filter); });
   on('catalog', '.pcard', function(t){ openPlant(t.dataset.plantId); });
   on('feed', '.pickbtn', function(t){ award(t.dataset.offerId); });
+  on('orders-entry', '.js-orders', function(){ openOrders(); });
+  on('orders-list', '.js-order-why', function(t){ openOrderDetail(t.dataset.orderN); });
   on('labpicker-list', '.labpick', function(t){ enterLab(t.dataset.sellerId); });
   on('labreq-list', '.labreq', function(t){ openLabOffer(t.dataset.requestId); });
   on('lab-coach', '.js-view-as-buyer', function(t){ viewRequestAsBuyer(t.dataset.requestId); });
@@ -1587,6 +1753,7 @@ loadData().then(function(errs){
   renderFilters();
   renderCatalog();
   renderMetrics();
+  renderOrdersEntry();
   updateRoleBtn();
   document.getElementById('q').addEventListener('input', renderCatalog);
   // restore a persisted lab session (role/lab kept in localStorage)
