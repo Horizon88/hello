@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PlantPeers spike — the outcome spine (ledger minted from events)</title>
+<!--
+  ============================================================================
+  PROTOTYPER SPIKE (L12) — THROWAWAY. Not production. Do NOT wire into index.html.
+  ============================================================================
+  Gap being probed (L8 critic finding #1):
+    The "verified trust ledger" is fabricated static JSON in data/sellers.json.
+    NO part of the system PRODUCES it. The whole differentiator rests on 4 typed
+    numbers per lab. This spike makes the missing mechanism concrete: the ledger
+    MINTED FROM EVENTS instead of seeded.
+
+  The three events that should mint the ledger (simulated client-side, no backend):
+    1. AWARD    -> creates a Shipment            (shipments++)
+    2. DELIVERY -> "did it arrive clean?" prompt. If contaminated, the buyer may
+                   FILE a claim (filed_claims++); the lab HONORS or DENIES it
+                   (honored_claims++ only on honor).
+    3. +8 WEEKS -> "did it live?" establishment check-in. If the buyer responds
+                   (checkins_responded++) and the plant is alive (establishment_confirmed++).
+
+  Those counters ARE the exact ledger shape ../model.js already consumes:
+     { shipments, filed_claims, honored_claims, checkins_responded, establishment_confirmed }
+  We feed the MINTED ledger straight through the REAL model (PPModel.enrich ->
+  betaMean shrinkage -> confidenceTier -> labTrust). Nothing is re-implemented.
+
+  What you can SEE on screen:
+    * Each lab has a HIDDEN TRUE contamination/establishment rate (# FAKE DATA,
+      hardcoded). Buyers' outcomes are drawn from those true rates.
+    * As outcomes accumulate, the model's DISPLAYED number converges toward the
+      hidden truth. Trust becomes a CONSEQUENCE of outcomes, not a typed claim.
+    * Two participation sliders make the mechanism's honesty legible:
+        - check-in response rate  -> low = deflask stays thin / pinned to prior
+        - claim-filing rate       -> low = contamination reads artificially clean
+    * Anti-gaming: a lab that DENIES filed claims keeps the SAME contamination
+      (it's filed-based) but takes an honor-rate/trust hit; a churn/reset drops a
+      lab back to prior (no history = no trust).
+
+  ../model.js is loaded UNCHANGED (relative, no CDN). Serve from plantpeers/:
+      python -m http.server   ->   /experiments/outcome_spine_spike.html
+  All true rates + lab identities are hand-authored demo data. # FAKE DATA.
+-->
+<script src="../model.js"></script>
+<style>
+  :root{
+    --bg:#0f1511; --card:#18211b; --card2:#1e2a22; --line:#2a382e;
+    --ink:#eaf3ec; --sub:#9db4a5; --leaf:#4ea86b; --leaf2:#7fd39a;
+    --gold:#e9c46a; --warn:#e08a5a; --danger:#e05a5a; --pill:#22302786;
+    --shadow:0 6px 22px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);
+    font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    max-width:440px;margin:0 auto;padding:0 0 64px;-webkit-font-smoothing:antialiased}
+  .topbar{position:sticky;top:0;z-index:20;background:linear-gradient(#0f1511,#0f1511f2);
+    padding:14px 16px 12px;border-bottom:1px solid var(--line);backdrop-filter:blur(6px)}
+  .brand{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:800}
+  .brand .mark{font-size:20px}
+  .tag{color:var(--sub);font-size:12.5px;margin-top:3px}
+  .spikeflag{background:#3a2418;border:1px solid #6b4a2a;color:#f0c9a3;font-size:11.5px;
+    padding:8px 12px;margin:10px 16px 0;border-radius:9px;line-height:1.4}
+  h2.sec{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--sub);
+    margin:22px 16px 8px;font-weight:700}
+
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    margin:0 16px;padding:14px;box-shadow:var(--shadow)}
+  .ctl{margin:12px 0}
+  .ctl label{display:flex;justify-content:space-between;font-size:12.5px;color:var(--sub);
+    font-weight:600;margin-bottom:5px}
+  .ctl label b{color:var(--ink)}
+  input[type=range]{width:100%;accent-color:var(--leaf)}
+  .hint{font-size:11px;color:var(--sub);margin-top:4px;line-height:1.35}
+  .btnrow{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  button.act{flex:1;min-width:120px;background:var(--leaf);border:none;color:#08130b;
+    padding:12px 8px;border-radius:11px;font-size:13px;font-weight:800;cursor:pointer}
+  button.ghost{background:var(--card2);border:1px solid var(--line);color:var(--sub);font-weight:700}
+  .count{text-align:center;color:var(--sub);font-size:12px;margin-top:10px}
+  .count b{color:var(--leaf2);font-size:15px}
+
+  .lab{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    margin:10px 16px;padding:13px;box-shadow:var(--shadow)}
+  .lab.rank1{border-color:var(--leaf);box-shadow:0 0 0 1px var(--leaf),var(--shadow)}
+  .labhead{display:flex;align-items:center;gap:9px;margin-bottom:4px}
+  .dot{width:30px;height:30px;border-radius:9px;flex:none;display:flex;align-items:center;
+    justify-content:center;font-size:15px;font-weight:800;color:#0c140e}
+  .labname{font-weight:800;font-size:14.5px;line-height:1.15}
+  .labkind{font-size:11px;color:var(--sub)}
+  .trust{margin-left:auto;text-align:right}
+  .trust .num{font-size:22px;font-weight:800;line-height:1}
+  .trust .lbl{font-size:10px;color:var(--sub);letter-spacing:.04em}
+  .tier{display:inline-block;font-size:10px;font-weight:800;padding:2px 7px;border-radius:20px;
+    margin-left:6px;vertical-align:middle}
+  .tier.verified{background:#173a26;color:var(--leaf2);border:1px solid #2c6b45}
+  .tier.thin{background:#3a3417;color:var(--gold);border:1px solid #6b5f2c}
+  .tier.unverified{background:#3a1c1c;color:var(--warn);border:1px solid #6b3a2c}
+
+  canvas{width:100%;height:70px;display:block;margin:8px 0 6px;border-radius:8px;background:#0c110d}
+  .rows{font-size:12px;margin-top:6px}
+  .r{display:flex;justify-content:space-between;padding:3px 0;border-top:1px solid #202b23}
+  .r:first-child{border-top:none}
+  .r .k{color:var(--sub)}
+  .r .v{font-weight:700;font-variant-numeric:tabular-nums}
+  .v.good{color:var(--leaf2)} .v.bad{color:var(--warn)} .v.hid{color:#c98fd6}
+  .ledger{font-size:11px;color:var(--sub);background:#101711;border:1px solid #202b23;
+    border-radius:8px;padding:7px 9px;margin-top:8px;font-variant-numeric:tabular-nums;line-height:1.5}
+  .ledger b{color:var(--ink)}
+  .miniact{display:flex;gap:6px;margin-top:9px}
+  .miniact button{flex:1;background:var(--card2);border:1px solid var(--line);color:var(--sub);
+    font-size:11px;font-weight:700;padding:8px 4px;border-radius:9px;cursor:pointer}
+  .seededcmp{font-size:11px;color:var(--sub);margin-top:8px;padding:7px 9px;border-radius:8px;
+    background:#161d18;border:1px dashed #3a4a3e;line-height:1.45}
+  .seededcmp b{color:var(--gold)}
+  .note{font-size:11.5px;color:var(--sub);line-height:1.5;margin:14px 16px 0}
+  .note b{color:var(--ink)}
+  .foot{margin:26px 16px 0;padding:14px;background:#12181410;border-top:1px solid var(--line);
+    font-size:11.5px;color:var(--sub);line-height:1.55}
+  .foot h3{color:var(--ink);font-size:12.5px;margin:14px 0 6px}
+  .foot ol,.foot ul{margin:6px 0;padding-left:18px}
+  .foot code{background:#101711;padding:1px 5px;border-radius:5px;color:var(--leaf2);font-size:11px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><span class="mark">🌱</span> PlantPeers · outcome spine</div>
+  <div class="tag">The trust number, MINTED from events — not typed in.</div>
+</div>
+<div class="spikeflag">
+  ⚠︎ THROWAWAY SPIKE. Every lab has a HIDDEN true quality (# FAKE DATA). Buyers'
+  outcomes are drawn from it; the ledger is minted from those events and fed
+  through the REAL <code style="color:inherit">../model.js</code>. Watch the shown
+  number chase the hidden truth.
+</div>
+
+<h2 class="sec">1 · Participation (where the honesty lives)</h2>
+<div class="panel">
+  <div class="ctl">
+    <label>Check-in response rate <b id="rrLbl">70%</b></label>
+    <input id="rr" type="range" min="5" max="100" value="70">
+    <div class="hint">Share of buyers who answer the +8-week "did it live?" prompt.
+      Low response → few check-ins → deflask stays <i>thin</i> and pinned near the 65% prior.
+      This is why check-ins must be escrow-gated / incentivised.</div>
+  </div>
+  <div class="ctl">
+    <label>Claim-filing rate <b id="crLbl">80%</b></label>
+    <input id="cr" type="range" min="5" max="100" value="80">
+    <div class="hint">Share of buyers with a CONTAMINATED cup who actually file a claim.
+      Low filing → contamination reads artificially CLEAN (a 20% lab can look like 8%).
+      This is why filing must be one frictionless tap inside escrow.</div>
+  </div>
+  <div class="btnrow">
+    <button class="act" id="run25">Run 25 buyers ▸</button>
+    <button class="act" id="run200" style="flex:0 0 auto;background:var(--leaf2)">+200</button>
+    <button class="act ghost" id="reset">Reset sim</button>
+  </div>
+  <div class="count">Outcomes witnessed so far: <b id="total">0</b> buyers</div>
+</div>
+
+<h2 class="sec">2 · Trust as a consequence</h2>
+<div id="labs"></div>
+
+<div class="note">
+  <b>Contrast with the seeded MVP.</b> Today <code>data/sellers.json</code> carries a
+  hand-typed <code>ledger:{…}</code> — a lab could put any numbers there. Above, the
+  same fields are the <i>tally of events the platform witnessed</i>. Move the sliders,
+  hit reset, watch a bad lab decay from its own outcomes. Nobody typed the number.
+</div>
+
+<div class="foot" id="handoff"></div>
+
+<script>
+/* ================= THROWAWAY SIM — all data hand-authored. # FAKE DATA ================= */
+var M = window.PPModel;
+if(!M){ document.body.innerHTML =
+  '<p style="color:#e08a5a;padding:24px;font:15px sans-serif">Load me via a server from '+
+  'plantpeers/ so ../model.js resolves:<br><br><code>python -m http.server</code><br>'+
+  'then open /experiments/outcome_spine_spike.html</p>'; throw new Error('no model'); }
+
+/* Each lab: a HIDDEN true quality + an identity. honorPolicy = P(lab honors a filed claim).
+   These numbers exist ONLY to generate outcomes; the model never sees them. # FAKE DATA */
+var LABS = [
+  { id:'clean', name:'Verdant TC Lab', hue:'#4ea86b', kind:'honest · clean lab',
+    trueContam:0.02, trueEstab:0.90, honorPolicy:1.0,
+    rating:4.9, sales:430, certs:2, replace:true, seeded:0.02 },
+  { id:'sloppy', name:'Tropiflask Wholesale', hue:'#c9a34e', kind:'honest · but SLOPPY',
+    trueContam:0.20, trueEstab:0.55, honorPolicy:1.0,
+    rating:3.8, sales:41, certs:0, replace:false, seeded:0.02 },
+  // NOTE: identical to 'sloppy' in every SCORED attribute except honorPolicy, so the
+  // trust gap between them is PURELY the anti-gaming honor-rate hit. # FAKE DATA
+  { id:'denier', name:'ShadyCulture Co', hue:'#c96f6f', kind:'sloppy · DENIES claims',
+    trueContam:0.20, trueEstab:0.55, honorPolicy:0.12,
+    rating:3.8, sales:41, certs:0, replace:false, seeded:0.02 },
+  { id:'fresh', name:'FreshFlask', hue:'#8f8f8f', kind:'new / churned account',
+    trueContam:0.20, trueEstab:0.60, honorPolicy:1.0,
+    rating:4.7, sales:2, certs:0, replace:false, seeded:0.02, frozen:true }
+];
+
+/* minted ledger per lab — starts EMPTY. Every count below is written by an event. */
+function blankLedger(){ return { shipments:0, filed_claims:0, honored_claims:0,
+  checkins_responded:0, establishment_confirmed:0 }; }
+LABS.forEach(function(L){ L.ledger = blankLedger(); L.hist = []; });
+var total = 0;
+
+/* ---- THE THREE EVENTS ---- (this is the whole mechanism, ~15 lines) */
+function purchaseFrom(L, responseRate, claimRate){
+  // frozen = new/churned account with no witnessed history: it receives no outcomes,
+  // so it stays at the prior. (Resetting a bad ledger lands you here — buys nothing.)
+  if(L.frozen) return;
+  var lg = L.ledger;
+  // EVENT 1 — award creates a shipment
+  lg.shipments++;
+  // EVENT 2 — delivery: contaminated?  outcome drawn from the HIDDEN true rate
+  var contaminated = Math.random() < L.trueContam;
+  if(contaminated){
+    if(Math.random() < claimRate){            // buyer bothers to file
+      lg.filed_claims++;
+      if(Math.random() < L.honorPolicy) lg.honored_claims++;   // lab honors or denies
+    }
+    return; // dead cup: no +8wk establishment check-in
+  }
+  // EVENT 3 — +8 weeks: establishment check-in (only clean cups get this far)
+  if(Math.random() < responseRate){
+    lg.checkins_responded++;
+    if(Math.random() < L.trueEstab) lg.establishment_confirmed++;
+  }
+}
+
+/* Feed the MINTED ledger through the REAL model, exactly as index.html would. */
+function readModel(L){
+  var seller = {
+    handle:'@'+L.id, rating:L.rating, sales_count:L.sales,
+    certs: L.certs? new Array(L.certs).fill('cert') : [],
+    replacement_policy:{ covers:L.replace },
+    contamination_rate_claimed:L.seeded, deflask_success_rate_claimed:0.9,
+    ledger: L.ledger.shipments ? L.ledger : null   // no shipments = no ledger = churn/new
+  };
+  var o = M.enrich({ id:'off_'+L.id, seller_id:L.id, stage:'invitro', plantlets_per_cup:1,
+                     price:40, shipping:12 }, seller);
+  return { o:o, trust:M.labTrust(o) };
+}
+
+function runBatch(n){
+  var rr = +document.getElementById('rr').value/100;
+  var cr = +document.getElementById('cr').value/100;
+  for(var i=0;i<n;i++){
+    LABS.forEach(function(L){ purchaseFrom(L, rr, cr); });
+    total++;
+  }
+  // record model's contam estimate for the sparkline
+  LABS.forEach(function(L){ var r=readModel(L); L.hist.push(r.o.contam); if(L.hist.length>240) L.hist.shift(); });
+  render();
+}
+
+/* ---- rendering ---- */
+function pct(x){ return (x*100).toFixed(x<0.1?1:0)+'%'; }
+function drawSpark(cv, hist, trueRate){
+  var c=cv.getContext('2d'), W=cv.width=cv.clientWidth*2, H=cv.height=140;
+  c.scale(1,1); c.clearRect(0,0,W,H);
+  var maxY=0.30; // 0..30% contamination window
+  function y(v){ return H-6-(Math.min(v,maxY)/maxY)*(H-12); }
+  // true-rate reference line
+  c.strokeStyle='#c98fd6'; c.setLineDash([5,5]); c.lineWidth=2;
+  c.beginPath(); c.moveTo(0,y(trueRate)); c.lineTo(W,y(trueRate)); c.stroke(); c.setLineDash([]);
+  // prior reference (10%)
+  c.strokeStyle='#2a382e'; c.lineWidth=1;
+  c.beginPath(); c.moveTo(0,y(0.10)); c.lineTo(W,y(0.10)); c.stroke();
+  // the model estimate path
+  if(hist.length>1){
+    c.strokeStyle='#7fd39a'; c.lineWidth=3; c.beginPath();
+    for(var i=0;i<hist.length;i++){ var x=i/(hist.length-1)*W; if(i===0)c.moveTo(x,y(hist[i])); else c.lineTo(x,y(hist[i])); }
+    c.stroke();
+  }
+}
+
+function render(){
+  document.getElementById('total').textContent = total;
+  document.getElementById('rrLbl').textContent = document.getElementById('rr').value+'%';
+  document.getElementById('crLbl').textContent = document.getElementById('cr').value+'%';
+
+  // compute + sort by trust for a rank feel
+  var rows = LABS.map(function(L){ return { L:L, r:readModel(L) }; });
+  rows.sort(function(a,b){ return b.r.trust - a.r.trust; });
+
+  var host = document.getElementById('labs'); host.innerHTML='';
+  rows.forEach(function(row, idx){
+    var L=row.L, o=row.r.o, trust=row.r.trust, lg=L.ledger;
+    var el=document.createElement('div'); el.className='lab'+(idx===0?' rank1':'');
+    var tier=o.confidence;
+    var honor = o.honorRate==null? '—' : pct(o.honorRate);
+    var contamShown = o.contam;                    // what the model USES (shrunk)
+    var contamRaw = lg.shipments? lg.filed_claims/lg.shipments : null; // raw filed/ship
+    var deflaskShown = o.contam_deflask;
+    el.innerHTML =
+      '<div class="labhead">'+
+        '<div class="dot" style="background:'+L.hue+'">'+L.name[0]+'</div>'+
+        '<div><div class="labname">'+L.name+'</div><div class="labkind">'+L.kind+'</div></div>'+
+        '<div class="trust"><div class="num" style="color:'+(trust>=70?'#7fd39a':trust>=50?'#e9c46a':'#e08a5a')+'">'+trust+'</div>'+
+          '<div class="lbl">TRUST</div></div>'+
+      '</div>'+
+      '<span class="tier '+tier+'">'+tier+'</span>'+
+      '<canvas id="cv_'+L.id+'"></canvas>'+
+      '<div class="rows">'+
+        '<div class="r"><span class="k">Hidden TRUE contamination</span><span class="v hid">'+pct(L.trueContam)+'</span></div>'+
+        '<div class="r"><span class="k">Model shows (shrunk, USED)</span><span class="v '+(contamShown<0.08?'good':contamShown>0.15?'bad':'')+'">'+pct(contamShown)+'</span></div>'+
+        '<div class="r"><span class="k">Raw filed/shipments</span><span class="v">'+(contamRaw==null?'—':pct(contamRaw))+'</span></div>'+
+        '<div class="r"><span class="k">Establishment (shown)</span><span class="v">'+pct(deflaskShown)+'</span></div>'+
+        '<div class="r"><span class="k">Claim honor rate</span><span class="v '+(o.honorRate!=null&&o.honorRate<0.5?'bad':'')+'">'+honor+'</span></div>'+
+      '</div>'+
+      '<div class="ledger">minted ledger → '+
+        'ship <b>'+lg.shipments+'</b> · filed <b>'+lg.filed_claims+'</b> · honored <b>'+lg.honored_claims+'</b> · '+
+        'check-ins <b>'+lg.checkins_responded+'</b> · alive <b>'+lg.establishment_confirmed+'</b></div>'+
+      '<div class="seededcmp">seeded-MVP value would be a typed <b>'+pct(L.seeded)+'</b> — unearned. '+
+        (L.frozen?'This is a NEW/CHURNED account: no shipments → no ledger → pinned to prior, cannot rank #1.':'')+'</div>'+
+      '<div class="miniact">'+
+        '<button data-reset="'+L.id+'">↺ churn/reset this ledger</button>'+
+        (L.frozen?'<button data-thaw="'+L.id+'">▸ let it start trading</button>'
+                 :'<button data-freeze="'+L.id+'">⏸ freeze (stop outcomes)</button>')+
+      '</div>';
+    host.appendChild(el);
+    drawSpark(el.querySelector('#cv_'+L.id), L.hist, L.trueContam);
+  });
+
+  // wire per-lab buttons
+  host.querySelectorAll('[data-reset]').forEach(function(b){ b.onclick=function(){
+    var L=LABS.find(function(x){return x.id===b.dataset.reset;}); L.ledger=blankLedger(); L.hist=[]; render(); }; });
+  host.querySelectorAll('[data-freeze]').forEach(function(b){ b.onclick=function(){
+    LABS.find(function(x){return x.id===b.dataset.freeze;}).frozen=true; render(); }; });
+  host.querySelectorAll('[data-thaw]').forEach(function(b){ b.onclick=function(){
+    LABS.find(function(x){return x.id===b.dataset.thaw;}).frozen=false; render(); }; });
+}
+
+document.getElementById('run25').onclick=function(){ runBatch(25); };
+document.getElementById('run200').onclick=function(){ runBatch(200); };
+document.getElementById('reset').onclick=function(){
+  LABS.forEach(function(L){ L.ledger=blankLedger(); L.hist=[]; if(L.id==='fresh')L.frozen=true; }); total=0; render(); };
+document.getElementById('rr').oninput=render;
+document.getElementById('cr').oninput=render;
+
+render();
+
+/* handoff note rendered into the page so a reviewer sees it without reading source */
+document.getElementById('handoff').innerHTML =
+  '<h3>What the REAL outcome spine needs (Builder / founder)</h3>'+
+  '<ol>'+
+    '<li><b>Identity</b> — one lab = one durable account. Otherwise "churn/reset" above '+
+      'is free: re-register, ledger is blank, back to prior. Prior must be no better than '+
+      'an established mediocre lab, or the reset is an upgrade.</li>'+
+    '<li><b>Escrow-gated check-ins</b> — the +8wk "did it live?" only mints if the buyer '+
+      'answers. Gate release of held funds / a rebate on responding, or the response-rate '+
+      'slider sits low and deflask never leaves the prior.</li>'+
+    '<li><b>Frictionless claim flow</b> — one tap "arrived contaminated" with a photo, '+
+      'inside escrow. If filing is a chore, the claim-rate slider sits low and every lab '+
+      'reads artificially clean.</li>'+
+    '<li><b>Honor is the platform\'s call, logged</b> — honored_claims is a refund the '+
+      'platform PROCESSES, not a lab self-report. Denying is allowed but visible (honor rate).</li>'+
+  '</ol>'+
+  '<h3>Policy questions only the founder can answer</h3>'+
+  '<ul>'+
+    '<li>How hard is the check-in incentive — rebate? escrow hold? Costs money / adds friction.</li>'+
+    '<li>Where is the prior set, and can a new lab ever reach #1 without N witnessed outcomes? '+
+      '(model today: needs ≥60 ship & ≥40 check-ins for "verified".)</li>'+
+    '<li>Who adjudicates a contested claim, and what stops a buyer filing falsely?</li>'+
+    '<li>Does contamination-replacement stay optional, or become table stakes to sell?</li>'+
+  '</ul>'+
+  '<p style="margin-top:12px"><b>Riskiest unproven thing:</b> participation. The mechanism '+
+  'is only as honest as the response/claim rates — and those depend on incentives that cost '+
+  'money and add friction. The sliders make that dependency the DECISION, not a detail.</p>';
+</script>
+</body>
+</html>
