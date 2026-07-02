@@ -170,6 +170,12 @@
   .labstat .v{font-size:14px;font-weight:800;margin-top:1px}
   .labstat .v.good{color:var(--leaf2)} .labstat .v.mid{color:var(--gold)} .labstat .v.bad{color:var(--warn)}
   .labstat .s{font-size:9.5px;color:var(--sub);margin-top:1px}
+  .labstat .s s{color:#6f8778}
+  .lbadge{display:inline-block;margin-top:6px;font-size:8.5px;line-height:1.3;font-weight:700;
+    padding:2px 6px;border-radius:999px;letter-spacing:.2px}
+  .lbadge.verified{background:#12211a;border:1px solid #2f4636;color:var(--leaf2)}
+  .lbadge.thin{background:#241a10;border:1px solid #5a4322;color:var(--gold)}
+  .lbadge.claim{background:#241413;border:1px solid #5a2f2f;color:var(--warn)}
 
   /* value meter — preserved from the MVP, segments retargeted to TC drivers */
   .value{margin:12px 0 4px}
@@ -386,18 +392,48 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 function pct(x){ return Math.round(x*100)+'%'; }
 
 /* ============================================================
+   OUTCOME-LEDGER TRUST — ported from experiments/verified_trust_spike.html.
+   The two decisive ranking inputs used to be self-reported. They are now
+   GROUNDED in a witnessed outcome ledger (seller.ledger) and confidence-
+   adjusted so an unproven optimistic claim can't win.
+
+   betaMean(): Beta posterior mean shrunk toward a cautious platform prior.
+   With few outcomes the estimate stays near the prior (a brand-new lab's low
+   claim is discounted, not trusted); with many outcomes the ledger dominates
+   and the claim is ignored entirely. Priors hand-picked, per the spike.
+     contamination = honored_claims / shipments        (real refunds the
+                     platform watched leave the lab — can't be faked down)
+     establishment = establishment_confirmed / checkins_responded
+                     (escrow-gated 8-week "did it live?" check-ins)
+   ============================================================ */
+var CONTAM_PRIOR = 0.10, CONTAM_STRENGTH = 25;   // assume ~10% contamination until proven cleaner
+var DEFLASK_PRIOR = 0.65, DEFLASK_STRENGTH = 20; // assume ~65% establish until proven better
+function betaMean(k, n, priorRate, strength){
+  var a0 = priorRate*strength, b0 = (1-priorRate)*strength;
+  return (a0 + k) / (a0 + b0 + n);
+}
+/* Is a lab's ledger deep enough to trust over its claim? Thresholds per spike. */
+function confidenceTier(shipments, checkins){
+  if(shipments>=60 && checkins>=40) return 'verified';
+  if(shipments>=20) return 'thin';
+  return 'unverified';
+}
+
+/* ============================================================
    THE SURVIVAL MODEL — the whole TC thesis, ported from the spike.
    Translates lab (seller) + offer + buyer skill into "odds you end up
    with a living plant." Everything is computed from the data fields.
 
-   TODO(real): lab.contamination_rate and lab.deflask_success_rate are
-   self/buyer-reported and unverified. They are the load-bearing inputs to
-   this whole ranking — the Prototyper flagged that they need a credible
-   outcome source (audited buyer follow-ups: "did it live at 8 weeks?",
-   tie-back to actual replacement claims, a photo-verified establishment
-   check) before this ranking can be trusted with real money. Until then,
-   treat the numbers as directional and keep the "self-reported" labels in
-   the UI. The coefficients below are hand-tuned for the demo, not fit to data.
+   TODO(real): the load-bearing inputs (o.contam, o.contam_deflask) are now
+   grounded in the witnessed OUTCOME LEDGER (see betaMean/enrich above), not
+   the lab's self-report — a lab can no longer win on an unproven low claim.
+   The remaining real-world risk is BEHAVIORAL, upstream of this math: whether
+   check-ins actually get filed and replacement claims actually get filed +
+   honored. If buyers don't respond to the 8-week "did it live?" prompt, or a
+   lab quietly discourages/denies claims, the ledger under-counts failures.
+   Escrow-gating check-ins and cross-checking honored_claims against dispute/
+   refund records is the next real-data step (flagged for Maintainer). The
+   scoring coefficients below are still hand-tuned for the demo, not fit.
    ============================================================ */
 function survival(o){
   var sk = SKILL[skill];
@@ -590,9 +626,30 @@ function enrich(raw){
   o.handle=s.handle||('@'+o.seller_id);
   o.rating=s.rating||0; o.sales=s.sales_count||0; o.badges=s.badges||[]; o.avatar_hue=s.avatar_hue||'#3b6b4a';
   o.location=s.location||''; o.response_time=s.response_time||'';
-  // lab (seller) TC fields folded onto the offer for the model
-  o.contam = (s.contamination_rate!=null)? s.contamination_rate : 0.15;
-  o.contam_deflask = (s.deflask_success_rate!=null)? s.deflask_success_rate : 0.6;
+  // lab (seller) TC fields folded onto the offer for the model.
+  // The two decisive inputs are now the LEDGER-derived effective values
+  // (Beta-shrunk toward a cautious prior), not the lab's self-report.
+  o.contamClaimed  = (s.contamination_rate_claimed!=null)? s.contamination_rate_claimed : 0.15;
+  o.deflaskClaimed = (s.deflask_success_rate_claimed!=null)? s.deflask_success_rate_claimed : 0.6;
+  var lg = s.ledger;
+  if(lg && lg.shipments>0 && lg.checkins_responded>0){
+    o.hasLedger = true;
+    o.shipments = lg.shipments; o.honoredClaims = lg.honored_claims;
+    o.checkins = lg.checkins_responded; o.established = lg.establishment_confirmed;
+    o.contamVerified  = lg.honored_claims / lg.shipments;              // raw witnessed rate
+    o.deflaskVerified = lg.establishment_confirmed / lg.checkins_responded;
+    o.confidence = confidenceTier(lg.shipments, lg.checkins_responded);
+    // effective values actually fed to survival()/labTrust(): ledger shrunk to prior.
+    // When the ledger is thin the estimate sits near the prior regardless of the
+    // claim, so an unproven optimistic claim is discounted rather than rewarded.
+    o.contam         = betaMean(lg.honored_claims, lg.shipments, CONTAM_PRIOR, CONTAM_STRENGTH);
+    o.contam_deflask = betaMean(lg.establishment_confirmed, lg.checkins_responded, DEFLASK_PRIOR, DEFLASK_STRENGTH);
+  } else {
+    // no ledger at all: degrade gracefully to the claim, labeled self-reported.
+    o.hasLedger = false; o.confidence = 'unverified';
+    o.contam = o.contamClaimed; o.contam_deflask = o.deflaskClaimed;
+    o.contamVerified = null; o.deflaskVerified = null;
+  }
   o.certsCount = (s.certs? s.certs.length : 0);
   o.replace = !!(s.replacement_policy && s.replacement_policy.covers);
   o.replaceText = (s.replacement_policy && s.replacement_policy.text) || 'No replacement policy stated';
@@ -653,13 +710,44 @@ function forecastBlock(o){
     " · ~$"+Math.round(s.costPerLive)+" per surviving plant</div></div>";
 }
 
+/* One lab stat box with the spike's three-state trust badge:
+   verified  → headline the WITNESSED number, "✓ verified by N outcomes",
+               strike the lab's diverging claim
+   unverified→ headline the prior-discounted effective value, amber
+               "unverified · claim discounted · only N outcomes"
+   no ledger → fall back to "self-reported" (graceful degrade)             */
+function labStatBox(kind, o){
+  var isContam = kind==='contam';
+  var eff      = isContam ? o.contam : o.contam_deflask;              // what the ranking uses
+  var claimed  = isContam ? o.contamClaimed : o.deflaskClaimed;
+  var verified = isContam ? o.contamVerified : o.deflaskVerified;
+  var n        = isContam ? o.shipments : o.checkins;
+  var label    = isContam ? 'Contamination rate' : 'Deflask success';
+  var cls      = isContam ? (eff<=0.03?'good':(eff<=0.10?'mid':'bad'))
+                          : (eff>=0.85?'good':(eff>=0.70?'mid':'bad'));
+  var big, sub, badge;
+  if(!o.hasLedger){
+    big = pct(claimed);
+    sub = "lower is better";
+    badge = "<span class='lbadge claim'>self-reported</span>";
+  } else if(o.confidence==='unverified'){
+    // thin sample: don't trust the claim; ranking uses the cautious prior
+    big = pct(eff);
+    sub = "claimed <s>"+pct(claimed)+"</s> · only "+n+" outcome"+(n===1?'':'s');
+    badge = "<span class='lbadge claim'>unverified · claim discounted · only "+n+" outcomes</span>";
+  } else {
+    // verified / thin: headline the witnessed number
+    big = pct(verified);
+    var diverge = Math.abs(verified-claimed)>=0.03;
+    sub = diverge ? "lab claimed <s>"+pct(claimed)+"</s>" : "lab claimed "+pct(claimed);
+    badge = "<span class='lbadge "+(o.confidence==='thin'?'thin':'verified')+"'>✓ verified by "+n+" outcomes</span>";
+  }
+  return "<div class='labstat'><div class='k'>"+label+"</div>"+
+    "<div class='v "+cls+"'>"+big+"</div>"+
+    "<div class='s'>"+sub+"</div>"+badge+"</div>";
+}
 function labScorecard(o){
-  var contamCls = o.contam<=0.03?'good':(o.contam<=0.10?'mid':'bad');
-  var deflaskCls = o.contam_deflask>=0.85?'good':(o.contam_deflask>=0.70?'mid':'bad');
-  return "<div class='labcard'>"+
-    "<div class='labstat'><div class='k'>Contamination rate</div><div class='v "+contamCls+"'>"+pct(o.contam)+"</div><div class='s'>self/buyer-reported, lower is better</div></div>"+
-    "<div class='labstat'><div class='k'>Deflask success</div><div class='v "+deflaskCls+"'>"+pct(o.contam_deflask)+"</div><div class='s'>lab's reported survival</div></div>"+
-    "</div>";
+  return "<div class='labcard'>"+labStatBox('contam',o)+labStatBox('deflask',o)+"</div>";
 }
 
 function riskBlock(o){
