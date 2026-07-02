@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PlantPeers spike — verified-from-outcomes vs self-reported trust</title>
+<!--
+  ============================================================================
+  PROTOTYPER SPIKE (L3) — THROWAWAY. Not production. Do not wire into index.html.
+  ============================================================================
+  Thesis being tested:
+    The two decisive ranking inputs (contamination_rate, deflask_success_rate)
+    are SELF-REPORTED today. A dishonest lab can under-report contamination and
+    win. This spike grounds both numbers in an OUTCOME LEDGER the platform
+    itself witnesses through escrow, so trust is EARNED from outcomes, not claimed.
+
+  Mechanism demonstrated (see notes at bottom for the 2 rejected alternatives):
+    "Outcome Ledger" — the platform records verifiable EVENTS it sees firsthand:
+      * contamination  = HONORED replacement claims / shipments
+                         (each honored claim is a real refund the platform
+                          processes — money leaving the lab; can't be faked down)
+      * deflask/estab. = escrow-gated 8-week check-ins ("did it live?")
+                         confirmed-alive / responded check-ins
+    Both are confidence-adjusted (Beta shrinkage toward a cautious platform prior)
+    so a brand-new lab's unproven low claim is DISCOUNTED, not trusted.
+
+  What this file proves, on screen:
+    1. self-reported number vs verified-from-outcomes number DIVERGING per lab
+    2. the ranking correcting when verified data is trusted over claims
+    3. a gaming attempt (claim 2% but 20% of buyers file honored claims) getting
+       CAUGHT and the lab's effective rating collapsing from ~#1 to last
+    4. the buyer-facing signal: "3% · verified by 240 outcomes" vs
+       "1% · lab's claim, 4 outcomes — unverified"
+
+  ALL DATA BELOW IS FAKE (hand-authored ledgers). Coefficients hand-tuned for the
+  demo, not fit. Marked # FAKE DATA / # HACK throughout.
+-->
+<style>
+  :root{
+    --bg:#0f1511; --card:#18211b; --card2:#1e2a22; --line:#2a382e;
+    --ink:#eaf3ec; --sub:#9db4a5; --leaf:#4ea86b; --leaf2:#7fd39a;
+    --gold:#e9c46a; --warn:#e08a5a; --danger:#e05a5a; --pill:#22302786;
+    --shadow:0 6px 22px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);
+    font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    max-width:430px;margin:0 auto;padding:0 0 48px;-webkit-font-smoothing:antialiased}
+  .topbar{position:sticky;top:0;z-index:20;background:linear-gradient(#0f1511,#0f1511f2);
+    padding:14px 16px 12px;border-bottom:1px solid var(--line);backdrop-filter:blur(6px)}
+  .brand{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:800}
+  .brand .mark{font-size:20px}
+  .tag{color:var(--sub);font-size:12.5px;margin-top:3px}
+  .spikeflag{background:#3a2418;border:1px solid #6b4a2a;color:#f0c9a3;font-size:11.5px;
+    padding:8px 12px;margin:10px 16px 0;border-radius:9px;line-height:1.4}
+
+  .toggle{display:flex;gap:8px;margin:14px 16px 4px}
+  .toggle button{flex:1;background:var(--card2);border:1px solid var(--line);color:var(--sub);
+    padding:11px 6px;border-radius:12px;font-size:12.5px;font-weight:700;cursor:pointer;line-height:1.25}
+  .toggle button small{display:block;font-size:9.5px;font-weight:500;opacity:.8;margin-top:2px}
+  .toggle button.on{background:var(--leaf);color:#08120b;border-color:var(--leaf)}
+  .modenote{margin:8px 16px 2px;font-size:12px;color:var(--sub);line-height:1.4}
+
+  .sectlbl{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--sub);
+    margin:18px 16px 8px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .sectlbl .rule{flex:1;height:1px;background:var(--line)}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    margin:0 12px 12px;padding:13px 14px;box-shadow:var(--shadow)}
+  .card.top{border-color:var(--leaf);box-shadow:0 0 0 1px var(--leaf),0 8px 26px rgba(0,0,0,.5)}
+  .card.gamer{border-color:#5a2f2f}
+  .rankrow{display:flex;align-items:center;gap:10px}
+  .rk{width:30px;height:30px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:14px;background:#101712;border:1px solid var(--line);color:var(--sub)}
+  .card.top .rk{background:var(--leaf);color:#08120b;border-color:var(--leaf)}
+  .hdl{font-weight:700;font-size:14.5px}
+  .sub{color:var(--sub);font-size:11.5px;margin-top:1px}
+  .scorepill{margin-left:auto;text-align:right}
+  .scorepill b{font-size:19px;font-weight:800}
+  .scorepill small{display:block;font-size:9.5px;color:var(--sub);letter-spacing:.4px}
+  .delta{font-size:10.5px;font-weight:700;margin-top:2px}
+  .delta.up{color:var(--leaf2)} .delta.down{color:var(--warn)}
+
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}
+  .stat{background:#101712;border:1px solid var(--line);border-radius:11px;padding:9px 10px}
+  .stat .k{font-size:9.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--sub);font-weight:700}
+  .stat .headline{display:flex;align-items:baseline;gap:6px;margin-top:3px}
+  .stat .big{font-size:17px;font-weight:800}
+  .stat .big.good{color:var(--leaf2)} .stat .big.mid{color:var(--gold)} .stat .big.bad{color:var(--warn)}
+  .stat .claim{font-size:10.5px;color:var(--sub)}
+  .stat .claim s{color:#6f8778}
+  .vbadge{display:inline-block;margin-top:6px;font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:999px}
+  .vbadge.verified{background:#12211a;border:1px solid #2f4636;color:var(--leaf2)}
+  .vbadge.thin{background:#241a10;border:1px solid #5a4322;color:var(--gold)}
+  .vbadge.claim{background:#241413;border:1px solid #5a2f2f;color:var(--warn)}
+
+  .caught{margin-top:12px;background:#241413;border:1px solid #5a2f2f;border-radius:12px;
+    padding:11px 12px;font-size:12px;color:#f0b0a3;line-height:1.5}
+  .caught b{color:#ffd0c4}
+  .caught .hd{font-weight:800;color:#ffd0c4;font-size:12.5px;display:flex;align-items:center;gap:6px;margin-bottom:5px}
+  .honest{margin-top:12px;background:#12211a;border:1px solid #2f4636;border-radius:12px;
+    padding:10px 12px;font-size:12px;color:var(--leaf2);line-height:1.45}
+  .honest b{color:var(--leaf2)}
+  .thinwarn{margin-top:12px;background:#241a10;border:1px solid #5a4322;border-radius:12px;
+    padding:10px 12px;font-size:12px;color:#f0d9a3;line-height:1.45}
+  .thinwarn b{color:var(--gold)}
+
+  .foot{color:#5f7566;font-size:10.5px;text-align:center;margin:22px 16px 0;line-height:1.6}
+  .foot b{color:#8fae9a}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="mark">&#129516;</span> plantpeers · trust spike</div>
+  <div class="tag">Where does a lab's contamination rate actually come from?</div>
+</div>
+<div class="spikeflag">&#9888; THROWAWAY SPIKE &middot; all ledger data is FAKE &middot; not wired into the MVP. Tests: can outcome-verified stats beat self-reported claims and catch a lying lab?</div>
+
+<div class="toggle">
+  <button id="tabClaim" onclick="setMode('claim')">Trust the claims<small>self-reported (today's MVP)</small></button>
+  <button id="tabVerified" class="on" onclick="setMode('verified')">Trust the outcomes<small>verified-from-ledger</small></button>
+</div>
+<div class="modenote" id="modenote"></div>
+
+<div class="sectlbl"><span class="rule"></span> <span id="ranklbl">Labs ranked</span> <span class="rule"></span></div>
+<div id="feed"></div>
+
+<div class="foot">
+  Effective survival = (1 &minus; contamination) &times; deflask-success, per lab.<br>
+  <b>Claims mode</b> feeds the ranking the labs' own numbers.
+  <b>Outcomes mode</b> feeds it the ledger-derived numbers (Beta-shrunk to a cautious prior when the sample is thin).<br>
+  Flip the toggle: the honest proven lab wins, the gamer collapses, the unproven cheap claim is discounted.
+</div>
+
+<script>
+/* ============================================================================
+   FAKE OUTCOME LEDGER  — # FAKE DATA (hand-authored; the whole point is to fake
+   the outcome stream the escrow layer would produce in production).
+
+   Each lab carries:
+     claimContam / claimDeflask  = what the lab SELF-REPORTS today (sellers.json)
+     ledger.shipments            = cups the platform shipped-in-escrow for this lab
+     ledger.honoredClaims        = replacement claims the lab HONORED (real refunds)
+     ledger.checkins             = 8-week "did it live?" check-ins that got a response
+     ledger.established          = of those, how many buyers confirmed a live plant
+   ============================================================================ */
+var LABS = [
+  { id:'verdant', handle:'@verdant_tclab', note:'Portland lab · 430 sales',
+    claimContam:0.02, claimDeflask:0.92,
+    ledger:{ shipments:240, honoredClaims:7, checkins:180, established:166 } },      // honest, proven
+
+  { id:'tropiflask', handle:'@tropiflask_wholesale', note:'Wholesale · undercuts on price', gamer:true,
+    claimContam:0.02, claimDeflask:0.90,                                            // <-- THE LIE (real MVP had 0.22)
+    ledger:{ shipments:240, honoredClaims:48, checkins:150, established:70 } },       // GAMER: claims 2%, reality ~20%
+
+  { id:'aroidculture', handle:'@aroid_culture_co', note:'Seattle · 190 sales',
+    claimContam:0.06, claimDeflask:0.78,
+    ledger:{ shipments:95, honoredClaims:7, checkins:60, established:47 } },          // honest, medium sample
+
+  { id:'freshflask', handle:'@fresh_flask_lab', note:'New lab · joined 3 weeks ago', thin:true,
+    claimContam:0.01, claimDeflask:0.95,                                            // optimistic unproven claim
+    ledger:{ shipments:4, honoredClaims:0, checkins:2, established:2 } }             // too few outcomes to trust
+];
+
+/* ---- confidence-adjusted estimator ------------------------------------------
+   Beta posterior mean toward a CAUTIOUS platform prior. This is the anti-gaming
+   core: with few outcomes the estimate stays near the prior (you can't win on an
+   unproven low claim); with many outcomes the ledger dominates and the claim is
+   ignored entirely.  # HACK: priors hand-picked for the demo.                    */
+var CONTAM_PRIOR = 0.10, CONTAM_STRENGTH = 25;   // assume ~10% until proven cleaner
+var DEFLASK_PRIOR = 0.65, DEFLASK_STRENGTH = 20; // assume ~65% survive until proven better
+function betaMean(k, n, priorRate, strength){
+  var a0 = priorRate*strength, b0 = (1-priorRate)*strength;
+  return (a0 + k) / (a0 + b0 + n);
+}
+
+/* raw verified rate straight from the ledger (what we headline to the buyer) */
+function verifiedContam(l){ return l.ledger.honoredClaims / l.ledger.shipments; }
+function verifiedDeflask(l){ return l.ledger.established / l.ledger.checkins; }
+
+/* effective values actually fed to the ranking, per mode */
+function effContam(l, mode){
+  if(mode==='claim') return l.claimContam;
+  return betaMean(l.ledger.honoredClaims, l.ledger.shipments, CONTAM_PRIOR, CONTAM_STRENGTH);
+}
+function effDeflask(l, mode){
+  if(mode==='claim') return l.claimDeflask;
+  return betaMean(l.ledger.established, l.ledger.checkins, DEFLASK_PRIOR, DEFLASK_STRENGTH);
+}
+
+/* simple lab-quality proxy: fraction of shipped plantlets that end up alive */
+function labScore(l, mode){ return 100 * (1-effContam(l,mode)) * effDeflask(l,mode); }
+
+/* is this lab's ledger deep enough to call "verified"? # HACK threshold */
+function confidence(l){
+  var n = l.ledger.shipments, c = l.ledger.checkins;
+  if(n>=60 && c>=40) return 'verified';
+  if(n>=20) return 'thin';
+  return 'unverified';
+}
+
+var MODE = 'verified';
+function pct(x){ return Math.round(x*100)+'%'; }
+function contamCls(x){ return x<=0.03?'good':(x<=0.10?'mid':'bad'); }
+function deflaskCls(x){ return x>=0.85?'good':(x>=0.70?'mid':'bad'); }
+
+/* precompute ranks in BOTH modes so we can show the delta */
+function ranksFor(mode){
+  var arr = LABS.map(function(l){ return {id:l.id, s:labScore(l,mode)}; });
+  arr.sort(function(a,b){ return b.s-a.s; });
+  var r={}; arr.forEach(function(x,i){ r[x.id]=i+1; }); return r;
+}
+
+function statBox(k, rate, isContam, l){
+  var cls = isContam? contamCls(rate) : deflaskCls(rate);
+  var conf = confidence(l);
+  var claim = isContam? l.claimContam : l.claimDeflask;
+  var vlabel, blabel, big;
+  if(MODE==='claim'){
+    big = pct(claim);
+    vlabel = "<div class='claim'>the lab's own claim</div>";
+    blabel = "<span class='vbadge claim'>SELF-REPORTED</span>";
+  } else if(conf==='unverified'){
+    // thin sample: we do NOT trust the claim; ranking uses the cautious prior
+    big = pct(rate);
+    var n = isContam? l.ledger.shipments : l.ledger.checkins;
+    vlabel = "<div class='claim'>claimed <s>"+pct(claim)+"</s> · only "+n+" outcomes</div>";
+    blabel = "<span class='vbadge claim'>UNVERIFIED &middot; claim discounted</span>";
+  } else {
+    var vraw = isContam? verifiedContam(l) : verifiedDeflask(l);
+    var n = isContam? l.ledger.shipments : l.ledger.checkins;
+    big = pct(vraw);
+    var diverge = Math.abs(vraw-claim)>=0.03;
+    vlabel = "<div class='claim'>"+(diverge?"lab claimed <s>"+pct(claim)+"</s>":"lab claimed "+pct(claim))+"</div>";
+    blabel = "<span class='vbadge "+(conf==='thin'?'thin':'verified')+"'>&#10003; VERIFIED by "+n+" outcomes</span>";
+  }
+  return "<div class='stat'><div class='k'>"+k+"</div>"+
+    "<div class='headline'><span class='big "+cls+"'>"+big+"</span></div>"+
+    vlabel + blabel + "</div>";
+}
+
+function card(l, rank, ranksClaim, ranksVer){
+  var isTop = rank===1;
+  var conf = confidence(l);
+  var score = labScore(l, MODE);
+  var cClaim = ranksClaim[l.id], cVer = ranksVer[l.id];
+  var deltaHtml='';
+  if(MODE==='verified' && cClaim!==cVer){
+    var moved = cClaim - cVer; // positive = climbed
+    deltaHtml = "<div class='delta "+(moved>0?'up':'down')+"'>"+
+      (moved>0?"&#9650; up from #"+cClaim:"&#9660; down from #"+cClaim)+" on claims</div>";
+  }
+
+  var eC = effContam(l,MODE), eD = effDeflask(l,MODE);
+  var explain='';
+  if(MODE==='verified'){
+    if(l.gamer){
+      var vc = verifiedContam(l), vd = verifiedDeflask(l);
+      explain = "<div class='caught'><div class='hd'>&#9888; GAMING CAUGHT</div>"+
+        "Claimed <b>"+pct(l.claimContam)+"</b> contamination. But <b>"+l.ledger.honoredClaims+" of "+l.ledger.shipments+
+        "</b> shipments filed replacement claims this lab <b>honored</b> &mdash; that's <b>"+pct(vc)+"</b> real contamination.<br>"+
+        "Honored claims are refunds the platform <b>watched leave the lab's balance</b>. To keep the 2% claim it would have to <b>deny "+
+        l.ledger.honoredClaims+" legitimate refunds</b> &mdash; which surfaces as disputes &amp; 1-star reviews. Either path exposes it.<br>"+
+        "8-week check-ins confirm only <b>"+l.ledger.established+"/"+l.ledger.checkins+" ("+pct(vd)+")</b> lived vs its claimed "+pct(l.claimDeflask)+".<br>"+
+        "Effective survival: <b>"+Math.round(labScore(l,'claim'))+" &rarr; "+Math.round(score)+"</b>. Drops to last.</div>";
+    } else if(conf==='unverified'){
+      explain = "<div class='thinwarn'>&#8987; <b>Unproven.</b> Only "+l.ledger.shipments+" shipments and "+l.ledger.checkins+
+        " check-ins so far &mdash; not enough to trust a "+pct(l.claimContam)+" claim. The ranking assumes the cautious platform baseline ("+
+        pct(eC)+" contamination, "+pct(eD)+" deflask) until real outcomes accrue. <b>A new lab can't win on an optimistic claim alone.</b></div>";
+    } else {
+      explain = "<div class='honest'>&#10003; <b>Claims hold up.</b> Ledger ("+pct(verifiedContam(l))+" contamination over "+
+        l.ledger.shipments+" shipments, "+pct(verifiedDeflask(l))+" deflask over "+l.ledger.checkins+
+        " check-ins) matches what this lab reports. Trust is <b>earned from outcomes</b>, so the ranking backs it.</div>";
+    }
+  } else {
+    explain = "<div class='thinwarn'>These numbers are the lab's own claim. Nothing in today's MVP checks them &mdash; toggle to <b>Trust the outcomes</b> to see what actually happened.</div>";
+  }
+
+  return "<div class='card"+(isTop?' top':'')+(l.gamer&&MODE==='verified'?' gamer':'')+"'>"+
+    "<div class='rankrow'>"+
+      "<div class='rk'>"+rank+"</div>"+
+      "<div><div class='hdl'>"+l.handle+"</div><div class='sub'>"+l.note+"</div></div>"+
+      "<div class='scorepill'><b>"+Math.round(score)+"</b><small>SURVIVAL SCORE</small>"+deltaHtml+"</div>"+
+    "</div>"+
+    "<div class='stats'>"+
+      statBox('Contamination rate', eC, true, l)+
+      statBox('Deflask success', eD, false, l)+
+    "</div>"+
+    explain+
+  "</div>";
+}
+
+function setMode(m){
+  MODE=m;
+  document.getElementById('tabClaim').classList.toggle('on', m==='claim');
+  document.getElementById('tabVerified').classList.toggle('on', m==='verified');
+  render();
+}
+
+function render(){
+  var ranksClaim = ranksFor('claim'), ranksVer = ranksFor('verified');
+  var ranks = MODE==='claim'? ranksClaim : ranksVer;
+  var ordered = LABS.slice().sort(function(a,b){ return ranks[a.id]-ranks[b.id]; });
+
+  document.getElementById('ranklbl').textContent =
+    MODE==='claim' ? "Ranked by the labs' own numbers" : "Ranked by verified outcomes";
+  document.getElementById('modenote').innerHTML =
+    MODE==='claim'
+      ? "This is <b>today's MVP</b>: every number is what the lab typed into its profile. Notice who sits at the top."
+      : "Now the ranking trusts the <b>outcome ledger</b> the platform witnesses. Watch the order change &mdash; and who gets caught.";
+
+  document.getElementById('feed').innerHTML =
+    ordered.map(function(l){ return card(l, ranks[l.id], ranksClaim, ranksVer); }).join('');
+  window.scrollTo(0,0);
+}
+render();
+</script>
+</body>
+</html>
