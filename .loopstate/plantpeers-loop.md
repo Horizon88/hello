@@ -26,3 +26,5 @@ cadence: run a real round, commit+push, then schedule next wakeup; stop at deadl
 - L11 = #4 fold request target/budget into ranking objective (last clearly-valuable no-backend round). Then L12 = outcome-spine PROTOTYPE spike (explore #1 w/o committing product/backend), then HOLD (long wakeup) pending user product decision.
 - L11 request-needs into ranking: SHIPPED (3392f02). target-fit multiplier on survival + soft budget penalty + over-budget/late flags; anti-gaming preserved; needs-move-ranking golden case. Grower.
 - L12 = outcome-spine PROTOTYPE spike (explore #1: mint ledger from award->checkin->claim events, client-side sim). Then HOLD for user product decision.
+- L12 outcome-spine spike: SHIPPED (1601706). experiments/outcome_spine_spike.html mints ledger from events; trust converges to hidden truth; participation sliders; anti-gaming (denier honor-rate hit, churn->prior). Frames founder decision. Prototyper.
+- L13 = security review (XSS in innerHTML string-template rendering of user content).
