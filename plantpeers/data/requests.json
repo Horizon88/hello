@@ -1,9 +1,9 @@
 [
   {
     "id": "req-seed-1",
-    "plant_id": "monstera-adansonii-med",
+    "plant_id": "philo-florida-beauty-tc",
     "buyer_id": "you",
-    "notes": { "size": "bushy & full", "budget": "under $60 shipped", "deadline": "by next week" },
+    "notes": { "target": "2–3 live plants", "skill": "some", "budget": "under $70 shipped", "deadline": "by next week" },
     "status": "open",
     "created": "2026-07-01"
   }

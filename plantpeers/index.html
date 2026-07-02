@@ -3,22 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>PlantPeers — buyers request, sellers compete</title>
+<title>PlantPeers — buy tissue culture, labs compete on survival</title>
 <!--
-  PlantPeers clickable MVP. Static SPA, no backend/build step.
-  Mock data loaded from data/*.json via fetch (plants, sellers, offers, reviews, requests).
-  The compare-and-pick screen is framing C, promoted from experiments/compare_spike.html:
-  composite score() (quality~0.42, trust~0.42, price capped ~0.16), BEST OVERALL hero card
-  with a value meter + "why it wins", challenger cards with trade-off ribbons, and at least
-  one deliberately cheap-but-weak offer so the ranking visibly defends itself.
-  Trust is derived from real reputation fields; quality is spec-derived (see quality()).
-  No third-party CDN: photos/avatars are inline SVG, so nothing breaks if the network hiccups.
+  PlantPeers clickable MVP — tissue-culture (L2). Static SPA, no backend/build step.
+  Mock data loaded from data/*.json via fetch (plants, sellers=labs, offers, reviews, requests).
+  Compare screen promoted from experiments/tc_compare_spike.html: the headline per offer is a
+  WILL-THIS-LIVE survival forecast computed from TC-native signals (stage, plantlets_per_cup,
+  lab contamination_rate + deflask_success_rate, phenotype_stability, contaminated-cup
+  replacement policy) AND the buyer's own skill. A skill selector re-ranks the whole set live.
+  Scoring: survival(0.45) / lab-trust(0.35) / value-per-surviving-plant(0.20). Cheapest raw cup
+  != most likely to end up a living plant. No third-party CDN: photos/avatars are inline SVG.
 -->
 <style>
   :root{
     --bg:#0f1511; --card:#18211b; --card2:#1e2a22; --line:#2a382e;
     --ink:#eaf3ec; --sub:#9db4a5; --leaf:#4ea86b; --leaf2:#7fd39a;
-    --gold:#e9c46a; --warn:#e08a5a; --pill:#22302786;
+    --gold:#e9c46a; --warn:#e08a5a; --danger:#e05a5a; --pill:#22302786;
     --shadow:0 6px 22px rgba(0,0,0,.45);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -89,6 +89,7 @@
   .opt{font-size:13px;padding:9px 13px;border-radius:11px;background:var(--card2);
     border:1px solid var(--line);color:var(--ink);cursor:pointer;font-weight:600}
   .opt.on{background:var(--leaf);color:#08120b;border-color:var(--leaf)}
+  .opt small{display:block;font-size:10px;font-weight:500;opacity:.75;margin-top:1px}
   .form textarea{width:100%;margin-top:4px;padding:11px 13px;border-radius:12px;border:1px solid var(--line);
     background:var(--card2);color:var(--ink);font-size:13.5px;resize:vertical;min-height:60px;font-family:inherit}
   .cta{margin:22px 16px 8px;width:calc(100% - 32px);padding:15px;border:none;border-radius:14px;
@@ -98,6 +99,17 @@
   .sectlbl{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--sub);
     margin:18px 16px 8px;font-weight:700;display:flex;align-items:center;gap:8px}
   .sectlbl .rule{flex:1;height:1px;background:var(--line)}
+
+  /* --- skill selector: the interaction that makes the risk self-assessable --- */
+  .skill{margin:12px 12px 4px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:11px 12px}
+  .skill .lbl{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--sub);font-weight:700;display:flex;gap:7px;align-items:center}
+  .skill .lbl .q{margin-left:auto;color:var(--leaf2);font-weight:600;letter-spacing:0;text-transform:none;font-size:11px}
+  .segs{display:flex;gap:7px;margin-top:9px}
+  .segs button{flex:1;background:var(--card2);border:1px solid var(--line);color:var(--sub);
+    padding:9px 4px;border-radius:11px;font-size:12px;font-weight:600;cursor:pointer;line-height:1.2}
+  .segs button small{display:block;font-size:9.5px;font-weight:500;opacity:.8;margin-top:2px}
+  .segs button.on{background:var(--leaf);color:#08120b;border-color:var(--leaf)}
+  .segs button.on small{opacity:.9}
 
   /* --- compare toolbar --- */
   .toolbar{display:flex;gap:8px;margin:12px 12px 6px}
@@ -115,15 +127,32 @@
     font-size:12px;font-weight:700;letter-spacing:.4px;padding:7px 14px;display:flex;align-items:center;gap:7px}
   .pickbanner .why{margin-left:auto;font-weight:600;opacity:.9;font-size:11px}
 
-  .photo{height:180px;background-size:cover;background-position:center;position:relative}
-  .card.chall .photo{height:132px}
+  .photo{height:150px;background-size:cover;background-position:center;position:relative}
+  .card.chall .photo{height:120px}
   .photo .price{position:absolute;right:10px;bottom:10px;background:#0d130fdd;
     padding:6px 11px;border-radius:12px;font-weight:700;font-size:15px;border:1px solid var(--line)}
   .photo .price small{color:var(--sub);font-weight:500;font-size:10.5px;display:block;text-align:right}
-  .photo .ships{position:absolute;left:10px;bottom:10px;background:#0d130fcc;color:var(--leaf2);
-    font-size:11px;padding:4px 9px;border-radius:10px;font-weight:600}
+  .photo .stage{position:absolute;left:10px;top:10px;background:#0d130fdd;color:var(--leaf2);
+    font-size:11px;padding:4px 9px;border-radius:10px;font-weight:700;border:1px solid #2f4636}
+  .photo .stage.invitro{color:var(--warn);border-color:#5a3f28}
 
   .body{padding:12px 14px 14px}
+
+  /* WILL-THIS-LIVE forecast — the TC-native centerpiece (replaces the generic value/100 headline) */
+  .forecast{display:flex;align-items:center;gap:12px;background:#12211a;border:1px solid #2f4636;
+    border-radius:14px;padding:11px 12px;margin-bottom:11px}
+  .forecast.mid{background:#1f1c10;border-color:#4a4022}
+  .forecast.low{background:#241413;border-color:#5a2f2f}
+  .gauge{--pct:80;--col:var(--leaf2);width:52px;height:52px;border-radius:50%;flex:none;
+    background:conic-gradient(var(--col) calc(var(--pct)*1%),#101712 0);display:flex;align-items:center;justify-content:center}
+  .gauge b{width:40px;height:40px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center;
+    font-size:13.5px;font-weight:800;color:var(--ink)}
+  .forecast .txt{font-size:12px;color:var(--sub);line-height:1.35}
+  .forecast .txt b{color:var(--ink);font-weight:700;font-size:13px}
+  .forecast .txt .lv{color:var(--leaf2);font-weight:700}
+  .forecast.mid .txt .lv{color:var(--gold)}
+  .forecast.low .txt .lv{color:var(--warn)}
+
   .seller{display:flex;align-items:center;gap:9px}
   .av{width:34px;height:34px;border-radius:50%;background-size:cover;flex:none;border:1px solid var(--line)}
   .seller .h{font-weight:700;font-size:14px}
@@ -132,9 +161,17 @@
   .badges{display:flex;gap:5px;flex-wrap:wrap;margin:9px 0 2px}
   .badge{font-size:10.5px;padding:3px 8px;border-radius:999px;background:var(--pill);
     color:var(--leaf2);border:1px solid #2f4636;font-weight:600}
-  .badge.doa{color:var(--gold);border-color:#4a4022}
+  .badge.guar{color:var(--gold);border-color:#4a4022}
 
-  /* value meter — the anti-price-anchor centerpiece (preserved from spike) */
+  /* lab scorecard mini-strip — the TC "seller = lab" trust signals, front of card */
+  .labcard{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:11px 0 2px}
+  .labstat{background:#101712;border:1px solid var(--line);border-radius:10px;padding:7px 9px}
+  .labstat .k{font-size:9.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--sub);font-weight:700}
+  .labstat .v{font-size:14px;font-weight:800;margin-top:1px}
+  .labstat .v.good{color:var(--leaf2)} .labstat .v.mid{color:var(--gold)} .labstat .v.bad{color:var(--warn)}
+  .labstat .s{font-size:9.5px;color:var(--sub);margin-top:1px}
+
+  /* value meter — preserved from the MVP, segments retargeted to TC drivers */
   .value{margin:12px 0 4px}
   .value .top{display:flex;justify-content:space-between;font-size:11.5px;color:var(--sub);margin-bottom:5px}
   .value .top b{color:var(--ink)}
@@ -147,16 +184,23 @@
   .legend i{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle}
 
   .specs{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-top:12px;font-size:12.5px}
-  .specs div{display:flex;justify-content:space-between;border-bottom:1px dashed #24322a;padding-bottom:4px}
-  .specs span{color:var(--sub)}
+  .specs div{display:flex;justify-content:space-between;border-bottom:1px dashed #24322a;padding-bottom:4px;gap:8px}
+  .specs span.k{color:var(--sub);flex:none}
 
-  .tradeoff{margin-top:12px;background:#20170f;border:1px solid #4a3320;border-radius:12px;
+  /* money-at-risk callout — makes the downside of no-replacement viscerally legible */
+  .risk{margin-top:11px;border-radius:12px;padding:9px 11px;font-size:12px;display:flex;gap:8px;align-items:flex-start}
+  .risk.bad{background:#241413;border:1px solid #5a2f2f;color:#f0b0a3}
+  .risk.ok{background:#12211a;border:1px solid #2f4636;color:var(--leaf2)}
+  .risk b{color:#ffd0c4}
+  .risk.ok b{color:var(--leaf2)}
+
+  .tradeoff{margin-top:11px;background:#20170f;border:1px solid #4a3320;border-radius:12px;
     padding:9px 11px;font-size:12px;color:#f0c9a3;display:flex;gap:8px;align-items:flex-start}
   .tradeoff.good{background:#12211a;border-color:#2f4636;color:var(--leaf2)}
   .tradeoff b{color:#ffd9b0}
   .tradeoff.good b{color:var(--leaf2)}
 
-  .reviewq{margin-top:12px;font-size:12.5px;color:var(--sub);font-style:italic;
+  .reviewq{margin-top:11px;font-size:12.5px;color:var(--sub);font-style:italic;
     border-left:3px solid var(--leaf);padding:2px 0 2px 10px}
   .reviewq b{color:var(--ink);font-style:normal}
 
@@ -171,9 +215,9 @@
     opacity:0;pointer-events:none;transition:opacity .25s ease,transform .25s ease}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
 
-  /* awarded overlay (preserved from spike) */
+  /* awarded overlay */
   .sheet{position:fixed;inset:0;background:#07100a;z-index:60;display:none;
-    flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:30px}
+    flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:30px;overflow:auto}
   .sheet.show{display:flex;animation:fade .25s ease}
   .sheet .big{font-size:52px}
   .sheet h2{margin:10px 0 4px}
@@ -188,7 +232,7 @@
 
   .banner{background:#3a2418;border:1px solid #6b4a2a;color:#f0c9a3;font-size:12.5px;
     padding:10px 14px;margin:10px 16px;border-radius:10px}
-  .foot{color:#5f7566;font-size:10.5px;text-align:center;margin:22px 16px 0}
+  .foot{color:#5f7566;font-size:10.5px;text-align:center;margin:22px 16px 0;line-height:1.5}
 </style>
 </head>
 <body>
@@ -196,37 +240,43 @@
 <!-- ========== 1. CATALOG ========== -->
 <section id="view-catalog" class="view active">
   <div class="topbar">
-    <div class="brand"><span class="mark">&#127793;</span> plantpeers</div>
-    <div class="tagline">Request a plant. Let sellers compete for your sale.</div>
+    <div class="brand"><span class="mark">&#129514;</span> plantpeers</div>
+    <div class="tagline">Buy rare plants as tissue culture. Labs compete on the odds it lives.</div>
   </div>
   <div id="dataerr"></div>
-  <div class="search"><input id="q" type="search" placeholder="Search plants by name…" autocomplete="off"></div>
+  <div class="search"><input id="q" type="search" placeholder="Search TC varieties by name…" autocomplete="off"></div>
   <div class="chips" id="filters"></div>
   <div class="grid" id="catalog"></div>
-  <div class="foot">MVP prototype · mock data, no backend · buyer picks best value, not cheapest.</div>
+  <div class="foot">MVP prototype · mock data, no backend · buyer picks the offer most likely to become a living plant, not the cheapest cup.</div>
 </section>
 
 <!-- ========== 2. REQUEST ========== -->
 <section id="view-request" class="view">
   <div class="topbar">
     <button class="back" onclick="go('catalog')">&#8592; Catalog</button>
-    <div class="brand" style="font-size:15px"><span class="mark">&#127793;</span> Request this plant</div>
+    <div class="brand" style="font-size:15px"><span class="mark">&#129514;</span> Request this variety</div>
   </div>
   <div id="req-detail"></div>
   <div class="form" id="req-form">
-    <div class="flabel">Size wanted</div>
-    <div class="opts" data-group="size">
-      <button class="opt" data-v="Small starter">Small starter</button>
-      <button class="opt" data-v="Mid-size">Mid-size</button>
-      <button class="opt on" data-v="bushy & full">Bushy &amp; full</button>
-      <button class="opt" data-v="Largest available">Largest</button>
+    <div class="flabel">How many do you want to end up with?</div>
+    <div class="opts" data-group="target">
+      <button class="opt" data-v="just 1 live plant">Just 1</button>
+      <button class="opt on" data-v="2–3 live plants">2–3</button>
+      <button class="opt" data-v="a few (4+) live plants">A few (4+)</button>
+      <button class="opt" data-v="as many as possible">As many as possible</button>
+    </div>
+    <div class="flabel">Your tissue-culture experience</div>
+    <div class="opts" data-group="skill">
+      <button class="opt" data-v="beg">Beginner<small>never deflasked</small></button>
+      <button class="opt on" data-v="some">Some experience<small>a few cups</small></button>
+      <button class="opt" data-v="pro">Pro<small>own flow hood</small></button>
     </div>
     <div class="flabel">Budget hint</div>
     <div class="opts" data-group="budget">
-      <button class="opt" data-v="under $30 shipped">Under $30</button>
-      <button class="opt on" data-v="under $60 shipped">Under $60</button>
-      <button class="opt" data-v="under $100 shipped">Under $100</button>
-      <button class="opt" data-v="best value regardless">Best value, any price</button>
+      <button class="opt" data-v="under $40 shipped">Under $40</button>
+      <button class="opt on" data-v="under $70 shipped">Under $70</button>
+      <button class="opt" data-v="under $120 shipped">Under $120</button>
+      <button class="opt" data-v="best odds regardless of price">Best odds, any price</button>
     </div>
     <div class="flabel">Deadline</div>
     <div class="opts" data-group="deadline">
@@ -236,31 +286,42 @@
       <button class="opt" data-v="ASAP">ASAP</button>
     </div>
     <div class="flabel">Anything else? (optional)</div>
-    <textarea id="req-note" placeholder="e.g. exact wide-form phenotype, ships with pot, pet-safe packaging…"></textarea>
+    <textarea id="req-note" placeholder="e.g. must be stable variegation, prefer already-deflasked, no agar cups, humidity-controlled shipping…"></textarea>
   </div>
-  <button class="cta" id="postbtn" onclick="postRequest()">Post request &#183; let sellers compete</button>
-  <div class="foot">Your request goes out to qualified sellers who stock this plant.</div>
+  <button class="cta" id="postbtn" onclick="postRequest()">Post request &#183; let labs compete</button>
+  <div class="foot">Your request goes out to labs that propagate this variety. They bid; you compare on survival odds.</div>
 </section>
 
 <!-- ========== 3 + 4. COMPARE & PICK ========== -->
 <section id="view-compare" class="view">
   <div class="topbar req" id="compare-head"></div>
+
+  <!-- skill selector — modulates deflask odds; re-ranks the whole set live -->
+  <div class="skill">
+    <div class="lbl">Your tissue-culture experience <span class="q">affects your deflask odds &#8595;</span></div>
+    <div class="segs" id="segs">
+      <button data-skill="beg" onclick="setSkill('beg')">Beginner<small>never deflasked</small></button>
+      <button data-skill="some" onclick="setSkill('some')">Some<small>a few cups</small></button>
+      <button data-skill="pro" onclick="setSkill('pro')">Pro<small>own flow hood</small></button>
+    </div>
+  </div>
+
   <div class="toolbar">
-    <button id="tabValue" class="on" onclick="setMode('value')">Best value</button>
+    <button id="tabValue" class="on" onclick="setMode('value')">Best odds</button>
     <button id="tabSpecs" onclick="setMode('specs')">Compare specs</button>
   </div>
-  <div class="sectlbl"><span class="rule"></span> Recommended for you <span class="rule"></span></div>
+  <div class="sectlbl"><span class="rule"></span> Most likely to become a living plant <span class="rule"></span></div>
   <div id="feed"></div>
-  <div class="foot">Sorted by overall value: plant quality + seller trust, with price a capped input.</div>
+  <div class="foot" id="compare-foot">Ranked by odds it lives (0.45) + lab trust (0.35) + value per surviving plant (0.20). Cheapest cup &#8800; most likely to live.</div>
 </section>
 
 <!-- ========== 5. AWARD CONFIRMATION ========== -->
 <div class="sheet" id="sheet">
-  <div class="big">&#127807;</div>
+  <div class="big">&#129514;</div>
   <h2 id="sh_h">Offer awarded</h2>
   <p id="sh_p"></p>
   <div id="sh_override"></div>
-  <div class="why2"><div style="color:#eaf3ec;font-weight:700;margin-bottom:6px">Why you picked it</div><ul id="sh_why" style="margin:0;padding-left:18px"></ul></div>
+  <div class="why2"><div style="color:#eaf3ec;font-weight:700;margin-bottom:6px">Why this gives you the best odds</div><ul id="sh_why" style="margin:0;padding-left:18px"></ul></div>
   <button onclick="closeSheet()">Back to catalog</button>
 </div>
 
@@ -268,18 +329,24 @@
 
 <script>
 /* ============================================================
-   PlantPeers MVP app logic.
-   Data comes from data/*.json (fetched below). Scoring & framing
-   promoted from experiments/compare_spike.html.
+   PlantPeers MVP app logic — tissue culture (L2).
+   Data comes from data/*.json (fetched below). Survival model & framing
+   promoted from experiments/tc_compare_spike.html.
    ============================================================ */
 
 var DB = { plants:[], sellers:[], offers:[], reviews:[], requests:[] };
 var sellerById = {}, reviewsBySeller = {};
 var MODE = 'value';
+var skill = 'some';        // buyer TC experience: beg | some | pro (set from the request)
 var currentPlant = null;   // plant being requested
-var currentRequest = null; // { request, offers:[enriched], plant, _lateAdded }
+var currentRequest = null; // { request, offers:[enriched], plant, late, _lateAdded }
+
+var SKILL = { beg:0.65, some:0.85, pro:1.0 };
+var SKILL_LABEL = { beg:'a beginner', some:'someone with some experience', pro:'a pro with a flow hood' };
+var STAGE_LABEL = { invitro:'In-vitro cup', deflasked:'Deflasked & rooted', acclimated:'Acclimated (in soil)' };
 
 /* ---------- inline SVG art (no CDN dependency) ---------- */
+/* mature-plant art for the catalog / request hero */
 function leafSVG(hex, count){
   var leaves='';
   for(var i=0;i<count;i++){
@@ -289,74 +356,124 @@ function leafSVG(hex, count){
   var svg="<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'><rect width='400' height='300' fill='#101a12'/><rect x='150' y='210' width='100' height='80' rx='6' fill='#5b4130'/>"+leaves+"</svg>";
   return "data:image/svg+xml;utf8,"+encodeURIComponent(svg);
 }
+/* in-vitro cup with N plantlets in gel, or a potted plant (acclimated) — for offer photos */
+function cupSVG(hex, count, potted){
+  var n=Math.max(1,Math.min(count,8)), plants='';
+  for(var i=0;i<n;i++){
+    var x=90+(i%4)*60 - (n<4? (4-n)*30:0), y=150+((i%2)*8);
+    plants+="<g transform='translate("+x+","+y+")'>"+
+      "<path d='M0 0 C-6 -34 -22 -44 -20 -74' stroke='"+hex+"' stroke-width='4' fill='none'/>"+
+      "<path d='M0 0 C8 -30 26 -40 22 -70' stroke='"+hex+"' stroke-width='4' fill='none'/>"+
+      "<path d='M-20 -74 C-40 -80 -44 -60 -22 -58 Z' fill='"+hex+"'/>"+
+      "<path d='M22 -70 C44 -78 46 -56 24 -54 Z' fill='#eaf3ec' opacity='.85'/>"+
+      "<path d='M0 -30 C-18 -36 -20 -20 -2 -18 Z' fill='"+hex+"'/></g>";
+  }
+  var vessel = potted
+    ? "<path d='M120 150 L280 150 L266 250 L134 250 Z' fill='#5b4130'/><rect x='120' y='140' width='160' height='16' rx='4' fill='#6e4f38'/>"
+    : "<rect x='120' y='150' width='160' height='110' rx='10' fill='#0d130f' opacity='.55'/>"+
+      "<rect x='120' y='210' width='160' height='50' rx='6' fill='#b7d8a8' opacity='.30'/>"+
+      "<rect x='118' y='142' width='164' height='14' rx='5' fill='#eaf3ec' opacity='.25'/>";
+  var svg="<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'>"+
+    "<rect width='400' height='300' fill='#101a12'/>"+vessel+plants+"</svg>";
+  return "data:image/svg+xml;utf8,"+encodeURIComponent(svg);
+}
 function avSVG(hex){
   var s="<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60'><rect width='60' height='60' fill='"+hex+"'/><circle cx='30' cy='24' r='11' fill='#0c1a10' opacity='.5'/><rect x='14' y='40' width='32' height='22' rx='11' fill='#0c1a10' opacity='.5'/></svg>";
   return "data:image/svg+xml;utf8,"+encodeURIComponent(s);
 }
 function starStr(r){var f=Math.round(r);return '★★★★★'.slice(0,f)+'☆☆☆☆☆'.slice(0,5-f);}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function pct(x){ return Math.round(x*100)+'%'; }
 
 /* ============================================================
-   SCORING — the thesis. Preserved from the spike.
-   Default ranking is NOT cheapest-first: quality + trust dominate,
-   price is a gentle, capped tie-breaker.
+   THE SURVIVAL MODEL — the whole TC thesis, ported from the spike.
+   Translates lab (seller) + offer + buyer skill into "odds you end up
+   with a living plant." Everything is computed from the data fields.
+
+   TODO(real): lab.contamination_rate and lab.deflask_success_rate are
+   self/buyer-reported and unverified. They are the load-bearing inputs to
+   this whole ranking — the Prototyper flagged that they need a credible
+   outcome source (audited buyer follow-ups: "did it live at 8 weeks?",
+   tie-back to actual replacement claims, a photo-verified establishment
+   check) before this ranking can be trusted with real money. Until then,
+   treat the numbers as directional and keep the "self-reported" labels in
+   the UI. The coefficients below are hand-tuned for the demo, not fit to data.
    ============================================================ */
-
-/* Trust 0-100, DERIVED from real reputation fields (not a magic number).
-   rating (dominant) + sales volume (log, saturating) + badges + recency. */
-function trust(seller){
-  if(!seller) return 50;
-  var r   = (seller.rating||0)/5;                                              // 0..1
-  var vol = Math.min(1, Math.log10((seller.sales_count||0)+1)/Math.log10(500)); // saturates ~500 sales
-  var badge = Math.min(1, (seller.badges? seller.badges.length:0)/3);          // up to 3 badges
-  var rec = Math.max(0, 1-(seller.last_active_days||30)/30);                    // fresher = better
-  var raw = 0.55*r + 0.25*vol + 0.12*badge + 0.08*rec;
-  return Math.round(raw*100);
-}
-
-/* Quality 0-100, computed from Offer specs (NOT a literal).
-   TODO(real): tune per plant type — size-class expectations, ideal leaf/node
-   counts, phenotype weighting, and pull from photo analysis / seller-declared
-   grade once those exist. For MVP this is a generic spec heuristic. */
-function quality(offer){
-  var s = offer.specs || {};
-  var healthMap = {Pristine:1.0, Excellent:0.95, Good:0.8, 'Minor stress':0.5, Poor:0.25};
-  var health = (healthMap[s.health]!==undefined)? healthMap[s.health] : 0.6;
-  var leaves = Math.min(1, (s.leaves||0)/7);
-  var nodes  = s.nodes>0 ? Math.min(1, s.nodes/8) : leaves; // rosette plants have no nodes; fall back to foliage
-  var height = Math.min(1, (s.height_in||0)/18);
-  var pheno  = s.phenotype_match ? 1 : 0.5;
-  var raw = 0.32*health + 0.22*leaves + 0.16*nodes + 0.15*height + 0.15*pheno;
-  return Math.round(raw*100);
-}
-
-/* Composite value. Weights (0.42 / 0.42 / 0.16) and the capped price curve
-   are preserved verbatim from the spike. */
-function score(o){
+function survival(o){
+  var sk = SKILL[skill];
+  // per-plantlet survival depends on STAGE (later stage = risk already retired by the lab)
+  var perPlant;
+  if(o.stage==='invitro')        perPlant = o.contam_deflask * sk;  // buyer must deflask; skill matters a lot
+  else if(o.stage==='deflasked') perPlant = 0.90;                   // rooted already; skill barely matters
+  else                            perPlant = 0.98;                  // acclimated, already growing in soil
+  // cup-level contamination. A replacement guarantee makes the buyer whole,
+  // so effective loss is small; without one, a contaminated cup is a total loss.
+  var effContam = o.replace ? o.contam*0.15 : o.contam;
+  var pClean = 1 - effContam;
+  var n = o.plantlets;
+  var pAtLeastOne = pClean * (1 - Math.pow(1-perPlant, n)); // P(cup usable) * P(>=1 plantlet survives)
+  var expLive = pClean * n * perPlant;                      // expected surviving plantlets
   var total = o.price + o.shipping;
-  var priceScore = Math.max(0, 100-(total-40)*1.6); // gentle, capped influence
-  return 0.42*o.quality + 0.42*o.trust + 0.16*priceScore;
+  var costPerLive = expLive>0 ? total/expLive : 999;
+  return { perPlant:perPlant, pClean:pClean, pAtLeastOne:pAtLeastOne, expLive:expLive,
+           costPerLive:costPerLive, total:total, moneyAtRisk: o.replace? 0 : total };
 }
 
-/* Trade-off copy vs the top pick — reframes "cheaper" as a named concession.
-   Preserved from the spike, wired to the real field names. */
+/* lab-trust score (0-100): TC-native reputation. Contamination + deflask track record
+   dominate; replacement guarantee, certs, rating & volume fold in. Ported from the spike. */
+function labTrust(o){
+  var contamScore = Math.max(0, 1 - o.contam/0.25);   // 0% contam -> 1, 25%+ -> 0
+  var deflaskScore = o.contam_deflask;                 // lab's reported deflask success
+  var ratingScore = (o.rating||0)/5;
+  var volScore = Math.min(1, Math.log10((o.sales||0)+1)/Math.log10(500));
+  var certScore = Math.min(1, (o.certsCount||0)/2);
+  var raw = 0.32*contamScore + 0.20*deflaskScore + 0.14*ratingScore
+          + 0.10*volScore + 0.12*certScore + 0.12*(o.replace?1:0);
+  return Math.round(raw*100);
+}
+
+/* composite RANK score. survival(0.45) dominates; lab-trust(0.35) next; value(0.20) is
+   scored on COST-PER-EXPECTED-LIVE-PLANT, not sticker — so a cheap-but-doomed cup can't win. */
+function score(o){
+  var s = o._s;
+  var survScore = s.pAtLeastOne*100;
+  var priceScore = Math.max(0, 100 - (s.costPerLive-15)*1.5); // gentle, capped
+  return 0.45*survScore + 0.35*o._lt + 0.20*priceScore;
+}
+
+/* recompute survival/trust/score for the current skill, then sort by score desc */
+function recompute(arr){
+  arr.forEach(function(o){ o._s=survival(o); o._lt=labTrust(o); });
+  arr.forEach(function(o){ o._score=score(o); });
+  arr.sort(function(a,b){ return b._score-a._score; });
+}
+
+/* Trade-off copy vs the top pick — reframes "cheaper" into TC-specific concessions. */
 function tradeoff(o, top){
-  var dPrice=(o.price+o.shipping)-(top.price+top.shipping);
   if(o.id===top.id){
-    return {good:true, html:"<b>Best overall.</b> Top-rated seller, exact phenotype and the fullest plant — and still inside your budget."};
+    var head = o.stage==='invitro'
+      ? "<b>Best odds overall.</b> A clean cup ("+pct(o.contam)+" contamination) from a proven lab"
+      : "<b>Best odds overall.</b> "+STAGE_LABEL[o.stage].toLowerCase()+" by a lab that contaminates just "+pct(o.contam)+" of cups";
+    return {good:true, html: head + (o.replace?" — and it replaces any cup that arrives contaminated":"") +
+      (o.stage==='invitro' ? "." : ". You skip the deflasking step beginners lose plants on.")};
   }
-  if(dPrice<0){ // cheaper
+  var s=o._s, dPrice=(o.price+o.shipping)-(top.price+top.shipping);
+  if(dPrice<0){ // cheaper sticker
     var give=[];
-    if(o.quality < top.quality-10) give.push('a smaller / less full plant');
-    if(o.trust   < top.trust-10)   give.push('a less-proven seller ('+o.sales+' sales)');
-    if(o.eta_days > top.eta_days)  give.push(o.eta_days+'-day shipping');
-    return {good:false, html:"<b>$"+Math.abs(dPrice)+" cheaper</b> — but you’d accept "+(give.join(', ')||'lower specs')+"."};
+    if(o.stage==='invitro') give.push('you must deflask '+o.plantlets+' plantlet'+(o.plantlets>1?'s':'')+' yourself');
+    if(o.contam>=0.10) give.push(pct(o.contam)+' contamination (~1 in '+Math.round(1/o.contam)+' cups)');
+    else if(o.contam>top.contam) give.push('a less-sterile lab');
+    if(!o.replace) give.push('<b>no replacement</b> if it molds');
+    return {good:false, html:"<b>$"+Math.abs(dPrice)+" cheaper</b> — but you'd take on "+(give.join(', ')||'lower odds')+". Your odds it lives: <b>"+Math.round(s.pAtLeastOne*100)+"%</b>."};
   }
   var gain=[];
-  if(o.quality>top.quality-5) gain.push('a larger, healthier plant');
-  if(String(o.specs.pot||'').indexOf('ceramic')>-1) gain.push('ceramic pot included');
-  return {good:false, html:"<b>$"+dPrice+" more</b> — you’d get "+(gain.join(', ')||'a small upgrade')+". Worth it?"};
+  if(o.stage==='acclimated') gain.push('a plant already growing in soil — zero deflasking');
+  else if(o.stage==='deflasked' && top.stage==='invitro') gain.push('already deflasked & rooted');
+  if(o.contam<top.contam) gain.push('an even cleaner lab');
+  return {good:false, html:"<b>$"+dPrice+" more</b> — you'd get "+(gain.join(', ')||'a small upgrade')+", but only "+o.plantlets+" plant"+(o.plantlets>1?'s':'')+". Worth it for near-zero risk."};
 }
+
+function cls3(pAtLeastOne){ return pAtLeastOne>=0.90?'':(pAtLeastOne>=0.78?'mid':'low'); }
 
 /* ---------- data load ---------- */
 function loadData(){
@@ -389,7 +506,7 @@ var activeFilter='All';
 function renderFilters(){
   var levels=['All'].concat(uniq(DB.plants.map(function(p){return p.care_level;})));
   document.getElementById('filters').innerHTML=levels.map(function(l){
-    return "<button class='chip"+(l===activeFilter?' on':'')+"' onclick=\"setFilter('"+esc(l)+"')\">"+esc(l)+(l==='All'?'':' care')+"</button>";
+    return "<button class='chip"+(l===activeFilter?' on':'')+"' onclick=\"setFilter('"+esc(l)+"')\">"+esc(l)+(l==='All'?'':' to deflask')+"</button>";
   }).join('');
 }
 function setFilter(l){ activeFilter=l; renderFilters(); renderCatalog(); }
@@ -404,14 +521,14 @@ function renderCatalog(){
   });
   var el=document.getElementById('catalog');
   if(!DB.plants.length){ el.innerHTML=''; return; }
-  if(!list.length){ el.innerHTML="<div class='empty' style='grid-column:1/3'>No plants match “"+esc(q)+"”.</div>"; return; }
+  if(!list.length){ el.innerHTML="<div class='empty' style='grid-column:1/3'>No varieties match “"+esc(q)+"”.</div>"; return; }
   el.innerHTML=list.map(function(p){
     var img=p.hero_img||leafSVG(p.hero_hue||'#4ea86b', p.hero_leaves||5);
     return "<div class='pcard' onclick=\"openPlant('"+p.id+"')\">"+
       "<div class='ph' style='background-image:url("+img+")'></div>"+
       "<div class='pb'><div class='cn'>"+esc(p.common_name)+"</div>"+
       "<div class='ln'>"+esc(p.latin_name)+"</div>"+
-      "<div class='tags'><span class='ptag'>"+esc(p.size_class)+"</span><span class='ptag'>"+esc(p.care_level)+"</span></div>"+
+      "<div class='tags'><span class='ptag'>"+esc(p.size_class)+"</span><span class='ptag'>"+esc(p.care_level)+" deflask</span></div>"+
       "</div></div>";
   }).join('');
 }
@@ -428,14 +545,14 @@ function openPlant(id){
     "<div class='hero' style='background-image:url("+img+")'></div>"+
     "<div class='detail'><h2>"+esc(p.common_name)+"</h2>"+
     "<div class='ln'>"+esc(p.latin_name)+(p.variety?' · '+esc(p.variety):'')+"</div>"+
-    "<div class='metaline'><span class='ptag'>"+esc(p.size_class)+"</span><span class='ptag'>"+esc(p.care_level)+" care</span><span class='ptag'>"+esc(p.light)+"</span></div>"+
+    "<div class='metaline'><span class='ptag'>"+esc(p.size_class)+"</span><span class='ptag'>"+esc(p.care_level)+" to deflask</span><span class='ptag'>"+esc(p.light)+"</span></div>"+
     "<p>"+esc(p.description||'')+"</p></div>";
   go('request');
 }
 
 /* option toggles in the request form */
 document.addEventListener('click', function(e){
-  var b=e.target.closest? e.target.closest('.opt') : null;
+  var b=e.target.closest? e.target.closest('.form .opt') : null;
   if(!b) return;
   var group=b.parentElement;
   Array.prototype.forEach.call(group.children, function(c){ c.classList.remove('on'); });
@@ -448,7 +565,8 @@ function pickedVal(group){
 
 function postRequest(){
   if(!currentPlant) return;
-  var notes={ size:pickedVal('size'), budget:pickedVal('budget'), deadline:pickedVal('deadline'),
+  skill = pickedVal('skill') || 'some';
+  var notes={ target:pickedVal('target'), skill:skill, budget:pickedVal('budget'), deadline:pickedVal('deadline'),
               note:(document.getElementById('req-note').value||'').trim() };
   var req={ id:'req-'+Date.now(), plant_id:currentPlant.id, buyer_id:'you', notes:notes, status:'open', created:new Date().toISOString().slice(0,10) };
   DB.requests.push(req);
@@ -458,13 +576,12 @@ function postRequest(){
   go('compare');
 }
 
-/* Pull the offer pool for this plant, enrich with derived quality/trust/value,
+/* Pull the offer pool for this plant, enrich with lab fields + review,
    hold back the "late" offer for the new-offer beat. */
 function buildRequestOffers(req, plant){
   var pool=DB.offers.filter(function(o){ return o.plant_id===plant.id; }).map(enrich);
   var initial=pool.filter(function(o){ return !o.late; });
   var late=pool.filter(function(o){ return o.late; });
-  sortByValue(initial);
   currentRequest={ request:req, plant:plant, offers:initial, late:late, _lateAdded:false };
 }
 function enrich(raw){
@@ -473,18 +590,23 @@ function enrich(raw){
   o.handle=s.handle||('@'+o.seller_id);
   o.rating=s.rating||0; o.sales=s.sales_count||0; o.badges=s.badges||[]; o.avatar_hue=s.avatar_hue||'#3b6b4a';
   o.location=s.location||''; o.response_time=s.response_time||'';
-  o.quality=quality(o);
-  o.trust=trust(s);
-  o.value=score(o);
+  // lab (seller) TC fields folded onto the offer for the model
+  o.contam = (s.contamination_rate!=null)? s.contamination_rate : 0.15;
+  o.contam_deflask = (s.deflask_success_rate!=null)? s.deflask_success_rate : 0.6;
+  o.certsCount = (s.certs? s.certs.length : 0);
+  o.replace = !!(s.replacement_policy && s.replacement_policy.covers);
+  o.replaceText = (s.replacement_policy && s.replacement_policy.text) || 'No replacement policy stated';
+  // offer TC fields
+  o.plantlets = o.plantlets_per_cup || 1;
+  o.stageLabel = STAGE_LABEL[o.stage] || o.stage;
   var rv=(reviewsBySeller[o.seller_id]||[]);
   var match=rv.filter(function(r){return r.plant_id===o.plant_id;})[0] || rv[0] || null;
   o.review=match;
   return o;
 }
-function sortByValue(arr){ arr.forEach(function(o){o.value=score(o);}); arr.sort(function(a,b){return b.value-a.value;}); }
 
 /* ============================================================
-   3 + 4. COMPARE & PICK  (framing C, promoted from the spike)
+   3 + 4. COMPARE & PICK  (promoted from the TC spike)
    ============================================================ */
 function setMode(m){
   MODE=m;
@@ -492,65 +614,110 @@ function setMode(m){
   document.getElementById('tabSpecs').classList.toggle('on',m==='specs');
   renderFeed();
 }
+function setSkill(s){
+  skill=s;
+  syncSkillSegs();
+  renderFeed(); // re-ranks live
+}
+function syncSkillSegs(){
+  Array.prototype.forEach.call(document.querySelectorAll('#segs button'),function(b){
+    b.classList.toggle('on', b.getAttribute('data-skill')===skill);
+  });
+}
 
 function renderCompare(fresh){
   var cr=currentRequest; if(!cr) return;
   var p=cr.plant, n=cr.request.notes;
-  var wants=[n.size,n.budget,n.deadline].filter(Boolean).map(function(w){return "<b>"+esc(w)+"</b>";}).join('');
+  syncSkillSegs();
+  var wants=[n.target,n.budget,n.deadline].filter(Boolean).map(function(w){return "<b>"+esc(w)+"</b>";}).join('');
   document.getElementById('compare-head').innerHTML=
     "<button class='back' onclick=\"go('catalog')\">&#8592; Catalog</button>"+
     "<h1>"+esc(p.common_name)+" <span style='font-weight:400'>— "+esc(p.size_class)+"</span></h1>"+
-    "<div class='latin'>"+esc(p.latin_name)+"</div>"+
+    "<div class='latin'>"+esc(p.latin_name)+" · tissue-culture plantlets</div>"+
     "<div class='want'><span style='color:#9db4a5'>You asked for:</span>"+wants+"</div>"+
-    "<div class='live' id='live'><span class='dot'></span> "+cr.offers.length+" sellers competing · sorted by best overall value</div>";
+    "<div class='live' id='live'><span class='dot'></span> "+cr.offers.length+" labs competing · ranked by your odds of ending up with a living plant</div>";
   renderFeed();
   if(fresh && cr.late.length && !cr._lateAdded){
     scheduleNewOffer();
   }
 }
 
+function forecastBlock(o){
+  var s=o._s, p=Math.round(s.pAtLeastOne*100), c=cls3(s.pAtLeastOne);
+  var col = c===''? 'var(--leaf2)' : (c==='mid'?'var(--gold)':'var(--warn)');
+  var expTxt = s.expLive>=1 ? s.expLive.toFixed(1)+' live plants' : 'less than 1 live plant';
+  return "<div class='forecast "+c+"'>"+
+    "<div class='gauge' style='--pct:"+p+";--col:"+col+"'><b>"+p+"%</b></div>"+
+    "<div class='txt'><b>Odds you end up with a living plant</b><br>"+
+    "≈ <span class='lv'>"+expTxt+"</span> expected from "+o.plantlets+" plantlet"+(o.plantlets>1?'s':'')+
+    " · ~$"+Math.round(s.costPerLive)+" per surviving plant</div></div>";
+}
+
+function labScorecard(o){
+  var contamCls = o.contam<=0.03?'good':(o.contam<=0.10?'mid':'bad');
+  var deflaskCls = o.contam_deflask>=0.85?'good':(o.contam_deflask>=0.70?'mid':'bad');
+  return "<div class='labcard'>"+
+    "<div class='labstat'><div class='k'>Contamination rate</div><div class='v "+contamCls+"'>"+pct(o.contam)+"</div><div class='s'>self/buyer-reported, lower is better</div></div>"+
+    "<div class='labstat'><div class='k'>Deflask success</div><div class='v "+deflaskCls+"'>"+pct(o.contam_deflask)+"</div><div class='s'>lab's reported survival</div></div>"+
+    "</div>";
+}
+
+function riskBlock(o){
+  var s=o._s;
+  return o.replace
+    ? "<div class='risk ok'>✓<div><b>$0 at risk.</b> "+esc(o.replaceText)+".</div></div>"
+    : "<div class='risk bad'>⚠<div><b>$"+s.moneyAtRisk+" at risk.</b> "+esc(o.replaceText)+" — if this cup arrives contaminated ("+pct(o.contam)+" of theirs do), you lose it all.</div></div>";
+}
+
 function card(o, isPick, top){
-  var t=tradeoff(o,top);
-  var total=o.price+o.shipping;
-  var priceScore=Math.max(0,100-(total-40)*1.6);
-  var qW=Math.round(0.42*o.quality), tW=Math.round(0.42*o.trust), pW=Math.round(0.16*priceScore);
+  var s=o._s, t=tradeoff(o,top);
+  var survScore=s.pAtLeastOne*100;
+  var priceScore=Math.max(0,100-(s.costPerLive-15)*1.5);
+  var qW=Math.round(0.45*survScore), tW=Math.round(0.35*o._lt), pW=Math.round(0.20*Math.min(100,priceScore));
   var showSpecs = MODE==='specs' || isPick;
-  var photo=leafSVG(o.photo_hue||'#57b479', o.photo_leaves||3);
-  var s=o.specs||{};
+  var photo=cupSVG(o.photo_hue||'#57b479', o.plantlets, o.stage==='acclimated');
+  var stageCls = o.stage==='invitro' ? 'invitro' : '';
+  var sp=o.specs||{};
+  var total=o.price+o.shipping;
   var specRows=[
-    ['Height', (s.height_in||'?')+' in'],
-    ['Leaves', (s.leaves||0)+(s.leaves_note?', '+s.leaves_note:'')],
-    ['Nodes', s.nodes>0? s.nodes : '—'],
-    ['Pot', s.pot||'—'],
-    ['Health', s.health||'—'],
-    ['Phenotype', (s.phenotype_match?'✓ ':'')+(s.phenotype_note||(s.phenotype_match?'match':'unconfirmed'))]
+    ['Stage', o.stageLabel],
+    ['Plantlets', o.plantlets+' per cup'],
+    ['Variegation stability', (sp.phenotype_stability!=null?sp.phenotype_stability+'%':'—')],
+    ['Medium', sp.medium||'—'],
+    ['Plantlet size', sp.plantlet_size||'—'],
+    ['Acclimation help', sp.acclimation_support? 'Included' : 'None'],
+    ['Ships', o.eta_days+'-day · $'+o.shipping]
   ];
   return "<div class='card "+(isPick?'pick':'chall')+(o._new?' justin':'')+"'>"+
-    (isPick?"<div class='pickbanner'>🏆 BEST OVERALL <span class='why'>quality + trust match</span></div>":"")+
+    (isPick?"<div class='pickbanner'>🏆 BEST ODDS <span class='why'>most likely to live</span></div>":"")+
     "<div class='photo' style='background-image:url("+photo+")'>"+
-      "<div class='ships'>🚚 "+o.eta_days+"-day · $"+o.shipping+" ship</div>"+
+      "<div class='stage "+stageCls+"'>"+esc(o.stageLabel)+"</div>"+
       "<div class='price'>$"+o.price+"<small>$"+total+" shipped</small></div>"+
     "</div>"+
     "<div class='body'>"+
+      forecastBlock(o)+
       "<div class='seller'><div class='av' style='background-image:url("+avSVG(o.avatar_hue)+")'></div>"+
         "<div><div class='h'>"+esc(o.handle)+"</div>"+
         "<div class='meta'><span class='stars'>"+starStr(o.rating)+"</span> "+o.rating+" · "+o.sales+" sales"+(o.location?" · "+esc(o.location):"")+"</div></div></div>"+
-      "<div class='badges'>"+o.badges.map(function(b){return "<span class='badge "+(b.indexOf('DOA')>-1?'doa':'')+"'>"+esc(b)+"</span>";}).join('')+"</div>"+
-      "<div class='value'><div class='top'><span>Overall value</span><b>"+Math.round(o.value)+"/100</b></div>"+
+      "<div class='badges'>"+o.badges.map(function(b){var g=(b.indexOf('guarantee')>-1||b.indexOf('Contam')>-1||b.indexOf('certified')>-1);return "<span class='badge "+(g?'guar':'')+"'>"+esc(b)+"</span>";}).join('')+"</div>"+
+      labScorecard(o)+
+      "<div class='value'><div class='top'><span>Overall rank score</span><b>"+Math.round(o._score)+"/100</b></div>"+
         "<div class='bar'><span class='q' style='width:"+qW+"%'></span><span class='t' style='width:"+tW+"%'></span><span class='p' style='width:"+pW+"%'></span></div>"+
-        "<div class='legend'><span><i style='background:var(--leaf2)'></i>Plant quality</span><span><i style='background:var(--leaf)'></i>Seller trust</span><span><i style='background:var(--gold)'></i>Price</span></div></div>"+
+        "<div class='legend'><span><i style='background:var(--leaf2)'></i>Survival odds</span><span><i style='background:var(--leaf)'></i>Lab trust</span><span><i style='background:var(--gold)'></i>Value/plant</span></div></div>"+
+      riskBlock(o)+
       "<div class='tradeoff "+(t.good?'good':'')+"'>"+(t.good?'✔':'⚖')+"<div>"+t.html+"</div></div>"+
-      (showSpecs?"<div class='specs'>"+specRows.map(function(r){return "<div><span>"+r[0]+"</span> "+esc(r[1])+"</div>";}).join('')+"</div>":"")+
+      (showSpecs?"<div class='specs'>"+specRows.map(function(r){return "<div><span class='k'>"+r[0]+"</span> <span style='color:var(--ink);text-align:right'>"+esc(r[1])+"</span></div>";}).join('')+"</div>":"")+
       (o.review?"<div class='reviewq'>“"+esc(o.review.text)+"” <b>— "+esc(o.review.buyer_handle)+"</b></div>":"")+
-      "<button class='pickbtn' onclick=\"award('"+o.id+"')\">"+(isPick?'Award this offer ✓':'Pick '+esc(o.handle))+"</button>"+
+      "<button class='pickbtn' onclick=\"award('"+o.id+"')\">"+(isPick?'Award this lab ✓':'Pick '+esc(o.handle))+"</button>"+
     "</div></div>";
 }
 
 function renderFeed(){
   var cr=currentRequest; if(!cr) return;
+  recompute(cr.offers);
   var feed=document.getElementById('feed');
   if(!cr.offers.length){
-    feed.innerHTML="<div class='empty'>No sellers have offered on this plant yet. Hang tight — requests usually draw offers within a day.</div>";
+    feed.innerHTML="<div class='empty'>No labs have offered on this variety yet. Hang tight — requests usually draw offers within a day.</div>";
     return;
   }
   var top=cr.offers[0];
@@ -561,6 +728,14 @@ function renderFeed(){
   }
   feed.innerHTML=html;
   cr.offers.forEach(function(o){o._new=false;});
+  // footer: show that the cheapest sticker is not the top pick
+  var cheapest=cr.offers.slice().sort(function(a,b){return (a.price+a.shipping)-(b.price+b.shipping);})[0];
+  var rank=cr.offers.indexOf(cheapest)+1;
+  var foot=document.getElementById('compare-foot');
+  if(foot && cr.offers.length>1){
+    foot.innerHTML="Ranked for <b>"+SKILL_LABEL[skill]+"</b> by odds it lives (0.45) + lab trust (0.35) + value per surviving plant (0.20).<br>"+
+      "Cheapest cup ("+esc(cheapest.handle)+", $"+(cheapest.price+cheapest.shipping)+" shipped) ranks <b>#"+rank+" of "+cr.offers.length+"</b> — cheapest ≠ most likely to live.";
+  }
 }
 
 /* the "a new offer just arrived" beat — conveys the compete dynamic */
@@ -571,12 +746,11 @@ function scheduleNewOffer(){
     cr._lateAdded=true;
     cr.late.forEach(function(o){ o._new=true; cr.offers.push(o); });
     cr.late=[];
-    sortByValue(cr.offers);
     renderFeed();
     var live=document.getElementById('live');
     var newest=cr.offers.filter(function(o){return o._new;})[0];
-    if(live) live.innerHTML="<span class='dot'></span> New offer from "+esc(newest?newest.handle:'a seller')+" just arrived · re-ranked";
-    toast("🌿 New offer from "+(newest?esc(newest.handle):'a seller')+" — offers re-ranked");
+    if(live) live.innerHTML="<span class='dot'></span> New offer from "+esc(newest?newest.handle:'a lab')+" just arrived · re-ranked by survival odds";
+    toast("🧫 New offer from "+(newest?esc(newest.handle):'a lab')+" — offers re-ranked");
   }, 3800);
 }
 
@@ -597,22 +771,21 @@ function award(id){
   cr.request.status='awarded';
   cr.request.awarded_offer=o.id;
   persist();
+  var s=o._s;
 
   document.getElementById('sh_h').textContent='Awarded to '+o.handle;
-  document.getElementById('sh_p').innerHTML='Your '+esc(cr.plant.common_name)+' is on the way — <b>$'+(o.price+o.shipping)+' shipped</b>, arriving in ~'+o.eta_days+' days.';
+  document.getElementById('sh_p').innerHTML='Your '+esc(cr.plant.common_name)+' is on the way — <b>$'+(o.price+o.shipping)+' shipped</b>, '+esc(o.stageLabel.toLowerCase())+', arriving in ~'+o.eta_days+' days.';
 
   var why=[];
-  why.push('Rated '+o.rating+'★ across '+o.sales+' sales');
-  o.badges.forEach(function(b){ why.push(b); });
-  var s=o.specs||{};
-  why.push((s.leaves||0)+' leaves · '+(s.height_in||'?')+' in · '+(s.phenotype_match?'exact phenotype':'phenotype unconfirmed'));
-  why.push('Overall value '+Math.round(o.value)+'/100');
+  why.push(Math.round(s.pAtLeastOne*100)+'% odds of ending up with a living plant');
+  why.push('≈ '+s.expLive.toFixed(1)+' expected survivors from '+o.plantlets+' plantlet'+(o.plantlets>1?'s':''));
+  why.push(o.stageLabel+' · '+pct(o.contam)+' lab contamination rate');
+  why.push(o.replace? o.replaceText : 'No replacement — $'+(o.price+o.shipping)+' at risk');
   document.getElementById('sh_why').innerHTML=why.map(function(w){return '<li>'+esc(w)+'</li>';}).join('');
 
   var ov=document.getElementById('sh_override');
   if(o.id!==top.id){
-    var dv=Math.round(top.value-o.value);
-    ov.innerHTML="⚖ You picked a challenger over our top recommendation ("+esc(top.handle)+", "+Math.round(top.value)+"/100). That’s your call — you stay in control. Noted for next time.";
+    ov.innerHTML="⚖ You picked a challenger over the best-odds pick ("+esc(top.handle)+", "+Math.round(top._s.pAtLeastOne*100)+"% it lives). That's your call — you stay in control.";
     ov.style.display='block';
   } else {
     ov.innerHTML=''; ov.style.display='none';
@@ -636,7 +809,7 @@ function persist(){
 loadData().then(function(errs){
   if(errs.length){
     document.getElementById('dataerr').innerHTML=
-      "<div class='banner'>Heads up: couldn’t load "+errs.join(', ')+".json — running with whatever loaded. Try serving via <b>python -m http.server</b> from the plantpeers/ folder.</div>";
+      "<div class='banner'>Heads up: couldn't load "+errs.join(', ')+".json — running with whatever loaded. Try serving via <b>python -m http.server</b> from the plantpeers/ folder.</div>";
   }
   renderFilters();
   renderCatalog();
