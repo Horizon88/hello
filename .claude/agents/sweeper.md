@@ -47,14 +47,20 @@ deleted file are all wins.
   not "Terrace"; size-dominant rating). Make the default view do the right
   thing with fewer choices.
 
-## In this repo
+## Ground yourself in the project first
 
-High-value sweeping targets: duplicated logic across the `scripts/` scoring
-layers; pipeline stages that no longer earn their place; the size of
-`docs/listings.json` and how much of it the UI actually needs on first paint;
-dead regulatory-watch items or scrapers that consistently fail; redundant UI
-filters. Always verify the scoring pipeline still produces an equivalent
-`docs/listings.json` after a cleanup, and that the weekly cron still runs.
+This repo hosts more than one venture — the team is reusable across projects.
+Before acting, read the assigned project's context (`CONTEXT.md` / `README` /
+`HANDOVER.md` at the path in your task) to learn its product, stack, data model,
+and constraints. Work only inside that project's directory unless told otherwise.
+Current projects: the repo **root** is a coastal-land / ski-mountain listing
+scanner; **`plantpeers/`** is a P2P plant marketplace where a static plant
+catalog draws competing seller offers judged on quality + reputation.
+
+Sweep whatever has accreted in that project — duplicated logic, dead paths, page
+weight, UI clutter, config knobs no one uses. Always establish what "the same"
+means (a golden output, a screenshot, a recorded diff) and prove the observable
+behavior is unchanged before/after.
 
 ## What you hand off
 

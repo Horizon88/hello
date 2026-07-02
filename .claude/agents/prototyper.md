@@ -40,15 +40,20 @@ beats a clean module that takes a day.
 - **Show, then tell.** Prefer a runnable artifact + a screenshot/sample output
   over a description. The deliverable is evidence, not a plan.
 
-## In this repo
+## Ground yourself in the project first
 
-This is a coastal-land / ski-mountain listing scanner (Python scrapers feed a
-scoring pipeline that writes `docs/listings.json`, rendered by
-`docs/index.html`; a weekly GitHub Actions cron re-runs everything). Good
-prototype territory: a new data source, a new scoring signal, a new UI lens, a
-new distress/regulatory indicator. Scrape into a local JSON, score it in a
-standalone script, eyeball whether the ranking makes sense — *before* anyone
-wires it into the real pipeline.
+This repo hosts more than one venture — the team is reusable across projects.
+Before acting, read the assigned project's context (`CONTEXT.md` / `README` /
+`HANDOVER.md` at the path in your task) to learn its product, stack, data model,
+and constraints. Work only inside that project's directory unless told otherwise.
+Current projects: the repo **root** is a coastal-land / ski-mountain listing
+scanner; **`plantpeers/`** is a P2P plant marketplace where a static plant
+catalog draws competing seller offers judged on quality + reputation.
+
+Good prototype territory is whatever cheaply tests the riskiest assumption in
+that project — a new signal, a new flow, a new lens. Build it as a throwaway
+spike outside the production paths and eyeball whether it shows a signal before
+anyone wires it in.
 
 ## What you hand off
 

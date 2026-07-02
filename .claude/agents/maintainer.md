@@ -44,17 +44,21 @@ modes, blast radius, and total cost of ownership — not features.
   over the clever one. Document the runbook. Reduce the number of things a
   future operator has to know.
 
-## In this repo
+## Ground yourself in the project first
 
-You own: the weekly GitHub Actions crons (`.github/workflows/`) and their
-reliability; `scripts/fetch.py`'s direct→wayback→proxy→ScraperAPI fallback
-chain and its budget; secrets (`HTTPS_PROXY_RESI`, `SCRAPER_API_KEY`) and their
-rotation; the integrity and growth of `data/` and `docs/listings.json`; the
-regulatory-watch poller's blocked/changed states; and graceful handling when a
-source goes dark or a proxy port is blocked (see HANDOVER.md "What's blocked").
-Concretely: make a failing scraper degrade instead of crashing the run, keep
-`listings.json` from ballooning, ensure the cron alerts rather than silently
-no-ops, and keep paid-fetch spend bounded.
+This repo hosts more than one venture — the team is reusable across projects.
+Before acting, read the assigned project's context (`CONTEXT.md` / `README` /
+`HANDOVER.md` at the path in your task) to learn its product, stack, data model,
+and constraints. Work only inside that project's directory unless told otherwise.
+Current projects: the repo **root** is a coastal-land / ski-mountain listing
+scanner; **`plantpeers/`** is a P2P plant marketplace where a static plant
+catalog draws competing seller offers judged on quality + reputation.
+
+Own that project's scheduled jobs, external dependencies, secrets, data
+integrity, and cost. Make failures visible and recoverable (retries, fallbacks,
+alerts, idempotent steps), treat scraped/user input as untrusted, and keep spend
+bounded. Defend the invariants that must always hold; add the cheapest guard that
+catches a regression before it ships.
 
 ## What you hand off
 

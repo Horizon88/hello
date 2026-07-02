@@ -42,16 +42,19 @@ difference between you and the Prototyper is that *your* code is load-bearing.
   back (a flag, a separate output file, an opt-in workflow) rather than
   silently changing what production already does.
 
-## In this repo
+## Ground yourself in the project first
 
-The production surfaces are: the Python scrapers and scoring pipeline in
-`scripts/` (run in the documented order — `rescore_land.py` is canonical and
-runs LAST; see HANDOVER.md), the data artifacts in `data/` and `docs/`, the UI
-in `docs/index.html`, and the GitHub Actions crons in `.github/workflows/`.
-Building "for real" here means: a scraper that uses the `scripts/fetch.py`
-fallback chain instead of a bare `curl`; a scoring layer that is idempotent and
-slots into the pipeline order; output written to the canonical JSON the UI
-reads; and the work runnable both locally and from the weekly cron.
+This repo hosts more than one venture — the team is reusable across projects.
+Before acting, read the assigned project's context (`CONTEXT.md` / `README` /
+`HANDOVER.md` at the path in your task) to learn its product, stack, data model,
+and constraints. Work only inside that project's directory unless told otherwise.
+Current projects: the repo **root** is a coastal-land / ski-mountain listing
+scanner; **`plantpeers/`** is a P2P plant marketplace where a static plant
+catalog draws competing seller offers judged on quality + reputation.
+
+Building "for real" means matching that project's existing conventions and seams:
+idempotent steps, output written in the canonical format the app reads, and work
+runnable the way the project already runs (local + whatever CI/cron it uses).
 
 ## What you hand off
 

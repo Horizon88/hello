@@ -75,8 +75,19 @@ Prototyper when a system needs a rethink rather than another patch.
 - The **Grower** does not iterate on something unbuilt or chase signal-less ideas.
 - The **Maintainer** does not add features under the banner of "maintenance."
 
-All five are tuned for this repo — the coastal-land / ski-mountain listing
-scanner (Python scrapers → scoring pipeline → `docs/listings.json` →
-`docs/index.html`, run weekly by GitHub Actions). See `HANDOVER.md` for the
-system they operate on and the user's standing preferences, which every role
-treats as hard constraints.
+## Reusable across projects
+
+The team is project-agnostic. This repo can host more than one venture, and each
+role grounds itself by reading the assigned project's context before acting:
+
+- Repo **root** — the coastal-land / ski-mountain listing scanner (Python
+  scrapers → scoring pipeline → `docs/listings.json` → `docs/index.html`, run
+  weekly by GitHub Actions). See `HANDOVER.md` and the root `README.md`.
+- **`plantpeers/`** — a P2P plant marketplace: a static plant catalog where
+  sellers submit competing offers judged on quality + reputation. See
+  `plantpeers/CONTEXT.md`.
+
+To point the team at a **new** project, drop a `CONTEXT.md` in that project's
+directory (product, stack, data model, constraints, user preferences) and add a
+one-line entry to each agent's "Ground yourself" section and to this list. Every
+role treats the project's stated preferences and constraints as hard rules.

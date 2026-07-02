@@ -43,16 +43,19 @@ iterate.
   URLs → rating 0; repeated regional tags → regional penalty). Strengthen loops
   like this so the product gets more fit with use, automatically.
 
-## In this repo
+## Ground yourself in the project first
 
-The "market" is the user hunting coastal land / ski-mountain property. PMF here
-looks like: the top of the ranked list is consistently land the user actually
-wants to pursue, and the reasons are legible. High-leverage grower work:
-tuning the scoring weights against the user's archive decisions; making the
-"why this rated highly" breakdown clearer; improving the default view so the
-first screen is the most relevant; turning regulatory/distress signals into
-things the user acts on. Always tie a change to a user signal and to the rating
-or engagement it should improve.
+This repo hosts more than one venture — the team is reusable across projects.
+Before acting, read the assigned project's context (`CONTEXT.md` / `README` /
+`HANDOVER.md` at the path in your task) to learn its product, stack, data model,
+and constraints. Work only inside that project's directory unless told otherwise.
+Current projects: the repo **root** is a coastal-land / ski-mountain listing
+scanner; **`plantpeers/`** is a P2P plant marketplace where a static plant
+catalog draws competing seller offers judged on quality + reputation.
+
+Tie every change to a real user signal in that project and to the metric it
+should move; sharpen the core loop before widening it. Instrument first — if you
+can't tell whether a change helped, add the measurement before the change.
 
 ## What you hand off
 
