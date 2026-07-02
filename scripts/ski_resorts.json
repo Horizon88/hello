@@ -478,5 +478,89 @@
     "lat": 49.317,
     "lon": 20.2,
     "region": "PL"
+  },
+  {
+    "name": "Valle Nevado",
+    "lat": -33.354,
+    "lon": -70.257,
+    "region": "CL"
+  },
+  {
+    "name": "El Colorado",
+    "lat": -33.348,
+    "lon": -70.287,
+    "region": "CL"
+  },
+  {
+    "name": "Farellones",
+    "lat": -33.354,
+    "lon": -70.302,
+    "region": "CL"
+  },
+  {
+    "name": "La Parva",
+    "lat": -33.332,
+    "lon": -70.292,
+    "region": "CL"
+  },
+  {
+    "name": "Portillo",
+    "lat": -32.838,
+    "lon": -70.124,
+    "region": "CL"
+  },
+  {
+    "name": "Lagunillas",
+    "lat": -33.791,
+    "lon": -70.254,
+    "region": "CL"
+  },
+  {
+    "name": "Nevados de Chillan",
+    "lat": -36.906,
+    "lon": -71.409,
+    "region": "CL"
+  },
+  {
+    "name": "Corralco",
+    "lat": -38.438,
+    "lon": -71.592,
+    "region": "CL"
+  },
+  {
+    "name": "Llaima Las Araucarias",
+    "lat": -38.68,
+    "lon": -71.704,
+    "region": "CL"
+  },
+  {
+    "name": "Villarrica Pucon",
+    "lat": -39.413,
+    "lon": -71.942,
+    "region": "CL"
+  },
+  {
+    "name": "Antillanca",
+    "lat": -40.783,
+    "lon": -72.193,
+    "region": "CL"
+  },
+  {
+    "name": "Osorno Volcano",
+    "lat": -41.1,
+    "lon": -72.522,
+    "region": "CL"
+  },
+  {
+    "name": "El Fraile Coyhaique",
+    "lat": -45.66,
+    "lon": -71.97,
+    "region": "CL"
+  },
+  {
+    "name": "Cerro Mirador",
+    "lat": -53.158,
+    "lon": -70.977,
+    "region": "CL"
   }
 ]
