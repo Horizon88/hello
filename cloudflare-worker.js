@@ -1,15 +1,20 @@
-// Relay worker — two strategies, picked per request:
-//   ?url=...          → direct fetch from Cloudflare's edge (free, fast,
-//                       Cloudflare IPs have decent reputation)
-//   ?url=...&via=proxy → CONNECT-tunnel through IPRoyal (for sites that
-//                       block CF datacenter IPs)
+// Relay worker — three strategies, picked per request:
+//   ?url=...            → direct fetch from Cloudflare's edge (free, fast,
+//                         Cloudflare IPs have decent reputation)
+//   ?url=...&via=proxy  → CONNECT-tunnel through IPRoyal (for sites that
+//                         block CF datacenter IPs)
+//   ?url=...&render=1   → headless Chromium via Cloudflare Browser Rendering
+//                         (unlocks JS-heavy targets: Homegate CH, Willhaben
+//                         AT, Immobiliare IT, etc). Requires [browser]
+//                         binding "MYBROWSER" — see wrangler.toml.
+//                         Free plan: 10 min/day of browser time.
 //
-// startTls in Workers is beta + flaky, so the proxy path is HTTP-only
-// (works for ipinfo, LED Thai once they switch port, but not full HTTPS).
-// The direct path is the workhorse: Cloudflare's anycast edge often
-// bypasses bot walls that target generic datacenter IP ranges.
+// startTls in Workers is beta + flaky, so the proxy path is HTTP-only.
+// The direct path is the workhorse. The render path is the escape hatch
+// for sites that bot-block direct + return a JS shell.
 
 import { connect } from 'cloudflare:sockets';
+import puppeteer from '@cloudflare/puppeteer';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15';
 const encoder = new TextEncoder();
@@ -71,22 +76,55 @@ async function proxyFetchHttp(target, env) {
   return buf;
 }
 
+async function renderFetch(target, env, waitMs) {
+  if (!env.MYBROWSER) throw new Error('MYBROWSER binding missing — check wrangler.toml [browser]');
+  const browser = await puppeteer.launch(env.MYBROWSER);
+  try {
+    const page = await browser.newPage();
+    await page.setUserAgent(UA);
+    await page.setViewport({ width: 1280, height: 1000 });
+    await page.goto(target, { waitUntil: 'networkidle0', timeout: 30000 });
+    if (waitMs > 0) await new Promise(r => setTimeout(r, Math.min(waitMs, 10000)));
+    const html = await page.content();
+    return html;
+  } finally {
+    await browser.close();
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const target = url.searchParams.get('url');
     const via = url.searchParams.get('via') || 'direct';
+    const render = url.searchParams.get('render');
+    const waitMs = parseInt(url.searchParams.get('wait') || '2000', 10);
 
     if (!target) {
       return new Response(
         'Relay live.\n' +
         '  ?url=<target>            → fetch via Cloudflare edge (default)\n' +
-        '  ?url=<target>&via=proxy  → via IPRoyal (HTTP targets only)\n',
+        '  ?url=<target>&via=proxy  → via IPRoyal (HTTP targets only)\n' +
+        '  ?url=<target>&render=1   → headless Chromium (JS-rendered pages)\n' +
+        '     &wait=<ms>            → extra idle time after networkidle (default 2000)\n',
         { status: 200, headers: { 'Content-Type': 'text/plain' } }
       );
     }
 
     try {
+      if (render === '1' || render === 'true') {
+        const html = await renderFetch(target, env, waitMs);
+        return new Response(html, {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/html; charset=utf-8',
+            'X-Relay-Mode': 'render',
+            'X-Relay-Target': new URL(target).host,
+            'X-Relay-Bytes': String(html.length),
+          },
+        });
+      }
+
       if (via === 'proxy') {
         const buf = await proxyFetchHttp(target, env);
         const txt = decoder.decode(buf);
