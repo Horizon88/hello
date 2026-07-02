@@ -32,9 +32,11 @@ cadence: run a real round, commit+push, then schedule next wakeup; stop at deadl
 
 ## MILESTONE (after L13b): comprehensive build complete. Transition to heartbeat cadence.
 Remaining backlog (paced, lower priority — do 1 per wake if genuinely worth it, else hold):
-- [ ] audit #10: post-award "my orders/requests" state + notify lab it WON (dead-end today)
+- [x] audit #10: post-award my-orders + lab "Won" state — SHIPPED L14 (685d17f)
 - [ ] accessibility pass (aria/labels/contrast/focus order on mobile)
 - [ ] seed-data richness (more varieties/labs/offers for a fuller demo)
 - [ ] plantpeers README + short landing/pitch page
 - [ ] BLOCKED ON USER: #1 outcome spine (identity+escrow+checkin+claim) — needs product policy; L12 spike demonstrates the mechanism.
 Stop heavy multi-agent rounds unless clearly high-value; re-verify + re-arm otherwise; stop at deadline 09:10Z or when backlog exhausted.
+- L14 post-award my-orders + lab Won: SHIPPED (685d17f). localStorage orders, "My orders" view + reopen detail, lab "✓ Won" section. XSS-safe. Builder.
+- Recovered from a container restart (17:06Z) — repo intact, toolchain ok. Heartbeat re-armed.
