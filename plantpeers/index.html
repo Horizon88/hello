@@ -239,6 +239,125 @@
   .banner{background:#3a2418;border:1px solid #6b4a2a;color:#f0c9a3;font-size:12.5px;
     padding:10px 14px;margin:10px 16px;border-radius:10px}
   .foot{color:#5f7566;font-size:10.5px;text-align:center;margin:22px 16px 0;line-height:1.5}
+
+  /* ============================================================
+     LAB MODE (L7) — the SELL side. Styles promoted from
+     experiments/lab_offer_spike.html, scoped so they don't touch the
+     buyer-side visuals. Reuses buyer .segs/.av/.dot/.empty/.back/.foot.
+     ============================================================ */
+  .rolebtn{float:right;margin-top:2px;font-size:11px;font-weight:700;color:var(--gold);
+    border:1px solid #4a4022;background:#241a10;padding:5px 10px;border-radius:999px;cursor:pointer;letter-spacing:.2px}
+  .labtag{margin-left:auto;font-size:10.5px;font-weight:700;color:var(--gold);
+    border:1px solid #4a4022;background:#241a10;padding:3px 8px;border-radius:999px}
+
+  /* lab picker */
+  .labpick{display:flex;align-items:center;gap:11px;width:calc(100% - 24px);margin:10px 12px 0;text-align:left;
+    background:var(--card);border:1px solid var(--line);border-radius:14px;padding:11px 12px;cursor:pointer;color:var(--ink)}
+  .labpick .lp-body{flex:1;min-width:0}
+  .labpick .lp-h{font-weight:800;font-size:14px}
+  .labpick .lp-m{color:var(--sub);font-size:11.5px;margin-top:1px}
+  .labpick .lp-led{color:var(--leaf2);font-size:11px;margin-top:4px}
+  .labpick .lp-led b{color:var(--gold);text-transform:uppercase;font-size:9.5px;letter-spacing:.4px}
+  .labpick .lp-go{color:var(--leaf2);font-size:18px;font-weight:800;flex:none}
+
+  /* open-requests list */
+  .labreq{display:block;width:calc(100% - 24px);margin:10px 12px 0;text-align:left;
+    background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 13px;cursor:pointer;color:var(--ink);box-shadow:var(--shadow)}
+  .labreq .lr-h{font-weight:800;font-size:15px}
+  .labreq .lr-l{color:var(--sub);font-style:italic;font-size:12px;margin-top:1px}
+  .labreq .lr-want{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+  .labreq .lr-want span{font-size:11px;background:var(--pill);border:1px solid #2f4636;color:var(--ink);padding:3px 8px;border-radius:999px}
+  .labreq .lr-note{font-size:11.5px;color:#bcd3c3;margin-top:8px;font-style:italic}
+  .labreq .lr-pool{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--sub);margin-top:10px}
+
+  /* locked verified ledger — the honesty spine */
+  .l-ledger{background:#12211a;border:1px solid #2f4636;border-radius:16px;padding:12px 13px;margin:12px}
+  .l-ledger .who{display:flex;align-items:center;gap:9px}
+  .l-ledger .who .h{font-weight:800;font-size:14px}
+  .l-ledger .who .m{color:var(--sub);font-size:11px}
+  .l-ledger .lock{margin-left:auto;font-size:10px;font-weight:700;color:var(--leaf2);border:1px solid #2f4636;
+    background:#0d130f;padding:3px 8px;border-radius:999px;flex:none}
+  .l-ledstats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:11px}
+  .l-ledstat{background:#0d130f;border:1px solid var(--line);border-radius:11px;padding:8px 10px;position:relative}
+  .l-ledstat .k{font-size:9.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--sub);font-weight:700}
+  .l-ledstat .v{font-size:19px;font-weight:800;margin-top:2px}
+  .l-ledstat .v.good{color:var(--leaf2)} .l-ledstat .v.mid{color:var(--gold)} .l-ledstat .v.bad{color:var(--warn)}
+  .l-ledstat .padlock{position:absolute;right:8px;top:7px;font-size:11px;opacity:.55}
+  .l-badge{display:inline-block;margin-top:5px;font-size:8.5px;font-weight:700;padding:2px 6px;border-radius:999px;
+    background:#12211a;border:1px solid #2f4636;color:var(--leaf2)}
+  .l-badge.thin{background:#241a10;border-color:#5a4322;color:var(--gold)}
+  .l-ledger .note{font-size:11.5px;color:#bcd3c3;margin-top:11px;line-height:1.4}
+  .l-ledger .note b{color:var(--leaf2)}
+
+  /* form levers */
+  .l-field{margin:16px 12px 0}
+  .l-field > .name{font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:7px}
+  .l-field > .name .hint{margin-left:auto;font-weight:600;color:var(--sub);font-size:10.5px;letter-spacing:0}
+  .l-stepper{display:flex;align-items:center;gap:12px;margin-top:8px}
+  .l-stepper button{width:40px;height:40px;border-radius:11px;background:var(--card2);border:1px solid var(--line);
+    color:var(--ink);font-size:20px;font-weight:700;cursor:pointer}
+  .l-stepper .val{font-size:17px;font-weight:800;min-width:120px}
+  .l-stepper .val small{color:var(--sub);font-weight:500;font-size:11px}
+  .l-range{margin-top:10px}
+  .l-range input[type=range]{width:100%;accent-color:var(--leaf)}
+  .l-range .rv{font-size:16px;font-weight:800;margin-top:2px}
+  .l-range .rv small{color:var(--sub);font-weight:500;font-size:11px}
+  .l-toggle{display:flex;align-items:center;gap:11px;margin-top:8px;background:var(--card2);
+    border:1px solid var(--line);border-radius:12px;padding:11px 12px;cursor:pointer}
+  .l-toggle .sw{width:44px;height:26px;border-radius:999px;background:#2a382e;position:relative;flex:none;transition:background .15s}
+  .l-toggle .sw::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;
+    background:#8aa294;transition:transform .15s}
+  .l-toggle.on .sw{background:var(--leaf)}
+  .l-toggle.on .sw::after{transform:translateX(18px);background:#08120b}
+  .l-toggle .t{font-size:12.5px;font-weight:700}
+  .l-toggle .d{font-size:10.5px;color:var(--sub);margin-top:1px}
+  .l-toggle .free{margin-left:auto;font-size:9.5px;font-weight:800;color:var(--gold);border:1px solid #4a4022;
+    background:#241a10;padding:3px 7px;border-radius:999px;flex:none}
+  .l-minor{opacity:.85}
+  .l-minor .name .hint{color:var(--warn)}
+
+  /* sticky live projection */
+  .l-proj{display:none;position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;z-index:40;
+    background:linear-gradient(#141d17f2,#0f1511);border-top:1px solid var(--leaf);
+    box-shadow:0 -8px 26px rgba(0,0,0,.55);padding:11px 14px 14px;backdrop-filter:blur(8px)}
+  .l-proj.show{display:block}
+  .l-proj .row1{display:flex;align-items:center;gap:12px}
+  .l-gauge{--pct:80;--col:var(--leaf2);width:54px;height:54px;border-radius:50%;flex:none;
+    background:conic-gradient(var(--col) calc(var(--pct)*1%),#101712 0);display:flex;align-items:center;justify-content:center}
+  .l-gauge b{width:42px;height:42px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800}
+  .l-rankbig{flex:1}
+  .l-rankbig .r{font-size:22px;font-weight:800;line-height:1}
+  .l-rankbig .r em{font-style:normal;font-size:13px;color:var(--sub);font-weight:600}
+  .l-rankbig .meta{font-size:11px;color:var(--sub);margin-top:4px}
+  .l-rankbig .meta b{color:var(--leaf2)}
+  .l-rankmove{font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:999px;margin-top:5px;display:inline-block}
+  .l-rankmove.up{color:var(--leaf2);background:#12211a;border:1px solid #2f4636}
+  .l-rankmove.down{color:var(--warn);background:#241413;border:1px solid #5a2f2f}
+  .l-rankmove.flat{color:var(--sub);background:#0d130f;border:1px solid var(--line)}
+  .l-board{margin-top:10px;border-top:1px dashed #24322a;padding-top:9px}
+  .l-brow{display:flex;align-items:center;gap:8px;font-size:11.5px;padding:3px 0;color:var(--sub)}
+  .l-brow .n{width:16px;color:#6f8778;font-weight:700}
+  .l-brow .who{flex:1;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .l-brow .sc{font-weight:700;color:var(--sub)}
+  .l-brow.me .who{color:var(--leaf2);font-weight:800}
+  .l-brow.me{background:#12211a;border-radius:8px;margin:0 -6px;padding:4px 6px}
+
+  /* coach */
+  .l-coach{margin:2px 12px 0}
+  .cmove{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);
+    border-radius:13px;padding:10px 12px;margin-top:9px}
+  .cmove .delta{flex:none;min-width:52px;text-align:center;font-size:15px;font-weight:800;border-radius:10px;padding:7px 4px;line-height:1}
+  .cmove .delta small{display:block;font-size:8.5px;font-weight:700;opacity:.85;margin-top:2px;letter-spacing:.3px}
+  .cmove .delta.up{color:#08120b;background:var(--leaf2)}
+  .cmove .delta.flat{color:var(--sub);background:#0d130f;border:1px solid var(--line)}
+  .cmove .body{flex:1}
+  .cmove .body .t{font-size:12.5px;font-weight:700}
+  .cmove .body .d{font-size:10.5px;color:var(--sub);margin-top:2px}
+  .cmove.best{border-color:var(--leaf)}
+  .l-coach .done{font-size:12px;color:var(--leaf2);background:#12211a;border:1px solid #2f4636;
+    border-radius:12px;padding:11px 13px;margin-top:9px;text-align:center;font-weight:700}
+  .l-note{font-size:10.5px;color:#7f9488;margin:10px 12px 0;line-height:1.5}
+  .l-note b{color:#9db4a5}
 </style>
 </head>
 <body>
@@ -246,6 +365,7 @@
 <!-- ========== 1. CATALOG ========== -->
 <section id="view-catalog" class="view active">
   <div class="topbar">
+    <button class="rolebtn" id="rolebtn" onclick="toggleRole()">I&#39;m a lab &#9656;</button>
     <div class="brand"><span class="mark">&#129514;</span> plantpeers</div>
     <div class="tagline">Buy rare plants as tissue culture. Labs compete on the odds it lives.</div>
   </div>
@@ -322,6 +442,66 @@
   <div id="feed"></div>
   <div class="foot" id="compare-foot">Ranked by odds it lives (0.45) + lab trust (0.35) + value per surviving plant (0.20). Cheapest cup &#8800; most likely to live.</div>
 </section>
+
+<!-- ========== LAB MODE (L7) — the sell side ========== -->
+
+<!-- L1. LAB PICKER (no real auth — pick which lab you are) -->
+<section id="view-labpicker" class="view">
+  <div class="topbar">
+    <button class="back" onclick="exitLab()">&#8592; Shop as buyer</button>
+    <div class="brand" style="font-size:15px"><span class="mark">&#129514;</span> Lab console <span class="labtag">WHO ARE YOU?</span></div>
+    <div class="tagline">Pick your lab to respond to open buyer requests. You compete on the odds it lives — not price.</div>
+  </div>
+  <div id="labpicker-list"></div>
+  <div class="foot">No sign-in in the MVP — this just chooses which lab&#39;s verified ledger you act under.</div>
+</section>
+
+<!-- L2. OPEN REQUESTS -->
+<section id="view-labrequests" class="view">
+  <div class="topbar">
+    <button class="back" onclick="exitLab()">&#8592; Shop as buyer</button>
+    <div class="brand" style="font-size:15px"><span class="mark">&#129514;</span> Open buyer requests</div>
+    <div class="tagline" id="lab-who"></div>
+  </div>
+  <div class="sectlbl"><span class="rule"></span> Buyers waiting for offers <span class="rule"></span></div>
+  <div id="labreq-list"></div>
+  <div class="foot">These are live buyer requests with status <b>open</b>. Tap one to build your competing offer.</div>
+</section>
+
+<!-- L3. OFFER BUILDER -->
+<section id="view-laboffer" class="view">
+  <div class="topbar">
+    <button class="back" onclick="go('labrequests')">&#8592; Requests</button>
+    <div class="brand" style="font-size:15px"><span class="mark">&#129514;</span> Build your offer</div>
+  </div>
+  <div id="lab-req-summary"></div>
+  <div id="lab-ledger"></div>
+
+  <div class="sectlbl"><span class="rule"></span> Your levers <span class="rule"></span></div>
+  <div id="lab-form"></div>
+
+  <div class="sectlbl"><span class="rule"></span> How to win this request <span class="rule"></span></div>
+  <div class="l-coach" id="lab-coach"></div>
+
+  <button class="cta" id="lab-submit" onclick="submitLabOffer()">Submit offer &#183; enter the ranking</button>
+  <div class="l-note">Contamination &amp; deflask success come only from your <b>verified ledger</b> and have no form field —
+    the anti-gaming guarantee. Variegation % and acclimation guide are shown to buyers but, exactly as on the buyer side,
+    are <b>not read by the ranking model</b> (flagged).</div>
+  <div style="height:230px"></div><!-- spacer so the sticky projection never covers the submit button -->
+</section>
+
+<!-- Sticky live projected rank (only visible in the offer builder) -->
+<div class="l-proj" id="lab-proj">
+  <div class="row1">
+    <div class="l-gauge" id="lab-gauge"><b id="lab-gauge-pct">—</b></div>
+    <div class="l-rankbig">
+      <div class="r">Projected rank <span id="lab-rank-n">—</span> <em>of <span id="lab-rank-tot">—</span></em></div>
+      <div class="meta">survival <b id="lab-p-surv">—</b> &middot; trust <b id="lab-p-trust">—</b> &middot; $<span id="lab-p-cpl">—</span>/live plant &middot; score <b id="lab-p-score">—</b></div>
+      <span class="l-rankmove flat" id="lab-rankmove">fill the form to see moves</span>
+    </div>
+  </div>
+  <div class="l-board" id="lab-board"></div>
+</div>
 
 <!-- ========== 5. AWARD CONFIRMATION ========== -->
 <div class="sheet" id="sheet">
@@ -576,9 +756,11 @@ function loadData(){
 
 /* ---------- navigation ---------- */
 function go(view){
-  ['catalog','request','compare'].forEach(function(v){
+  ['catalog','request','compare','labpicker','labrequests','laboffer'].forEach(function(v){
     document.getElementById('view-'+v).classList.toggle('active', v===view);
   });
+  // the sticky projected-rank bar belongs to the offer builder only
+  document.getElementById('lab-proj').classList.toggle('show', view==='laboffer');
   window.scrollTo(0,0);
 }
 
@@ -662,6 +844,7 @@ function postRequest(){
   var notes={ target:pickedVal('target'), skill:skill, budget:pickedVal('budget'), deadline:pickedVal('deadline'),
               note:(document.getElementById('req-note').value||'').trim() };
   var req={ id:'req-'+Date.now(), plant_id:currentPlant.id, buyer_id:'you', notes:notes, status:'open', created:new Date().toISOString().slice(0,10) };
+  DB.requests.push(req); // register the session request so lab mode's open-requests list can see it (in-memory only; no effect on buyer ranking)
   buildRequestOffers(req, currentPlant);
   renderCompare(true);
   go('compare');
@@ -706,8 +889,19 @@ function enrich(raw){
     o.contamVerified = null; o.deflaskVerified = null;
   }
   o.certsCount = (s.certs? s.certs.length : 0);
-  o.replace = !!(s.replacement_policy && s.replacement_policy.covers);
-  o.replaceText = (s.replacement_policy && s.replacement_policy.text) || 'No replacement policy stated';
+  // Replacement guarantee: defaults to the SELLER's standing policy (buyer-side,
+  // unchanged). A lab-built offer may carry an explicit per-offer override
+  // (replacement_override) set from the lab console's guarantee toggle — the one
+  // field the offer form legitimately controls. Existing seed offers have no
+  // override, so buyer-side behavior is byte-for-byte identical to before.
+  if(raw.replacement_override!=null){
+    o.replace = !!raw.replacement_override;
+    o.replaceText = o.replace ? 'Free replacement if a cup arrives contaminated'
+                              : 'No replacement on this offer';
+  } else {
+    o.replace = !!(s.replacement_policy && s.replacement_policy.covers);
+    o.replaceText = (s.replacement_policy && s.replacement_policy.text) || 'No replacement policy stated';
+  }
   // offer TC fields
   o.plantlets = o.plantlets_per_cup || 1;
   o.stageLabel = STAGE_LABEL[o.stage] || o.stage;
@@ -1006,6 +1200,383 @@ function renderMetrics(){
     "</b> · followed rec: <b style='color:#7fd39a'>"+pct(followed/total)+"</b>";
 }
 
+/* ============================================================
+   LAB MODE (L7) — the SELL side. Promoted from experiments/lab_offer_spike.html.
+   SINGLE SOURCE OF TRUTH: this module does NOT re-implement the model. Every
+   ranking number it shows is computed by the SAME functions the buyer side uses
+   — enrich(), survival(), labTrust(), score(), recompute(), betaMean(),
+   confidenceTier() defined above — so buyer-side and lab-side rankings can never
+   diverge. The only lab-specific glue is: build a raw offer object from the form,
+   run it through the shared enrich() (carrying replacement_override so the
+   guarantee TOGGLE drives the very field survival() reads), and rank it with the
+   shared recompute(). The two decisive trust inputs (contamination, deflask) come
+   ONLY from seller.ledger via enrich()->betaMean() and have NO form field.
+   ============================================================ */
+var ROLE_KEY = 'plantpeers_role_v1';
+var LAB = null; // { sellerId, seller, request, plant, form, prevRank }
+
+function loadRole(){ try{ var r=localStorage.getItem(ROLE_KEY); return r?JSON.parse(r):null; }catch(e){ return null; } }
+function saveRole(o){ try{ localStorage.setItem(ROLE_KEY, JSON.stringify(o)); }catch(e){} }
+function currentRole(){ var r=loadRole(); return (r&&r.role)||'buyer'; }
+
+function updateRoleBtn(){
+  var b=document.getElementById('rolebtn'); if(!b) return;
+  var r=loadRole();
+  b.innerHTML = (r && r.sellerId && sellerById[r.sellerId])
+    ? "Lab console · "+esc(sellerById[r.sellerId].handle)+" ▸"
+    : "I'm a lab ▸";
+}
+
+/* Header toggle: buyer -> lab console (jump straight in if a lab was already
+   chosen, otherwise show the picker). */
+function toggleRole(){
+  var r=loadRole();
+  if(r && r.sellerId && sellerById[r.sellerId]){ enterLab(r.sellerId); return; }
+  saveRole({role:'lab'});
+  updateRoleBtn();
+  renderLabPicker();
+  go('labpicker');
+}
+function exitLab(){ saveRole({role:'buyer'}); updateRoleBtn(); go('catalog'); }
+
+function enterLab(sellerId){
+  var s=sellerById[sellerId]; if(!s) return;
+  saveRole({role:'lab', sellerId:sellerId});
+  LAB={ sellerId:sellerId, seller:s };
+  updateRoleBtn();
+  renderLabRequests();
+  go('labrequests');
+}
+
+/* ---------- lab picker ---------- */
+function renderLabPicker(){
+  var el=document.getElementById('labpicker-list');
+  el.innerHTML=DB.sellers.map(function(s){
+    // reuse enrich() purely to surface this lab's ledger-derived numbers
+    var o=enrich({ seller_id:s.id, plant_id:'_', stage:'invitro', plantlets_per_cup:1, price:0, shipping:0 });
+    var tier = o.confidence==='unverified' ? 'unverified' : (o.confidence==='thin'?'thin ledger':'verified');
+    return "<button class='labpick' onclick=\"enterLab('"+s.id+"')\">"+
+      "<div class='av' style='background-image:url("+avSVG(s.avatar_hue)+")'></div>"+
+      "<div class='lp-body'><div class='lp-h'>"+esc(s.handle)+"</div>"+
+      "<div class='lp-m'>"+esc(s.location)+" · ★ "+s.rating+" · "+s.sales_count+" sales</div>"+
+      "<div class='lp-led'>ledger: "+pct(o.contam)+" contamination · "+(o.shipments||0)+" shipments · <b>"+esc(tier)+"</b></div></div>"+
+      "<div class='lp-go'>▸</div></button>";
+  }).join('');
+}
+
+/* ---------- open-requests list ---------- */
+function openRequestsList(){
+  return (DB.requests||[]).filter(function(r){ return r.status==='open'; });
+}
+function skillWord(sk){ return SKILL_LABEL[sk] || sk; }
+
+function renderLabRequests(){
+  var s=LAB.seller;
+  var o=enrich({ seller_id:LAB.sellerId, plant_id:'_', stage:'invitro', plantlets_per_cup:1, price:0, shipping:0 });
+  document.getElementById('lab-who').innerHTML =
+    "Acting as <b style='color:#eaf3ec'>"+esc(s.handle)+"</b> · verified ledger: "+pct(o.contam)+" contamination, "+pct(o.contam_deflask)+" deflask";
+  var reqs=openRequestsList();
+  var el=document.getElementById('labreq-list');
+  if(!reqs.length){ el.innerHTML="<div class='empty'>No open buyer requests right now. Check back soon.</div>"; return; }
+  el.innerHTML=reqs.map(function(r){
+    var p=DB.plants.filter(function(x){return x.id===r.plant_id;})[0]||{};
+    var n=r.notes||{};
+    var pool=DB.offers.filter(function(x){return x.plant_id===r.plant_id;});
+    var wants=[n.target, n.skill?('buyer: '+skillWord(n.skill)):'', n.budget, n.deadline]
+      .filter(Boolean).map(function(w){return "<span>"+esc(w)+"</span>";}).join('');
+    return "<button class='labreq' onclick=\"openLabOffer('"+esc(r.id)+"')\">"+
+      "<div class='lr-h'>"+esc(p.common_name||r.plant_id)+"</div>"+
+      "<div class='lr-l'>"+esc(p.latin_name||'')+" · tissue-culture plantlets</div>"+
+      "<div class='lr-want'>"+wants+"</div>"+
+      (n.note?"<div class='lr-note'>“"+esc(n.note)+"”</div>":"")+
+      "<div class='lr-pool'><span class='dot'></span> "+pool.length+" lab"+(pool.length===1?'':'s')+" already bidding · tap to build your offer</div>"+
+      "</button>";
+  }).join('');
+}
+
+/* ---------- offer builder ---------- */
+function openLabOffer(reqId){
+  var r=openRequestsList().filter(function(x){return x.id===reqId;})[0];
+  if(!r) return;
+  LAB.request=r;
+  LAB.plant=DB.plants.filter(function(p){return p.id===r.plant_id;})[0] || { id:r.plant_id, common_name:r.plant_id, latin_name:'', size_class:'' };
+  // project rank against the BUYER's stated skill (same global the buyer model uses)
+  skill=(r.notes && r.notes.skill) || 'some';
+  LAB.form={ stage:'invitro', plantlets:5, price:34, shipping:8, replace:false, pheno:90, acclim:true };
+  LAB.prevRank=null;
+  var sub=document.getElementById('lab-submit'); if(sub) sub.style.display=''; // restore after a prior submit hid it
+
+  var p=LAB.plant, n=r.notes||{};
+  var wants=[n.target, n.budget, n.deadline].filter(Boolean).map(function(w){return "<b>"+esc(w)+"</b>";}).join('');
+  document.getElementById('lab-req-summary').innerHTML=
+    "<div class='topbar req' style='position:static;border-bottom:none'>"+
+      "<h1>"+esc(p.common_name)+" <span style='font-weight:400;color:var(--sub)'>— "+esc(p.size_class||'TC')+"</span></h1>"+
+      "<div class='latin'>"+esc(p.latin_name)+" · buyer is "+esc(skillWord(skill))+"</div>"+
+      "<div class='want'><span style='color:#9db4a5'>Buyer asked for:</span>"+wants+"</div></div>";
+
+  renderLabLedger();
+  buildLabForm();
+  renderLabOffer();
+  go('laboffer');
+}
+
+/* LOCKED verified-ledger header — READ-ONLY, no input path to these two numbers. */
+function renderLabLedger(){
+  var s=LAB.seller;
+  var o=enrich({ seller_id:LAB.sellerId, plant_id:'_', stage:'invitro', plantlets_per_cup:1, price:0, shipping:0 });
+  var ccls=o.contam<=0.03?'good':(o.contam<=0.10?'mid':'bad');
+  var dcls=o.contam_deflask>=0.85?'good':(o.contam_deflask>=0.70?'mid':'bad');
+  var unv = o.confidence==='unverified';
+  var badgeC = unv ? "<span class='l-badge thin'>only "+(o.shipments||0)+" outcomes · unverified</span>"
+                   : "<span class='l-badge'>✓ verified by "+o.shipments+" outcomes</span>";
+  var badgeD = unv ? "<span class='l-badge thin'>only "+(o.checkins||0)+" check-ins · unverified</span>"
+                   : "<span class='l-badge'>✓ verified by "+o.checkins+" check-ins</span>";
+  document.getElementById('lab-ledger').innerHTML=
+    "<div class='l-ledger'>"+
+      "<div class='who'>"+
+        "<div class='av' style='width:34px;height:34px;background-image:url("+avSVG(s.avatar_hue)+")'></div>"+
+        "<div><div class='h'>"+esc(s.handle)+"</div><div class='m'>"+esc(s.location)+" · "+s.sales_count+" sales · ★ "+s.rating+"</div></div>"+
+        "<div class='lock'>🔒 VERIFIED LEDGER</div>"+
+      "</div>"+
+      "<div class='l-ledstats'>"+
+        "<div class='l-ledstat'><span class='padlock'>🔒</span><div class='k'>Your contamination rate</div>"+
+          "<div class='v "+ccls+"'>"+pct(o.contam)+"</div>"+badgeC+"</div>"+
+        "<div class='l-ledstat'><span class='padlock'>🔒</span><div class='k'>Your deflask success</div>"+
+          "<div class='v "+dcls+"'>"+pct(o.contam_deflask)+"</div>"+badgeD+"</div>"+
+      "</div>"+
+      "<div class='note'>Computed from your witnessed outcome ledger — <b>not a number you type</b>. "+
+        "There is no field for these on this form: the only way up the board is a genuinely safer offer.</div>"+
+    "</div>";
+}
+
+function buildLabForm(){
+  var f=LAB.form;
+  var stageBtn=function(v,t,sub){ return "<button data-v='"+v+"'"+(f.stage===v?" class='on'":"")+">"+t+"<small>"+sub+"</small></button>"; };
+  document.getElementById('lab-form').innerHTML=
+    "<div class='l-field'><div class='name'>Stage you'll ship <span class='hint'>later = risk you retire for the buyer</span></div>"+
+      "<div class='segs' id='lab-seg-stage'>"+
+        stageBtn('invitro','In-vitro cup','buyer deflasks')+
+        stageBtn('deflasked','Deflasked &amp; rooted','you did the hard part')+
+        stageBtn('acclimated','Acclimated','growing in soil')+
+      "</div></div>"+
+    "<div class='l-field'><div class='name'>Plantlets per cup</div>"+
+      "<div class='l-stepper'><button id='lab-pl-minus'>−</button>"+
+        "<div class='val'><span id='lab-pl-val'>"+f.plantlets+"</span> <small>plantlets</small></div>"+
+        "<button id='lab-pl-plus'>+</button></div></div>"+
+    "<div class='l-field'><div class='name'>Your price <span class='hint'>1 lever of 20% — watch it barely move rank</span></div>"+
+      "<div class='l-range'><input type='range' id='lab-price' min='6' max='120' step='1' value='"+f.price+"'>"+
+        "<div class='rv'>$<span id='lab-price-val'>"+f.price+"</span> <small>+ $<span id='lab-ship-val'>"+f.shipping+"</span> shipping = $<span id='lab-total-val'>"+(f.price+f.shipping)+"</span> shipped</small></div></div></div>"+
+    "<div class='l-field'><div class='name'>Shipping</div>"+
+      "<div class='l-range'><input type='range' id='lab-ship' min='0' max='25' step='1' value='"+f.shipping+"'>"+
+        "<div class='rv'>$<span id='lab-ship-val2'>"+f.shipping+"</span> <small>shipping cost</small></div></div></div>"+
+    "<div class='l-field'><div class='l-toggle"+(f.replace?" on":"")+"' id='lab-tg-replace'>"+
+        "<div class='sw'></div><div><div class='t'>Replacement guarantee</div>"+
+        "<div class='d'>Free replacement if a cup arrives contaminated — drives the field the model reads</div></div>"+
+        "<div class='free'>$0 UPFRONT</div></div></div>"+
+    /* display-only specs that the model does NOT score (flagged, like the buyer side) */
+    "<div class='l-field l-minor'><div class='name'>Variegation stability <span class='hint'>buyer-facing spec — does NOT move rank</span></div>"+
+      "<div class='l-range'><input type='range' id='lab-pheno' min='40' max='98' step='1' value='"+f.pheno+"'>"+
+        "<div class='rv'><span id='lab-pheno-val'>"+f.pheno+"</span>% <small>stable phenotype</small></div></div></div>"+
+    "<div class='l-field l-minor'><div class='l-toggle"+(f.acclim?" on":"")+"' id='lab-tg-acclim'>"+
+        "<div class='sw'></div><div><div class='t'>Include acclimation guide</div>"+
+        "<div class='d'>Buyer-facing spec — does NOT move rank</div></div></div></div>";
+
+  // wire controls (fresh listeners each build; innerHTML above dropped any old ones)
+  var seg=document.getElementById('lab-seg-stage');
+  seg.addEventListener('click', function(e){
+    var b=e.target.closest('button'); if(!b) return;
+    Array.prototype.forEach.call(seg.children, function(c){ c.classList.remove('on'); });
+    b.classList.add('on'); f.stage=b.getAttribute('data-v');
+    if(f.stage==='acclimated'){ f.plantlets=1; setLabPl(1); }
+    else if(f.stage==='deflasked' && f.plantlets>3){ f.plantlets=3; setLabPl(3); }
+    renderLabOffer();
+  });
+  document.getElementById('lab-pl-minus').addEventListener('click', function(){ f.plantlets=Math.max(1,f.plantlets-1); setLabPl(f.plantlets); renderLabOffer(); });
+  document.getElementById('lab-pl-plus').addEventListener('click', function(){ f.plantlets=Math.min(8,f.plantlets+1); setLabPl(f.plantlets); renderLabOffer(); });
+  var price=document.getElementById('lab-price');
+  price.addEventListener('input', function(){ f.price=+price.value;
+    document.getElementById('lab-price-val').textContent=f.price;
+    document.getElementById('lab-total-val').textContent=f.price+f.shipping; renderLabOffer(); });
+  var ship=document.getElementById('lab-ship');
+  ship.addEventListener('input', function(){ f.shipping=+ship.value;
+    document.getElementById('lab-ship-val').textContent=f.shipping;
+    document.getElementById('lab-ship-val2').textContent=f.shipping;
+    document.getElementById('lab-total-val').textContent=f.price+f.shipping; renderLabOffer(); });
+  document.getElementById('lab-tg-replace').addEventListener('click', function(){
+    this.classList.toggle('on'); f.replace=this.classList.contains('on'); renderLabOffer(); });
+  // display-only controls: update the label but never call renderLabOffer (no model effect)
+  document.getElementById('lab-tg-acclim').addEventListener('click', function(){
+    this.classList.toggle('on'); f.acclim=this.classList.contains('on'); });
+  var pheno=document.getElementById('lab-pheno');
+  pheno.addEventListener('input', function(){ f.pheno=+pheno.value; document.getElementById('lab-pheno-val').textContent=f.pheno; });
+}
+function setLabPl(n){ var el=document.getElementById('lab-pl-val'); if(el) el.textContent=n; }
+
+/* Build the raw offer object from the form, exactly the shape data/offers.json
+   uses, carrying the guarantee toggle as an explicit per-offer override. */
+function labRawOffer(f, id){
+  var medium = f.stage==='invitro' ? 'Agar gel' : (f.stage==='deflasked' ? 'Rooted in sphagnum' : 'Potted, hardened off');
+  return {
+    id:(id||'lab-draft'), plant_id:LAB.request.plant_id, seller_id:LAB.sellerId,
+    photo_hue:'#5fb87e', stage:f.stage, plantlets_per_cup:f.plantlets,
+    price:f.price, shipping:f.shipping, eta_days:5, late:false,
+    replacement_override:f.replace, // form toggle -> the field survival()/labTrust() read (via shared enrich)
+    specs:{ phenotype_stability:f.pheno, medium:medium, plantlet_size:'—', acclimation_support:f.acclim },
+    message:'Built in the lab console.'
+  };
+}
+function buildLabOffer(f){ var o=enrich(labRawOffer(f)); o._me=true; return o; }
+
+/* competitors = every current offer on this plant EXCEPT this lab's own
+   (you're replacing your bid, not competing with yourself). */
+function labCompetitorPool(){
+  return DB.offers.filter(function(o){
+    return o.plant_id===LAB.request.plant_id && o.seller_id!==LAB.sellerId;
+  }).map(enrich);
+}
+/* THE projected rank — uses the shared recompute(), so it is the identical
+   computation the buyer's compare view will run. */
+function projectLabRank(f){
+  var me=buildLabOffer(f);
+  var all=labCompetitorPool().concat([me]);
+  recompute(all); // shared: sorts by score desc, sets _s/_lt/_score
+  return { all:all, me:me, rank:all.indexOf(me)+1, total:all.length };
+}
+
+function renderLabOffer(){
+  var r=projectLabRank(LAB.form);
+  var s=r.me._s;
+  var pctv=Math.round(s.pAtLeastOne*100);
+  var g=document.getElementById('lab-gauge');
+  var col=s.pAtLeastOne>=0.90?'var(--leaf2)':(s.pAtLeastOne>=0.78?'var(--gold)':'var(--warn)');
+  g.style.setProperty('--pct',pctv); g.style.setProperty('--col',col);
+  document.getElementById('lab-gauge-pct').textContent=pctv+'%';
+  document.getElementById('lab-rank-n').textContent='#'+r.rank;
+  document.getElementById('lab-rank-tot').textContent=r.total;
+  document.getElementById('lab-p-surv').textContent=pctv+'%';
+  document.getElementById('lab-p-trust').textContent=r.me._lt;
+  document.getElementById('lab-p-cpl').textContent=Math.round(s.costPerLive);
+  document.getElementById('lab-p-score').textContent=Math.round(r.me._score);
+  var rm=document.getElementById('lab-rankmove');
+  if(LAB.prevRank===null){ rm.className='l-rankmove flat'; rm.textContent='live rank vs '+(r.total-1)+' competing labs'; }
+  else if(r.rank<LAB.prevRank){ rm.className='l-rankmove up'; rm.textContent='▲ up '+(LAB.prevRank-r.rank)+' — that move worked'; }
+  else if(r.rank>LAB.prevRank){ rm.className='l-rankmove down'; rm.textContent='▼ down '+(r.rank-LAB.prevRank); }
+  else { rm.className='l-rankmove flat'; rm.textContent='no rank change'; }
+  LAB.prevRank=r.rank;
+  document.getElementById('lab-board').innerHTML=r.all.map(function(o,i){
+    var name=o._me ? "You · "+STAGE_LABEL[o.stage] : esc(o.handle)+" · "+STAGE_LABEL[o.stage];
+    return "<div class='l-brow"+(o._me?' me':'')+"'><span class='n'>"+(i+1)+"</span>"+
+      "<span class='who'>"+name+"</span><span class='sc'>"+Math.round(o._score)+"</span></div>";
+  }).join('');
+  renderLabCoach(r);
+}
+
+/* COACH — for each candidate move, clone the form, apply it, re-rank via the
+   shared model, and report the rank delta. Proves survival/guarantee moves beat
+   price moves. */
+function labMoveCandidates(f){
+  var moves=[];
+  if(!f.replace){
+    moves.push({ t:'Add a replacement guarantee',
+      d:'Cuts effective contamination loss ~85% and lifts trust — credible because your ledger is clean.',
+      apply:function(s){ s.replace=true; } });
+  }
+  if(f.stage==='invitro'){
+    moves.push({ t:'Ship deflasked instead of in-vitro',
+      d:'You retire the deflasking step beginners lose plants on — per-plantlet survival jumps.',
+      apply:function(s){ s.stage='deflasked'; if(s.plantlets>3) s.plantlets=3; } });
+  } else if(f.stage==='deflasked'){
+    moves.push({ t:'Ship acclimated (already in soil)',
+      d:'Near-zero establishment risk for the buyer.',
+      apply:function(s){ s.stage='acclimated'; s.plantlets=1; } });
+  }
+  moves.push({ t:'Cut your price by $15',
+    d:'Price is only 20% of the score, on cost-per-surviving-plant. Watch it barely move.',
+    apply:function(s){ s.price=Math.max(6,s.price-15); } });
+  return moves;
+}
+function renderLabCoach(cur){
+  var scored=labMoveCandidates(LAB.form).map(function(m){
+    var s2={}; for(var k in LAB.form) s2[k]=LAB.form[k];
+    m.apply(s2);
+    var r2=projectLabRank(s2);
+    return { m:m, newRank:r2.rank, gain:cur.rank-r2.rank, scoreGain:r2.me._score-cur.me._score };
+  });
+  scored.sort(function(a,b){ return (b.gain-a.gain) || (b.scoreGain-a.scoreGain); });
+  var el=document.getElementById('lab-coach');
+  var head = cur.rank===1
+    ? "<div class='done'>🏆 You're projected <b>#1 of "+cur.total+"</b> — a genuinely safe offer, not the cheapest cup. That's how you win here.</div>"
+    : "";
+  el.innerHTML = head + scored.map(function(x,i){ return labCoachRow(x, i===0 && x.gain>0 && cur.rank!==1); }).join('');
+}
+function labCoachRow(x, best){
+  var up=x.gain>0;
+  var deltaTxt = up ? ('+'+x.gain) : (x.gain<0?String(x.gain):'0');
+  var deltaSub = up ? 'RANKS' : (x.gain<0?'RANKS':'NO MOVE');
+  var tail = up ? " · → #"+x.newRank+", score +"+x.scoreGain.toFixed(1)
+                : " · score "+(x.scoreGain>=0?'+':'')+x.scoreGain.toFixed(1);
+  return "<div class='cmove"+(best?' best':'')+"'>"+
+    "<div class='delta "+(up?'up':'flat')+"'>"+deltaTxt+"<small>"+deltaSub+"</small></div>"+
+    "<div class='body'><div class='t'>"+esc(x.m.t)+"</div>"+
+    "<div class='d'>"+x.m.d+tail+"</div></div></div>";
+}
+
+/* ---------- submit: enrich exactly like the buyer side, append to the pool,
+   re-rank, and surface it via the existing "new offer just arrived" beat. ---- */
+function submitLabOffer(){
+  if(!LAB || !LAB.request) return;
+  var raw=labRawOffer(LAB.form, 'lab-'+Date.now());
+  // One offer per request from a given lab: this bid REPLACES any current offer
+  // this seller has on this plant (a re-submit, or a standing seed offer). This
+  // matches the projection, whose competitor pool already excludes the acting
+  // lab's own offers. In-memory only — data/offers.json is never written.
+  DB.offers=DB.offers.filter(function(o){
+    return !(o.plant_id===raw.plant_id && o.seller_id===LAB.sellerId);
+  });
+  DB.offers.push(raw);
+  deliverOfferLive(raw);           // if the buyer has this compare open, drop it in live
+  showLabSubmitted(raw);
+}
+/* If a buyer currently has this plant's compare view open, inject the new offer
+   with the same _new beat + toast the buyer already uses for late offers. */
+function deliverOfferLive(raw){
+  if(!currentRequest || !currentRequest.plant || currentRequest.plant.id!==raw.plant_id) return;
+  var o=enrich(raw); o._new=true;
+  // drop the lab's prior offer from the live pool too (mirrors DB.offers dedupe)
+  currentRequest.offers=currentRequest.offers.filter(function(x){ return x.seller_id!==raw.seller_id; });
+  currentRequest.offers.push(o);
+  if(document.getElementById('view-compare').classList.contains('active')){
+    renderFeed();
+    var live=document.getElementById('live');
+    if(live) live.innerHTML="<span class='dot'></span> New offer from "+esc(o.handle)+" just arrived · re-ranked by survival odds";
+    toast("🧫 New offer from "+esc(o.handle)+" — offers re-ranked");
+  }
+}
+function showLabSubmitted(raw){
+  var r=projectLabRank(LAB.form); // final rank of the just-submitted offer
+  var el=document.getElementById('lab-coach');
+  el.innerHTML=
+    "<div class='done'>✅ Offer submitted — you entered the ranking at <b>#"+r.rank+" of "+r.total+"</b>. "+
+    "The buyer now sees it in their compare view, re-ranked by survival odds.</div>"+
+    "<button class='cta' style='margin:12px 0 0;width:100%' onclick=\"viewRequestAsBuyer('"+esc(LAB.request.id)+"')\">See it in the buyer's compare view ▸</button>"+
+    "<button class='cta' style='margin:9px 0 0;width:100%;background:var(--card2);color:var(--leaf2);border:1px solid var(--line)' onclick=\"renderLabRequests();go('labrequests')\">Back to open requests</button>";
+  var sub=document.getElementById('lab-submit'); if(sub) sub.style.display='none';
+}
+/* Switch to the buyer role and open the compare view for this request so the
+   newly submitted offer is visible in the buyer pool. */
+function viewRequestAsBuyer(reqId){
+  var r=(DB.requests||[]).filter(function(x){return x.id===reqId;})[0];
+  if(!r) return;
+  var plant=DB.plants.filter(function(p){return p.id===r.plant_id;})[0];
+  if(!plant) return;
+  skill=(r.notes && r.notes.skill) || 'some';
+  currentPlant=plant;
+  buildRequestOffers(r, plant); // pulls DB.offers for this plant -> includes the just-pushed offer
+  saveRole({role:'buyer'}); updateRoleBtn();
+  renderCompare(false);         // don't schedule the late beat again
+  go('compare');
+}
+
 /* ---------- boot ---------- */
 loadData().then(function(errs){
   if(errs.length){
@@ -1015,7 +1586,14 @@ loadData().then(function(errs){
   renderFilters();
   renderCatalog();
   renderMetrics();
+  updateRoleBtn();
   document.getElementById('q').addEventListener('input', renderCatalog);
+  // restore a persisted lab session (role/lab kept in localStorage)
+  var role=loadRole();
+  if(role && role.role==='lab'){
+    if(role.sellerId && sellerById[role.sellerId]) enterLab(role.sellerId);
+    else { renderLabPicker(); go('labpicker'); }
+  }
 }).catch(function(){
   document.getElementById('dataerr').innerHTML="<div class='banner'>Failed to load data. Serve this folder with <b>python -m http.server</b> and reload.</div>";
 });
