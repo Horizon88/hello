@@ -351,41 +351,86 @@ var SKILL = { beg:0.65, some:0.85, pro:1.0 };
 var SKILL_LABEL = { beg:'a beginner', some:'someone with some experience', pro:'a pro with a flow hood' };
 var STAGE_LABEL = { invitro:'In-vitro cup', deflasked:'Deflasked & rooted', acclimated:'Acclimated (in soil)' };
 
-/* ---------- inline SVG art (no CDN dependency) ---------- */
-/* mature-plant art for the catalog / request hero */
+/* ---------- inline SVG placeholder art (no CDN, no backend) ----------
+   Real seller-uploaded photos need a backend that doesn't exist yet (OUT OF
+   SCOPE). Until then these are intentional, labeled placeholders: a clean
+   gradient tinted by the variety/offer hue with a plant motif and a "SAMPLE"
+   tag, so a viewer reads "placeholder image", not "broken card". */
+/* shade a #rrggbb hex toward white (amt>0) or black (amt<0), amt in -1..1 */
+function shade(hex, amt){
+  var h=String(hex).replace('#',''); if(h.length===3) h=h.replace(/(.)/g,'$1$1');
+  var r=parseInt(h.slice(0,2),16), g=parseInt(h.slice(2,4),16), b=parseInt(h.slice(4,6),16);
+  function m(c){ c = amt<0 ? c*(1+amt) : c+(255-c)*amt; return Math.max(0,Math.min(255,Math.round(c))); }
+  return '#'+[m(r),m(g),m(b)].map(function(c){return ('0'+c.toString(16)).slice(-2);}).join('');
+}
+/* catalog / request-hero plant placeholder: gradient + a fan of `count` leaves */
+/* Encode an inline SVG string as a data URI safe for background-image:url(...)
+   inside a double-quoted style attribute. encodeURIComponent leaves ' ( )
+   un-encoded, and a raw ) from an SVG transform="translate(...)"/rotate(...)
+   closes the url() early (and raw quotes break the attribute) -> broken image.
+   Encode those three too so the URI is inert everywhere it's embedded. */
+function svgURI(svg){
+  return "data:image/svg+xml;utf8,"+encodeURIComponent(svg)
+    .replace(/'/g,"%27").replace(/\(/g,"%28").replace(/\)/g,"%29");
+}
 function leafSVG(hex, count){
-  var leaves='';
-  for(var i=0;i<count;i++){
-    var x=40+(i%3)*90+(i>2?30:0), y=60+Math.floor(i/3)*80;
-    leaves+="<g transform='translate("+x+","+y+") rotate("+(-25+i*17)+")'><path d='M0 0 C40 -30 70 -10 60 40 C20 55 -10 30 0 0 Z' fill='"+hex+"' opacity='0.92'/><path d='M6 8 L52 34' stroke='#0c1a10' stroke-width='2' opacity='.4'/></g>";
-  }
-  var svg="<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'><rect width='400' height='300' fill='#101a12'/><rect x='150' y='210' width='100' height='80' rx='6' fill='#5b4130'/>"+leaves+"</svg>";
-  return "data:image/svg+xml;utf8,"+encodeURIComponent(svg);
-}
-/* in-vitro cup with N plantlets in gel, or a potted plant (acclimated) — for offer photos */
-function cupSVG(hex, count, potted){
-  var n=Math.max(1,Math.min(count,8)), plants='';
+  var top=shade(hex,0.42), bot=shade(hex,-0.45), leaf=shade(hex,0.6), pot=shade(hex,-0.2);
+  var n=Math.max(3,Math.min(count||5,6)), leaves='';
   for(var i=0;i<n;i++){
-    var x=90+(i%4)*60 - (n<4? (4-n)*30:0), y=150+((i%2)*8);
-    plants+="<g transform='translate("+x+","+y+")'>"+
-      "<path d='M0 0 C-6 -34 -22 -44 -20 -74' stroke='"+hex+"' stroke-width='4' fill='none'/>"+
-      "<path d='M0 0 C8 -30 26 -40 22 -70' stroke='"+hex+"' stroke-width='4' fill='none'/>"+
-      "<path d='M-20 -74 C-40 -80 -44 -60 -22 -58 Z' fill='"+hex+"'/>"+
-      "<path d='M22 -70 C44 -78 46 -56 24 -54 Z' fill='#eaf3ec' opacity='.85'/>"+
-      "<path d='M0 -30 C-18 -36 -20 -20 -2 -18 Z' fill='"+hex+"'/></g>";
+    var a=-58+i*(116/(n-1));
+    leaves+="<g transform='translate(200,206) rotate("+a+")'>"+
+      "<path d='M0 0 C-17 -34 -13 -78 0 -104 C13 -78 17 -34 0 0 Z' fill='"+leaf+"' opacity='0.92'/>"+
+      "<path d='M0 -8 L0 -96' stroke='"+bot+"' stroke-width='2' opacity='0.45'/></g>";
   }
-  var vessel = potted
-    ? "<path d='M120 150 L280 150 L266 250 L134 250 Z' fill='#5b4130'/><rect x='120' y='140' width='160' height='16' rx='4' fill='#6e4f38'/>"
-    : "<rect x='120' y='150' width='160' height='110' rx='10' fill='#0d130f' opacity='.55'/>"+
-      "<rect x='120' y='210' width='160' height='50' rx='6' fill='#b7d8a8' opacity='.30'/>"+
-      "<rect x='118' y='142' width='164' height='14' rx='5' fill='#eaf3ec' opacity='.25'/>";
   var svg="<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'>"+
-    "<rect width='400' height='300' fill='#101a12'/>"+vessel+plants+"</svg>";
-  return "data:image/svg+xml;utf8,"+encodeURIComponent(svg);
+    "<defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='"+top+"'/><stop offset='1' stop-color='"+bot+"'/></linearGradient></defs>"+
+    "<rect width='400' height='300' fill='url(#g)'/>"+
+    "<circle cx='200' cy='150' r='118' fill='#ffffff' opacity='0.06'/>"+
+    leaves+
+    "<path d='M172 206 L228 206 L221 250 L179 250 Z' fill='"+pot+"'/>"+
+    "<text x='200' y='283' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='700' fill='#ffffff' opacity='0.8' letter-spacing='2'>SAMPLE IMAGE</text>"+
+    "</svg>";
+  return svgURI(svg);
 }
+/* offer photo placeholder: gradient tinted by offer hue, motif distinct per stage
+   (invitro=cup+gel+plantlets, deflasked=nursery pot, acclimated=potted plant) */
+function cupSVG(hex, count, stage){
+  var top=shade(hex,0.4), bot=shade(hex,-0.47), acc=shade(hex,0.58), pot=shade(hex,-0.22);
+  var n=Math.max(1,Math.min(count||1,8)), motif='', i;
+  if(stage==='acclimated'){
+    var lv='';
+    for(i=0;i<5;i++){ var a=-54+i*27; lv+="<g transform='translate(200,150) rotate("+a+")'><path d='M0 0 C-15 -30 -11 -66 0 -88 C11 -66 15 -30 0 0 Z' fill='"+acc+"' opacity='0.92'/></g>"; }
+    motif="<path d='M164 150 L236 150 L226 214 L174 214 Z' fill='"+pot+"'/><rect x='158' y='140' width='84' height='14' rx='4' fill='"+shade(hex,-0.08)+"'/>"+lv;
+  } else if(stage==='deflasked'){
+    var pl='';
+    for(i=0;i<n;i++){ var x=200+(i-(n-1)/2)*24; pl+="<g transform='translate("+x+",152)'><path d='M0 0 C-9 -22 -6 -46 0 -60 C6 -46 9 -22 0 0 Z' fill='"+acc+"' opacity='0.92'/></g>"; }
+    motif="<path d='M150 152 L250 152 L240 212 L160 212 Z' fill='"+pot+"'/><path d='M150 152 L250 152 L246 170 L154 170 Z' fill='"+shade(hex,-0.34)+"'/>"+pl;
+  } else {
+    var pv='';
+    for(i=0;i<n;i++){ var xx=200+(i-(n-1)/2)*22; pv+="<g transform='translate("+xx+",184)'><path d='M0 0 C-8 -20 -5 -42 0 -56 C5 -42 8 -20 0 0 Z' fill='"+acc+"' opacity='0.9'/></g>"; }
+    motif="<rect x='140' y='118' width='120' height='114' rx='12' fill='#ffffff' opacity='0.12'/>"+
+      "<rect x='140' y='186' width='120' height='46' fill='#ffffff' opacity='0.16'/>"+
+      "<rect x='138' y='112' width='124' height='12' rx='5' fill='#ffffff' opacity='0.3'/>"+pv;
+  }
+  var svg="<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'>"+
+    "<defs><linearGradient id='g' x1='0' y1='0' x2='0.35' y2='1'><stop offset='0' stop-color='"+top+"'/><stop offset='1' stop-color='"+bot+"'/></linearGradient></defs>"+
+    "<rect width='400' height='300' fill='url(#g)'/>"+
+    "<circle cx='200' cy='150' r='128' fill='#ffffff' opacity='0.05'/>"+
+    motif+
+    "<text x='200' y='283' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='700' fill='#ffffff' opacity='0.78' letter-spacing='2'>SELLER SAMPLE</text>"+
+    "</svg>";
+  return svgURI(svg);
+}
+/* seller avatar placeholder: soft gradient tile with a two-tone leaf glyph */
 function avSVG(hex){
-  var s="<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60'><rect width='60' height='60' fill='"+hex+"'/><circle cx='30' cy='24' r='11' fill='#0c1a10' opacity='.5'/><rect x='14' y='40' width='32' height='22' rx='11' fill='#0c1a10' opacity='.5'/></svg>";
-  return "data:image/svg+xml;utf8,"+encodeURIComponent(s);
+  var top=shade(hex,0.4), bot=shade(hex,-0.4), lf=shade(hex,0.68);
+  var s="<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'>"+
+    "<defs><linearGradient id='a' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='"+top+"'/><stop offset='1' stop-color='"+bot+"'/></linearGradient></defs>"+
+    "<rect width='64' height='64' rx='14' fill='url(#a)'/>"+
+    "<path d='M32 47 C24 41 20 29 22 18 C34 20 40 33 32 47 Z' fill='"+lf+"' opacity='0.95'/>"+
+    "<path d='M32 47 C40 41 44 29 42 18 C30 20 24 33 32 47 Z' fill='#ffffff' opacity='0.82'/>"+
+    "<path d='M32 47 L32 22' stroke='#ffffff' stroke-width='1.6' opacity='0.5'/></svg>";
+  return svgURI(s);
 }
 function starStr(r){var f=Math.round(r);return '★★★★★'.slice(0,f)+'☆☆☆☆☆'.slice(0,5-f);}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -605,9 +650,7 @@ function postRequest(){
   var notes={ target:pickedVal('target'), skill:skill, budget:pickedVal('budget'), deadline:pickedVal('deadline'),
               note:(document.getElementById('req-note').value||'').trim() };
   var req={ id:'req-'+Date.now(), plant_id:currentPlant.id, buyer_id:'you', notes:notes, status:'open', created:new Date().toISOString().slice(0,10) };
-  DB.requests.push(req);
   buildRequestOffers(req, currentPlant);
-  persist();
   renderCompare(true);
   go('compare');
 }
@@ -625,7 +668,7 @@ function enrich(raw){
   var s=sellerById[o.seller_id]||{};
   o.handle=s.handle||('@'+o.seller_id);
   o.rating=s.rating||0; o.sales=s.sales_count||0; o.badges=s.badges||[]; o.avatar_hue=s.avatar_hue||'#3b6b4a';
-  o.location=s.location||''; o.response_time=s.response_time||'';
+  o.location=s.location||'';
   // lab (seller) TC fields folded onto the offer for the model.
   // The two decisive inputs are now the LEDGER-derived effective values
   // (Beta-shrunk toward a cautious prior), not the lab's self-report.
@@ -634,8 +677,8 @@ function enrich(raw){
   var lg = s.ledger;
   if(lg && lg.shipments>0 && lg.checkins_responded>0){
     o.hasLedger = true;
-    o.shipments = lg.shipments; o.honoredClaims = lg.honored_claims;
-    o.checkins = lg.checkins_responded; o.established = lg.establishment_confirmed;
+    o.shipments = lg.shipments;
+    o.checkins = lg.checkins_responded;
     o.contamVerified  = lg.honored_claims / lg.shipments;              // raw witnessed rate
     o.deflaskVerified = lg.establishment_confirmed / lg.checkins_responded;
     o.confidence = confidenceTier(lg.shipments, lg.checkins_responded);
@@ -763,7 +806,7 @@ function card(o, isPick, top){
   var priceScore=Math.max(0,100-(s.costPerLive-15)*1.5);
   var qW=Math.round(0.45*survScore), tW=Math.round(0.35*o._lt), pW=Math.round(0.20*Math.min(100,priceScore));
   var showSpecs = MODE==='specs' || isPick;
-  var photo=cupSVG(o.photo_hue||'#57b479', o.plantlets, o.stage==='acclimated');
+  var photo=cupSVG(o.photo_hue||'#57b479', o.plantlets, o.stage);
   var stageCls = o.stage==='invitro' ? 'invitro' : '';
   var sp=o.specs||{};
   var total=o.price+o.shipping;
@@ -858,7 +901,6 @@ function award(id){
   if(!o) return;
   cr.request.status='awarded';
   cr.request.awarded_offer=o.id;
-  persist();
   var s=o._s;
 
   document.getElementById('sh_h').textContent='Awarded to '+o.handle;
@@ -883,14 +925,6 @@ function award(id){
 function closeSheet(){
   document.getElementById('sheet').classList.remove('show');
   go('catalog');
-}
-
-/* ---------- lightweight persistence (best-effort) ---------- */
-function persist(){
-  try{
-    var mine=DB.requests.filter(function(r){ return r.id.indexOf('req-')===0 && r.buyer_id==='you'; });
-    localStorage.setItem('plantpeers_requests', JSON.stringify(mine));
-  }catch(e){}
 }
 
 /* ---------- boot ---------- */
