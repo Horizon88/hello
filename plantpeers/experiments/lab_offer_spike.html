@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PlantPeers — Lab console spike: respond to an open request</title>
+<!--
+  ============================================================================
+  THROWAWAY SPIKE (L7) — the SELL side of plantpeers. NOT production.
+  Question: can we coach a lab to compete on SURVIVAL + TRUST, not price, by
+  showing its projected rank LIVE as it fills the offer form — and prove that
+  dropping price barely moves rank while a guarantee / stage upgrade jumps it?
+
+  What's REAL here (copied verbatim from index.html so the rank is honest):
+    betaMean / confidenceTier / survival / labTrust / score / recompute.
+    The competitor pool + the acting lab are built from the SAME seller/ledger
+    shape as data/sellers.json, enriched the same way index.html's enrich() does.
+  What's FAKED / scaffolding:
+    - competitor pool + open request are hardcoded inline (no fetch, no backend).
+    - the acting lab persona (@aroid_culture_co) is hardcoded.
+    - phenotype% + acclimation toggle are shown as buyer-facing specs but DO NOT
+      feed the current model (index.html doesn't score them either) — flagged.
+    - "cost to you" copy on coach moves is illustrative, not a real margin calc.
+  No CDN, no external assets, single file. Mobile-first.
+  ============================================================================
+-->
+<style>
+  :root{
+    --bg:#0f1511;--card:#18211b;--card2:#1e2a22;--line:#2a382e;--ink:#eaf3ec;
+    --sub:#9db4a5;--leaf:#4ea86b;--leaf2:#7fd39a;--gold:#e9c46a;--warn:#e08a5a;
+    --danger:#e05a5a;--pill:#22302786;--shadow:0 6px 22px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);
+    font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    max-width:430px;margin:0 auto;padding:0 0 240px;min-height:100vh}
+  .topbar{position:sticky;top:0;z-index:20;background:linear-gradient(#0f1511,#0f1511f2);
+    padding:13px 16px 11px;border-bottom:1px solid var(--line);backdrop-filter:blur(6px)}
+  .brand{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:800}
+  .brand .mark{font-size:19px}
+  .brand .tag{margin-left:auto;font-size:10.5px;font-weight:700;color:var(--gold);
+    border:1px solid #4a4022;background:#241a10;padding:3px 8px;border-radius:999px}
+  .sub{color:var(--sub);font-size:12px;margin-top:3px}
+
+  .wrap{padding:0 16px}
+  .lbl{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--sub);
+    font-weight:700;margin:18px 2px 9px;display:flex;align-items:center;gap:8px}
+  .lbl .rule{flex:1;height:1px;background:var(--line)}
+
+  /* open request card */
+  .req{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:13px 14px;margin-top:14px;box-shadow:var(--shadow)}
+  .req h1{margin:0;font-size:16px;font-weight:800}
+  .req .latin{color:var(--sub);font-style:italic;font-size:12px;margin-top:1px}
+  .req .want{margin-top:9px;display:flex;gap:6px;flex-wrap:wrap}
+  .req .want b{font-weight:600;background:var(--pill);border:1px solid #2f4636;color:var(--ink);
+    padding:3px 9px;border-radius:999px;font-size:11.5px}
+  .req .live{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--sub);margin-top:10px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--leaf);animation:pulse 1.8s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(78,168,107,.6)}70%{box-shadow:0 0 0 7px rgba(78,168,107,0)}100%{box-shadow:0 0 0 0 rgba(78,168,107,0)}}
+
+  /* locked ledger — the honesty spine */
+  .ledger{background:#12211a;border:1px solid #2f4636;border-radius:16px;padding:12px 13px;margin-top:12px;position:relative}
+  .ledger .who{display:flex;align-items:center;gap:9px}
+  .ledger .av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#3b5a6b,#1e2a22);flex:none;
+    display:flex;align-items:center;justify-content:center;font-size:15px}
+  .ledger .who .h{font-weight:800;font-size:14px}
+  .ledger .who .m{color:var(--sub);font-size:11px}
+  .lock{margin-left:auto;font-size:10px;font-weight:700;color:var(--leaf2);border:1px solid #2f4636;
+    background:#0d130f;padding:3px 8px;border-radius:999px}
+  .ledstats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:11px}
+  .ledstat{background:#0d130f;border:1px solid var(--line);border-radius:11px;padding:8px 10px;position:relative;opacity:.96}
+  .ledstat .k{font-size:9.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--sub);font-weight:700}
+  .ledstat .v{font-size:19px;font-weight:800;margin-top:2px}
+  .ledstat .v.good{color:var(--leaf2)}.ledstat .v.mid{color:var(--gold)}.ledstat .v.bad{color:var(--warn)}
+  .ledstat .badge{display:inline-block;margin-top:5px;font-size:8.5px;font-weight:700;padding:2px 6px;border-radius:999px;
+    background:#12211a;border:1px solid #2f4636;color:var(--leaf2)}
+  .ledstat .padlock{position:absolute;right:8px;top:7px;font-size:11px;opacity:.55}
+  .ledger .note{font-size:11.5px;color:#bcd3c3;margin-top:11px;line-height:1.4}
+  .ledger .note b{color:var(--leaf2)}
+
+  /* form levers */
+  .field{margin-top:16px}
+  .field > .name{font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:7px}
+  .field > .name .hint{margin-left:auto;font-weight:600;color:var(--sub);font-size:10.5px;letter-spacing:0}
+  .segs{display:flex;gap:7px;margin-top:8px}
+  .segs button{flex:1;background:var(--card2);border:1px solid var(--line);color:var(--sub);
+    padding:10px 4px;border-radius:11px;font-size:12px;font-weight:700;cursor:pointer;line-height:1.15}
+  .segs button small{display:block;font-size:9px;font-weight:500;opacity:.8;margin-top:2px}
+  .segs button.on{background:var(--leaf);color:#08120b;border-color:var(--leaf)}
+  .segs button.on small{opacity:.95}
+
+  .stepper{display:flex;align-items:center;gap:12px;margin-top:8px}
+  .stepper button{width:40px;height:40px;border-radius:11px;background:var(--card2);border:1px solid var(--line);
+    color:var(--ink);font-size:20px;font-weight:700;cursor:pointer}
+  .stepper .val{font-size:17px;font-weight:800;min-width:120px}
+  .stepper .val small{color:var(--sub);font-weight:500;font-size:11px}
+
+  .rangewrap{margin-top:10px}
+  input[type=range]{width:100%;accent-color:var(--leaf)}
+  .rangewrap .rv{font-size:16px;font-weight:800;margin-top:2px}
+  .rangewrap .rv small{color:var(--sub);font-weight:500;font-size:11px}
+
+  .toggle{display:flex;align-items:center;gap:11px;margin-top:8px;background:var(--card2);
+    border:1px solid var(--line);border-radius:12px;padding:11px 12px;cursor:pointer}
+  .toggle .sw{width:44px;height:26px;border-radius:999px;background:#2a382e;position:relative;flex:none;transition:background .15s}
+  .toggle .sw::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;
+    background:#8aa294;transition:transform .15s}
+  .toggle.on .sw{background:var(--leaf)}
+  .toggle.on .sw::after{transform:translateX(18px);background:#08120b}
+  .toggle .t{font-size:12.5px;font-weight:700}
+  .toggle .d{font-size:10.5px;color:var(--sub);margin-top:1px}
+  .toggle .free{margin-left:auto;font-size:9.5px;font-weight:800;color:var(--gold);border:1px solid #4a4022;
+    background:#241a10;padding:3px 7px;border-radius:999px;flex:none}
+
+  .minor{opacity:.85}
+  .minor .name .hint{color:var(--warn)}
+
+  /* sticky live projection */
+  .proj{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;z-index:40;
+    background:linear-gradient(#141d17f2,#0f1511);border-top:1px solid var(--leaf);
+    box-shadow:0 -8px 26px rgba(0,0,0,.55);padding:11px 14px 14px;backdrop-filter:blur(8px)}
+  .proj .row1{display:flex;align-items:center;gap:12px}
+  .gauge{--pct:80;--col:var(--leaf2);width:54px;height:54px;border-radius:50%;flex:none;
+    background:conic-gradient(var(--col) calc(var(--pct)*1%),#101712 0);display:flex;align-items:center;justify-content:center}
+  .gauge b{width:42px;height:42px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center;
+    font-size:14px;font-weight:800}
+  .rankbig{flex:1}
+  .rankbig .r{font-size:24px;font-weight:800;line-height:1}
+  .rankbig .r em{font-style:normal;font-size:14px;color:var(--sub);font-weight:600}
+  .rankbig .meta{font-size:11px;color:var(--sub);margin-top:4px}
+  .rankbig .meta b{color:var(--leaf2)}
+  .rankmove{font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:999px;margin-top:5px;display:inline-block}
+  .rankmove.up{color:var(--leaf2);background:#12211a;border:1px solid #2f4636}
+  .rankmove.down{color:var(--warn);background:#241413;border:1px solid #5a2f2f}
+  .rankmove.flat{color:var(--sub);background:#0d130f;border:1px solid var(--line)}
+
+  .board{margin-top:10px;border-top:1px dashed #24322a;padding-top:9px}
+  .brow{display:flex;align-items:center;gap:8px;font-size:11.5px;padding:3px 0;color:var(--sub)}
+  .brow .n{width:16px;color:#6f8778;font-weight:700}
+  .brow .who{flex:1;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brow .sc{font-weight:700;color:var(--sub)}
+  .brow.me{color:var(--ink)}
+  .brow.me .who{color:var(--leaf2);font-weight:800}
+  .brow.me{background:#12211a;border-radius:8px;margin:0 -6px;padding:4px 6px}
+
+  /* coach */
+  .coach{margin-top:2px}
+  .cmove{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);
+    border-radius:13px;padding:10px 12px;margin-top:9px}
+  .cmove .delta{flex:none;min-width:52px;text-align:center;font-size:15px;font-weight:800;border-radius:10px;padding:7px 4px;line-height:1}
+  .cmove .delta small{display:block;font-size:8.5px;font-weight:700;opacity:.85;margin-top:2px;letter-spacing:.3px}
+  .cmove .delta.up{color:#08120b;background:var(--leaf2)}
+  .cmove .delta.flat{color:var(--sub);background:#0d130f;border:1px solid var(--line)}
+  .cmove .body{flex:1}
+  .cmove .body .t{font-size:12.5px;font-weight:700}
+  .cmove .body .d{font-size:10.5px;color:var(--sub);margin-top:2px}
+  .cmove .body .d b{color:var(--gold)}
+  .cmove.best{border-color:var(--leaf)}
+  .coach .done{font-size:12px;color:var(--leaf2);background:#12211a;border:1px solid #2f4636;
+    border-radius:12px;padding:11px 13px;margin-top:9px;text-align:center;font-weight:700}
+
+  .foot{color:#5f7566;font-size:10.5px;text-align:center;margin:22px 6px 0;line-height:1.55}
+  .foot b{color:#8aa294}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="mark">&#129514;</span> plantpeers <span class="tag">LAB CONSOLE</span></div>
+  <div class="sub">Respond to an open buyer request &middot; you compete on the odds it lives</div>
+</div>
+
+<div class="wrap">
+
+  <!-- OPEN REQUEST (faked, hardcoded) -->
+  <div class="req">
+    <h1>Anthurium clarinervium <span style="font-weight:400;color:var(--sub)">— medium TC</span></h1>
+    <div class="latin">Anthurium clarinervium &middot; tissue-culture plantlets</div>
+    <div class="want">
+      <b>wants 2&ndash;3 live plants</b><b>buyer: some experience</b><b>under $70 shipped</b><b>by next week</b>
+    </div>
+    <div class="live"><span class="dot"></span> <span id="poolcount">4</span> labs already bidding &middot; ranked by the buyer's odds of a living plant</div>
+  </div>
+
+  <!-- LOCKED LEDGER (honesty spine) -->
+  <div class="ledger">
+    <div class="who">
+      <div class="av">&#129514;</div>
+      <div><div class="h">@aroid_culture_co</div><div class="m">Seattle, WA &middot; 190 sales &middot; &#9733; 4.6</div></div>
+      <div class="lock">&#128274; VERIFIED LEDGER</div>
+    </div>
+    <div class="ledstats">
+      <div class="ledstat"><span class="padlock">&#128274;</span><div class="k">Your contamination rate</div>
+        <div class="v" id="led-contam">&mdash;</div><span class="badge" id="led-contam-b"></span></div>
+      <div class="ledstat"><span class="padlock">&#128274;</span><div class="k">Your deflask success</div>
+        <div class="v" id="led-deflask">&mdash;</div><span class="badge" id="led-deflask-b"></span></div>
+    </div>
+    <div class="note">These are computed from <b>95 shipped outcomes + 60 buyer check-ins</b> &mdash; not a number you type.
+      You <b>can't inflate them here</b>. They set your trust ceiling; the only way up the board is a genuinely safer offer.</div>
+  </div>
+
+  <!-- FORM: the levers the lab actually controls -->
+  <div class="lbl"><span class="rule"></span> Build your offer <span class="rule"></span></div>
+
+  <div class="field">
+    <div class="name">Stage you'll ship <span class="hint">later = risk you already retired for the buyer</span></div>
+    <div class="segs" id="seg-stage">
+      <button data-v="invitro" class="on">In-vitro cup<small>buyer deflasks</small></button>
+      <button data-v="deflasked">Deflasked &amp; rooted<small>you did the hard part</small></button>
+      <button data-v="acclimated">Acclimated<small>growing in soil</small></button>
+    </div>
+  </div>
+
+  <div class="field">
+    <div class="name">Plantlets per cup</div>
+    <div class="stepper">
+      <button id="pl-minus">&minus;</button>
+      <div class="val"><span id="pl-val">5</span> <small>plantlets</small></div>
+      <button id="pl-plus">+</button>
+    </div>
+  </div>
+
+  <div class="field">
+    <div class="name">Your price <span class="hint">1 lever of 20% &mdash; watch it barely move rank</span></div>
+    <div class="rangewrap">
+      <input type="range" id="price" min="6" max="120" step="1" value="34">
+      <div class="rv">$<span id="price-val">34</span> <small>+ $8 shipping = $<span id="total-val">42</span> shipped</small></div>
+    </div>
+  </div>
+
+  <div class="field">
+    <div class="toggle" id="tg-replace">
+      <div class="sw"></div>
+      <div><div class="t">Replacement guarantee</div><div class="d">Free replacement if a cup arrives contaminated</div></div>
+      <div class="free">$0 UPFRONT</div>
+    </div>
+  </div>
+
+  <!-- minor buyer-facing specs that do NOT feed the current model (flagged) -->
+  <div class="field minor">
+    <div class="name">Variegation stability <span class="hint">buyer-facing spec &mdash; doesn't move rank yet</span></div>
+    <div class="rangewrap">
+      <input type="range" id="pheno" min="40" max="98" step="1" value="90">
+      <div class="rv"><span id="pheno-val">90</span>% <small>stable phenotype</small></div>
+    </div>
+  </div>
+  <div class="field minor">
+    <div class="toggle on" id="tg-acclim">
+      <div class="sw"></div>
+      <div><div class="t">Include acclimation guide</div><div class="d">Buyer-facing spec &mdash; doesn't move rank yet</div></div>
+    </div>
+  </div>
+
+  <!-- COACH -->
+  <div class="lbl"><span class="rule"></span> How to win this request <span class="rule"></span></div>
+  <div class="coach" id="coach"></div>
+
+  <div class="foot">
+    THROWAWAY SPIKE &mdash; sell-side of plantpeers. Rank is computed with the <b>same survival / labTrust / score
+    model as index.html</b>, against a hardcoded competitor pool. Your two decisive inputs (contamination, deflask)
+    come from your <b>ledger</b> and have no form field &mdash; gaming is off the table.
+  </div>
+</div>
+
+<!-- STICKY LIVE PROJECTION -->
+<div class="proj">
+  <div class="row1">
+    <div class="gauge" id="gauge"><b id="gauge-pct">92%</b></div>
+    <div class="rankbig">
+      <div class="r">Projected rank <span id="rank-n">#2</span> <em>of <span id="rank-tot">5</span></em></div>
+      <div class="meta">survival <b id="p-surv">92%</b> &middot; trust <b id="p-trust">64</b> &middot; $<span id="p-cpl">14</span>/live plant &middot; score <b id="p-score">84</b></div>
+      <span class="rankmove flat" id="rankmove">fill the form to see moves</span>
+    </div>
+  </div>
+  <div class="board" id="board"></div>
+</div>
+
+<script>
+/* ===========================================================================
+   MODEL — copied VERBATIM from index.html (the load-bearing logic). If these
+   drift from index.html the spike lies, so keep them identical.
+   =========================================================================== */
+var SKILL={beg:0.65,some:0.85,pro:1.0};
+var skill='some';                                   // buyer skill from the open request
+var STAGE_LABEL={invitro:'In-vitro cup',deflasked:'Deflasked & rooted',acclimated:'Acclimated (in soil)'};
+
+var CONTAM_PRIOR=0.10,CONTAM_STRENGTH=25,DEFLASK_PRIOR=0.65,DEFLASK_STRENGTH=20;
+function betaMean(k,n,priorRate,strength){var a0=priorRate*strength,b0=(1-priorRate)*strength;return (a0+k)/(a0+b0+n);}
+function confidenceTier(shipments,checkins){if(shipments>=60&&checkins>=40)return 'verified';if(shipments>=20)return 'thin';return 'unverified';}
+
+function survival(o){
+  var sk=SKILL[skill],perPlant;
+  if(o.stage==='invitro')        perPlant=o.contam_deflask*sk;
+  else if(o.stage==='deflasked') perPlant=0.90;
+  else                            perPlant=0.98;
+  var effContam=o.replace?o.contam*0.15:o.contam;
+  var pClean=1-effContam,n=o.plantlets;
+  var pAtLeastOne=pClean*(1-Math.pow(1-perPlant,n));
+  var expLive=pClean*n*perPlant;
+  var total=o.price+o.shipping,costPerLive=expLive>0?total/expLive:999;
+  return {perPlant:perPlant,pClean:pClean,pAtLeastOne:pAtLeastOne,expLive:expLive,costPerLive:costPerLive,total:total};
+}
+function labTrust(o){
+  var contamScore=Math.max(0,1-o.contam/0.25);
+  var raw=0.32*contamScore+0.20*o.contam_deflask+0.14*((o.rating||0)/5)
+        +0.10*Math.min(1,Math.log10((o.sales||0)+1)/Math.log10(500))
+        +0.12*Math.min(1,(o.certsCount||0)/2)+0.12*(o.replace?1:0);
+  return Math.round(raw*100);
+}
+function score(o){
+  var s=o._s,survScore=s.pAtLeastOne*100;
+  var priceScore=Math.max(0,100-(s.costPerLive-15)*1.5);
+  return 0.45*survScore+0.35*o._lt+0.20*priceScore;
+}
+/* enrich a raw seller+offer into a scored offer — mirrors index.html enrich() */
+function enrich(seller,offer){
+  var o={};for(var k in offer)o[k]=offer[k];
+  o.handle=seller.handle;o.rating=seller.rating;o.sales=seller.sales_count;o.certsCount=(seller.certs?seller.certs.length:0);
+  o.replace=!!(seller.replacement_policy&&seller.replacement_policy.covers);
+  var lg=seller.ledger;
+  o.contam=betaMean(lg.honored_claims,lg.shipments,CONTAM_PRIOR,CONTAM_STRENGTH);
+  o.contam_deflask=betaMean(lg.establishment_confirmed,lg.checkins_responded,DEFLASK_PRIOR,DEFLASK_STRENGTH);
+  o.confidence=confidenceTier(lg.shipments,lg.checkins_responded);
+  o.plantlets=offer.plantlets_per_cup;
+  return o;
+}
+
+/* ===========================================================================
+   DATA — FAKED / hardcoded. Same shape as data/sellers.json + data/offers.json.
+   Competitor pool = 4 labs already bidding on this request. The acting lab is
+   @aroid_culture_co (leaflab_pnw in the seed data): a solid-but-not-elite ledger,
+   so there's real room to climb — and price alone can't do it.
+   =========================================================================== */
+var COMPETITORS=[
+  { seller:{handle:'@midwest_micropropagation',rating:4.4,sales_count:48,certs:['Verified lab'],
+      replacement_policy:{covers:true},ledger:{shipments:48,honored_claims:5,checkins_responded:30,establishment_confirmed:21}},
+    offer:{id:'c1',stage:'deflasked',plantlets_per_cup:3,price:45,shipping:7} },
+  { seller:{handle:'@beginner_botanica',rating:4.8,sales_count:150,certs:['Verified lab'],
+      replacement_policy:{covers:true},ledger:{shipments:150,honored_claims:3,checkins_responded:110,establishment_confirmed:106}},
+    offer:{id:'c2',stage:'acclimated',plantlets_per_cup:1,price:79,shipping:11} },
+  { seller:{handle:'@tropiflask_wholesale',rating:3.8,sales_count:41,certs:[],
+      replacement_policy:{covers:false},ledger:{shipments:240,honored_claims:48,checkins_responded:150,establishment_confirmed:70}},
+    offer:{id:'c3',stage:'invitro',plantlets_per_cup:6,price:18,shipping:9} },
+  { seller:{handle:'@backyard_flasks',rating:3.9,sales_count:15,certs:[],
+      replacement_policy:{covers:false},ledger:{shipments:5,honored_claims:0,checkins_responded:2,establishment_confirmed:2}},
+    offer:{id:'c4',stage:'invitro',plantlets_per_cup:6,price:22,shipping:10} }
+];
+var POOL=COMPETITORS.map(function(c){return enrich(c.seller,c.offer);});
+
+/* the acting lab — its ledger is FIXED. The form can never touch contam/deflask. */
+var ME_SELLER={handle:'@aroid_culture_co',rating:4.6,sales_count:190,certs:['Verified lab'],
+  replacement_policy:{covers:false}, // covered is driven by the form toggle, not this
+  ledger:{shipments:95,honored_claims:7,checkins_responded:60,establishment_confirmed:47}};
+
+/* form state = the ONLY things the lab controls */
+var form={stage:'invitro',plantlets:5,price:34,shipping:8,replace:false,pheno:90,acclim:true};
+
+function myOffer(state){
+  var base=enrich(ME_SELLER,{id:'ME',stage:state.stage,plantlets_per_cup:state.plantlets,price:state.price,shipping:state.shipping});
+  base.replace=state.replace;                        // form-driven, overrides seller default
+  base.handle='@aroid_culture_co (you)';
+  base._me=true;
+  return base;
+}
+function rankAll(state){
+  var me=myOffer(state);
+  var all=POOL.concat([me]);
+  all.forEach(function(o){o._s=survival(o);o._lt=labTrust(o);});
+  all.forEach(function(o){o._score=score(o);});
+  all.sort(function(a,b){return b._score-a._score;});
+  var rank=all.indexOf(me)+1;
+  return {all:all,me:me,rank:rank,total:all.length};
+}
+
+/* ===========================================================================
+   COACH — for each candidate move, clone the form, apply it, re-rank, report the
+   rank delta. Proves survival/trust moves beat price moves. Sorted by rank gain.
+   =========================================================================== */
+function moveCandidates(state){
+  var moves=[];
+  if(!state.replace){
+    moves.push({key:'replace',t:'Add a replacement guarantee',
+      d:'Cuts effective contamination loss ~85% <b>and</b> lifts trust. Credible because your ledger is clean.',
+      cost:'$0 upfront',apply:function(s){s.replace=true;}});
+  }
+  if(state.stage==='invitro'){
+    moves.push({key:'stage',t:'Ship deflasked instead of in-vitro',
+      d:'You retire the deflasking step beginners lose plants on &mdash; per-plantlet survival jumps.',
+      cost:'more of your labor',apply:function(s){s.stage='deflasked';if(s.plantlets>3)s.plantlets=3;}});
+  } else if(state.stage==='deflasked'){
+    moves.push({key:'stage',t:'Ship acclimated (already in soil)',
+      d:'Near-zero establishment risk for the buyer.',
+      cost:'most labor, usually 1 plant',apply:function(s){s.stage='acclimated';s.plantlets=1;}});
+  }
+  moves.push({key:'price',t:'Cut your price by $15',
+    d:'Price is only 20% of the score, on cost-per-<i>surviving</i>-plant. Watch it barely move.',
+    cost:'&minus;$15 margin',apply:function(s){s.price=Math.max(6,s.price-15);}});
+  return moves;
+}
+
+/* ===========================================================================
+   RENDER
+   =========================================================================== */
+function fmtPct(x){return Math.round(x*100)+'%';}
+function contamCls(c){return c<=0.03?'good':(c<=0.10?'mid':'bad');}
+function deflaskCls(d){return d>=0.85?'good':(d>=0.70?'mid':'bad');}
+
+function renderLedger(){
+  var me=enrich(ME_SELLER,{id:'x',stage:'invitro',plantlets_per_cup:1,price:1,shipping:0});
+  document.getElementById('led-contam').className='v '+contamCls(me.contam);
+  document.getElementById('led-contam').textContent=fmtPct(me.contam);
+  document.getElementById('led-contam-b').textContent='✓ verified by '+ME_SELLER.ledger.shipments+' outcomes';
+  document.getElementById('led-deflask').className='v '+deflaskCls(me.contam_deflask);
+  document.getElementById('led-deflask').textContent=fmtPct(me.contam_deflask);
+  document.getElementById('led-deflask-b').textContent='✓ verified by '+ME_SELLER.ledger.checkins_responded+' check-ins';
+}
+
+var prevRank=null;
+function render(){
+  var r=rankAll(form);
+  var s=r.me._s;
+  // gauge + numbers
+  var pct=Math.round(s.pAtLeastOne*100);
+  var g=document.getElementById('gauge');
+  var col=s.pAtLeastOne>=0.90?'var(--leaf2)':(s.pAtLeastOne>=0.78?'var(--gold)':'var(--warn)');
+  g.style.setProperty('--pct',pct);g.style.setProperty('--col',col);
+  document.getElementById('gauge-pct').textContent=pct+'%';
+  document.getElementById('rank-n').textContent='#'+r.rank;
+  document.getElementById('rank-tot').textContent=r.total;
+  document.getElementById('p-surv').textContent=pct+'%';
+  document.getElementById('p-trust').textContent=r.me._lt;
+  document.getElementById('p-cpl').textContent=Math.round(s.costPerLive);
+  document.getElementById('p-score').textContent=Math.round(r.me._score);
+  // rank move indicator (vs previous state)
+  var rm=document.getElementById('rankmove');
+  if(prevRank===null){rm.className='rankmove flat';rm.textContent='live rank vs '+(r.total-1)+' competing labs';}
+  else if(r.rank<prevRank){rm.className='rankmove up';rm.textContent='▲ up '+(prevRank-r.rank)+' &mdash; that move worked';rm.innerHTML=rm.textContent;}
+  else if(r.rank>prevRank){rm.className='rankmove down';rm.innerHTML='▼ down '+(r.rank-prevRank);}
+  else {rm.className='rankmove flat';rm.textContent='no rank change';}
+  prevRank=r.rank;
+  // leaderboard
+  document.getElementById('board').innerHTML=r.all.map(function(o,i){
+    var name=o._me?'You &middot; '+STAGE_LABEL[o.stage]:o.handle+' &middot; '+STAGE_LABEL[o.stage];
+    return "<div class='brow"+(o._me?' me':'')+"'><span class='n'>"+(i+1)+"</span>"+
+      "<span class='who'>"+name+"</span>"+
+      "<span class='sc'>"+Math.round(o._score)+"</span></div>";
+  }).join('');
+  renderCoach(r);
+}
+
+function renderCoach(cur){
+  var moves=moveCandidates(form);
+  var scored=moves.map(function(m){
+    var s2={};for(var k in form)s2[k]=form[k];
+    m.apply(s2);
+    var r2=rankAll(s2);
+    return {m:m,newRank:r2.rank,gain:cur.rank-r2.rank,scoreGain:r2.me._score-cur.me._score};
+  });
+  scored.sort(function(a,b){return (b.gain-a.gain)||(b.scoreGain-a.scoreGain);});
+  var el=document.getElementById('coach');
+  if(cur.rank===1){
+    el.innerHTML="<div class='done'>🏆 You're projected <b>#1 of "+cur.total+"</b> — a genuinely safe offer, not the cheapest cup. That's how you win here.</div>"+
+      scored.map(coachRow).join('');
+    return;
+  }
+  el.innerHTML=scored.map(function(x,i){return coachRow(x,i===0&&x.gain>0);}).join('');
+}
+function coachRow(x,best){
+  var up=x.gain>0;
+  var deltaTxt=up?('+'+x.gain):(x.gain<0?String(x.gain):'0');
+  var deltaSub=up?'RANKS':(x.gain<0?'RANKS':'NO MOVE');
+  return "<div class='cmove"+(best?' best':'')+"'>"+
+    "<div class='delta "+(up?'up':'flat')+"'>"+deltaTxt+"<small>"+deltaSub+"</small></div>"+
+    "<div class='body'><div class='t'>"+x.m.t+"</div>"+
+    "<div class='d'>"+x.m.d+" <b>&middot; cost: "+x.m.cost+"</b>"+
+    (up?" &middot; → #"+x.newRank+", score +"+x.scoreGain.toFixed(1):
+        " &middot; score "+(x.scoreGain>=0?'+':'')+x.scoreGain.toFixed(1))+"</div></div></div>";
+}
+
+/* ===========================================================================
+   WIRE UP CONTROLS
+   =========================================================================== */
+function seg(id,onpick){
+  var box=document.getElementById(id);
+  box.addEventListener('click',function(e){
+    var b=e.target.closest('button');if(!b)return;
+    Array.prototype.forEach.call(box.children,function(c){c.classList.remove('on');});
+    b.classList.add('on');onpick(b.getAttribute('data-v'));
+  });
+}
+seg('seg-stage',function(v){
+  form.stage=v;
+  // stage upgrades typically reduce plantlet count — nudge sensible defaults but let stepper override
+  if(v==='acclimated'){form.plantlets=1;setPl(1);}
+  else if(v==='deflasked'&&form.plantlets>3){form.plantlets=3;setPl(3);}
+  render();
+});
+
+function setPl(n){document.getElementById('pl-val').textContent=n;}
+document.getElementById('pl-minus').addEventListener('click',function(){form.plantlets=Math.max(1,form.plantlets-1);setPl(form.plantlets);render();});
+document.getElementById('pl-plus').addEventListener('click',function(){form.plantlets=Math.min(8,form.plantlets+1);setPl(form.plantlets);render();});
+
+var price=document.getElementById('price');
+price.addEventListener('input',function(){
+  form.price=+price.value;
+  document.getElementById('price-val').textContent=form.price;
+  document.getElementById('total-val').textContent=form.price+form.shipping;
+  render();
+});
+
+document.getElementById('tg-replace').addEventListener('click',function(){
+  this.classList.toggle('on');form.replace=this.classList.contains('on');render();
+});
+document.getElementById('tg-acclim').addEventListener('click',function(){
+  this.classList.toggle('on');form.acclim=this.classList.contains('on');/* no model effect */
+});
+var pheno=document.getElementById('pheno');
+pheno.addEventListener('input',function(){form.pheno=+pheno.value;document.getElementById('pheno-val').textContent=form.pheno;/* no model effect */});
+
+/* boot */
+renderLedger();
+render();
+</script>
+</body>
+</html>
