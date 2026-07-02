@@ -1,0 +1,90 @@
+[
+  {
+    "id": "fernandflora",
+    "handle": "@fernandflora",
+    "avatar_hue": "#3b6b4a",
+    "rating": 4.9,
+    "sales_count": 312,
+    "badges": ["Verified", "DOA guarantee", "Fast shipper"],
+    "location": "Portland, OR",
+    "response_time": "~2h",
+    "last_active_days": 1
+  },
+  {
+    "id": "budgetjungle",
+    "handle": "@budgetjungle",
+    "avatar_hue": "#6b5a3b",
+    "rating": 4.1,
+    "sales_count": 27,
+    "badges": ["New seller"],
+    "location": "Austin, TX",
+    "response_time": "~1d",
+    "last_active_days": 6
+  },
+  {
+    "id": "leaflab_pnw",
+    "handle": "@leaflab_pnw",
+    "avatar_hue": "#3b5a6b",
+    "rating": 4.7,
+    "sales_count": 128,
+    "badges": ["Verified", "Ships in pot"],
+    "location": "Seattle, WA",
+    "response_time": "~5h",
+    "last_active_days": 2
+  },
+  {
+    "id": "potandsoil",
+    "handle": "@potandsoil",
+    "avatar_hue": "#5a3b6b",
+    "rating": 4.6,
+    "sales_count": 64,
+    "badges": ["DOA guarantee"],
+    "location": "Denver, CO",
+    "response_time": "~8h",
+    "last_active_days": 3
+  },
+  {
+    "id": "greenthumbco",
+    "handle": "@greenthumbco",
+    "avatar_hue": "#2f7a4d",
+    "rating": 4.8,
+    "sales_count": 205,
+    "badges": ["Verified", "Fast shipper"],
+    "location": "San Diego, CA",
+    "response_time": "~3h",
+    "last_active_days": 1
+  },
+  {
+    "id": "urbanroots",
+    "handle": "@urbanroots",
+    "avatar_hue": "#4a6b3b",
+    "rating": 4.4,
+    "sales_count": 48,
+    "badges": ["Verified"],
+    "location": "Chicago, IL",
+    "response_time": "~12h",
+    "last_active_days": 4
+  },
+  {
+    "id": "thefernery",
+    "handle": "@thefernery",
+    "avatar_hue": "#3b6b5a",
+    "rating": 4.85,
+    "sales_count": 176,
+    "badges": ["Verified", "DOA guarantee"],
+    "location": "Asheville, NC",
+    "response_time": "~4h",
+    "last_active_days": 1
+  },
+  {
+    "id": "sprout_supply",
+    "handle": "@sprout_supply",
+    "avatar_hue": "#6b6b3b",
+    "rating": 3.9,
+    "sales_count": 15,
+    "badges": ["New seller"],
+    "location": "Miami, FL",
+    "response_time": "~2d",
+    "last_active_days": 9
+  }
+]

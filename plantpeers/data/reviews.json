@@ -1,0 +1,14 @@
+[
+  { "id": "rev-1", "seller_id": "fernandflora", "buyer_handle": "plantmom_kc", "stars": 5, "plant_id": "monstera-adansonii-med", "text": "Bushiest adansonii I've gotten. Packed like a museum piece.", "date": "2026-06-18" },
+  { "id": "rev-2", "seller_id": "budgetjungle", "buyer_handle": "firsttimer", "stars": 3, "plant_id": "monstera-adansonii-med", "text": "Cheap but arrived a bit droopy. Bounced back eventually.", "date": "2026-05-30" },
+  { "id": "rev-3", "seller_id": "leaflab_pnw", "buyer_handle": "monstera_addict", "stars": 5, "plant_id": "monstera-adansonii-med", "text": "Big and mature, real ceramic pot was a nice touch.", "date": "2026-06-10" },
+  { "id": "rev-4", "seller_id": "potandsoil", "buyer_handle": "greenhouse_jen", "stars": 5, "plant_id": "monstera-adansonii-med", "text": "Solid mid-size plant, fair price, no surprises.", "date": "2026-06-02" },
+  { "id": "rev-5", "seller_id": "greenthumbco", "buyer_handle": "leafit2me", "stars": 5, "plant_id": "monstera-deliciosa-lg", "text": "Shipped same day and it arrived perfect. Fast and reliable.", "date": "2026-06-22" },
+  { "id": "rev-6", "seller_id": "thefernery", "buyer_handle": "fiddlefan", "stars": 5, "plant_id": "calathea-orbifolia-med", "text": "Their humidity-grown calatheas are the only ones that don't crisp on me.", "date": "2026-06-14" },
+  { "id": "rev-7", "seller_id": "urbanroots", "buyer_handle": "citybotanist", "stars": 4, "plant_id": "pothos-golden-sm", "text": "Great variegation for the price, shipping was a touch slow.", "date": "2026-06-05" },
+  { "id": "rev-8", "seller_id": "sprout_supply", "buyer_handle": "budgetgrower", "stars": 3, "plant_id": "snake-laurentii-med", "text": "You get what you pay for — small and a little rough, but alive.", "date": "2026-05-20" },
+  { "id": "rev-9", "seller_id": "fernandflora", "buyer_handle": "rareaquire", "stars": 5, "plant_id": "philo-pink-princess-sm", "text": "The pink is real and stable, exactly as pictured. Worth every penny.", "date": "2026-06-25" },
+  { "id": "rev-10", "seller_id": "thefernery", "buyer_handle": "aroidhoarder", "stars": 5, "plant_id": "philo-pink-princess-sm", "text": "Half-moon leaf was even better in person. Impeccable packing.", "date": "2026-06-19" },
+  { "id": "rev-11", "seller_id": "leaflab_pnw", "buyer_handle": "hangingjungle", "stars": 5, "plant_id": "string-of-pearls-sm", "text": "Fullest string of pearls I've seen shipped intact.", "date": "2026-06-11" },
+  { "id": "rev-12", "seller_id": "greenthumbco", "buyer_handle": "quickgreen", "stars": 5, "plant_id": "pothos-golden-sm", "text": "Ordered morning, shipped by noon. Healthy cuttings.", "date": "2026-06-21" }
+]

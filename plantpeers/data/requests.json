@@ -1,0 +1,10 @@
+[
+  {
+    "id": "req-seed-1",
+    "plant_id": "monstera-adansonii-med",
+    "buyer_id": "you",
+    "notes": { "size": "bushy & full", "budget": "under $60 shipped", "deadline": "by next week" },
+    "status": "open",
+    "created": "2026-07-01"
+  }
+]

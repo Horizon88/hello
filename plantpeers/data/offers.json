@@ -1,0 +1,212 @@
+[
+  {
+    "id": "o-mon-1", "plant_id": "monstera-adansonii-med", "seller_id": "fernandflora",
+    "photo_hue": "#57b479", "photo_leaves": 6,
+    "specs": { "height_in": 15, "leaves": 6, "leaves_note": "no rips", "nodes": 7, "pot": "6 in nursery", "health": "Pristine", "phenotype_match": true, "phenotype_note": "wide-form" },
+    "price": 39, "shipping": 8, "eta_days": 3, "late": false,
+    "message": "Bushiest one on my bench right now, exact wide-form. Ships heat-packed."
+  },
+  {
+    "id": "o-mon-2", "plant_id": "monstera-adansonii-med", "seller_id": "budgetjungle",
+    "photo_hue": "#7f9a5c", "photo_leaves": 2,
+    "specs": { "height_in": 9, "leaves": 2, "leaves_note": "1 yellowing", "nodes": 3, "pot": "4 in", "health": "Minor stress", "phenotype_match": false, "phenotype_note": "unconfirmed" },
+    "price": 24, "shipping": 12, "eta_days": 8, "late": false,
+    "message": "Cheapest you'll find. Small but it'll grow in."
+  },
+  {
+    "id": "o-mon-3", "plant_id": "monstera-adansonii-med", "seller_id": "leaflab_pnw",
+    "photo_hue": "#4fa2b4", "photo_leaves": 7,
+    "specs": { "height_in": 18, "leaves": 7, "leaves_note": "mature", "nodes": 8, "pot": "6 in ceramic", "health": "Excellent", "phenotype_match": true, "phenotype_note": "wide-form" },
+    "price": 47, "shipping": 9, "eta_days": 4, "late": false,
+    "message": "Big mature specimen, ships in the ceramic pot pictured."
+  },
+  {
+    "id": "o-mon-4", "plant_id": "monstera-adansonii-med", "seller_id": "potandsoil",
+    "photo_hue": "#8f6bd0", "photo_leaves": 4,
+    "specs": { "height_in": 12, "leaves": 4, "leaves_note": "healthy", "nodes": 5, "pot": "5 in", "health": "Good", "phenotype_match": true, "phenotype_note": "wide-form" },
+    "price": 34, "shipping": 10, "eta_days": 5, "late": false,
+    "message": "Solid mid-size, fair price, DOA-guaranteed."
+  },
+  {
+    "id": "o-mon-5", "plant_id": "monstera-adansonii-med", "seller_id": "greenthumbco",
+    "photo_hue": "#5fb87e", "photo_leaves": 6,
+    "specs": { "height_in": 16, "leaves": 6, "leaves_note": "full", "nodes": 7, "pot": "6 in nursery", "health": "Excellent", "phenotype_match": true, "phenotype_note": "wide-form" },
+    "price": 42, "shipping": 7, "eta_days": 3, "late": true,
+    "message": "Just freed up a full plant — can ship today."
+  },
+
+  {
+    "id": "o-del-1", "plant_id": "monstera-deliciosa-lg", "seller_id": "thefernery",
+    "photo_hue": "#3f9d63", "photo_leaves": 6,
+    "specs": { "height_in": 28, "leaves": 7, "leaves_note": "3 fenestrated", "nodes": 8, "pot": "8 in", "health": "Excellent", "phenotype_match": true, "phenotype_note": "well-split" },
+    "price": 68, "shipping": 15, "eta_days": 4, "late": false,
+    "message": "Established plant with real splits already showing."
+  },
+  {
+    "id": "o-del-2", "plant_id": "monstera-deliciosa-lg", "seller_id": "sprout_supply",
+    "photo_hue": "#7f9a5c", "photo_leaves": 4,
+    "specs": { "height_in": 16, "leaves": 4, "leaves_note": "no fenestration yet", "nodes": 4, "pot": "6 in", "health": "Minor stress", "phenotype_match": false, "phenotype_note": "juvenile" },
+    "price": 39, "shipping": 18, "eta_days": 9, "late": false,
+    "message": "Young but cheap, will fenestrate as it matures."
+  },
+  {
+    "id": "o-del-3", "plant_id": "monstera-deliciosa-lg", "seller_id": "fernandflora",
+    "photo_hue": "#4ea86b", "photo_leaves": 7,
+    "specs": { "height_in": 32, "leaves": 8, "leaves_note": "5 fenestrated", "nodes": 9, "pot": "8 in nursery", "health": "Pristine", "phenotype_match": true, "phenotype_note": "well-split" },
+    "price": 74, "shipping": 12, "eta_days": 3, "late": false,
+    "message": "Showpiece plant, deeply split mature leaves."
+  },
+  {
+    "id": "o-del-4", "plant_id": "monstera-deliciosa-lg", "seller_id": "greenthumbco",
+    "photo_hue": "#5fb87e", "photo_leaves": 6,
+    "specs": { "height_in": 24, "leaves": 6, "leaves_note": "2 fenestrated", "nodes": 7, "pot": "8 in", "health": "Good", "phenotype_match": true, "phenotype_note": "well-split" },
+    "price": 62, "shipping": 14, "eta_days": 4, "late": true,
+    "message": "Nice branching specimen just came available."
+  },
+
+  {
+    "id": "o-pot-1", "plant_id": "pothos-golden-sm", "seller_id": "urbanroots",
+    "photo_hue": "#8fbf5c", "photo_leaves": 7,
+    "specs": { "height_in": 8, "leaves": 7, "leaves_note": "well variegated", "nodes": 6, "pot": "4 in", "health": "Good", "phenotype_match": true, "phenotype_note": "golden" },
+    "price": 14, "shipping": 6, "eta_days": 5, "late": false,
+    "message": "Full little pothos, nice golden marbling."
+  },
+  {
+    "id": "o-pot-2", "plant_id": "pothos-golden-sm", "seller_id": "budgetjungle",
+    "photo_hue": "#7f9a5c", "photo_leaves": 4,
+    "specs": { "height_in": 5, "leaves": 4, "leaves_note": "reverting, low variegation", "nodes": 3, "pot": "3 in", "health": "Minor stress", "phenotype_match": false, "phenotype_note": "mostly green" },
+    "price": 9, "shipping": 9, "eta_days": 8, "late": false,
+    "message": "Rock-bottom price, small starter."
+  },
+  {
+    "id": "o-pot-3", "plant_id": "pothos-golden-sm", "seller_id": "leaflab_pnw",
+    "photo_hue": "#4fa2b4", "photo_leaves": 8,
+    "specs": { "height_in": 10, "leaves": 9, "leaves_note": "dense", "nodes": 8, "pot": "4 in", "health": "Excellent", "phenotype_match": true, "phenotype_note": "golden" },
+    "price": 18, "shipping": 6, "eta_days": 4, "late": false,
+    "message": "Extra full, bushy top-growth."
+  },
+  {
+    "id": "o-pot-4", "plant_id": "pothos-golden-sm", "seller_id": "greenthumbco",
+    "photo_hue": "#5fb87e", "photo_leaves": 7,
+    "specs": { "height_in": 9, "leaves": 8, "leaves_note": "healthy", "nodes": 7, "pot": "4 in", "health": "Good", "phenotype_match": true, "phenotype_note": "golden" },
+    "price": 16, "shipping": 6, "eta_days": 4, "late": true,
+    "message": "Freshly rooted cutting bundle, ships fast."
+  },
+
+  {
+    "id": "o-snk-1", "plant_id": "snake-laurentii-med", "seller_id": "potandsoil",
+    "photo_hue": "#6fae57", "photo_leaves": 5,
+    "specs": { "height_in": 20, "leaves": 5, "leaves_note": "strong yellow margins", "nodes": 0, "pot": "6 in", "health": "Excellent", "phenotype_match": true, "phenotype_note": "Laurentii" },
+    "price": 32, "shipping": 10, "eta_days": 5, "late": false,
+    "message": "Upright and vivid, classic Laurentii edges."
+  },
+  {
+    "id": "o-snk-2", "plant_id": "snake-laurentii-med", "seller_id": "sprout_supply",
+    "photo_hue": "#7f9a5c", "photo_leaves": 3,
+    "specs": { "height_in": 12, "leaves": 3, "leaves_note": "tips browned", "nodes": 0, "pot": "5 in", "health": "Minor stress", "phenotype_match": false, "phenotype_note": "faint margins" },
+    "price": 19, "shipping": 14, "eta_days": 9, "late": false,
+    "message": "Budget option, a few cosmetic blemishes."
+  },
+  {
+    "id": "o-snk-3", "plant_id": "snake-laurentii-med", "seller_id": "thefernery",
+    "photo_hue": "#3b6b5a", "photo_leaves": 6,
+    "specs": { "height_in": 24, "leaves": 6, "leaves_note": "tall, clean", "nodes": 0, "pot": "6 in", "health": "Pristine", "phenotype_match": true, "phenotype_note": "Laurentii" },
+    "price": 36, "shipping": 9, "eta_days": 4, "late": true,
+    "message": "Tallest cluster I have, flawless margins."
+  },
+
+  {
+    "id": "o-cal-1", "plant_id": "calathea-orbifolia-med", "seller_id": "thefernery",
+    "photo_hue": "#5bb08a", "photo_leaves": 5,
+    "specs": { "height_in": 14, "leaves": 5, "leaves_note": "strong silver banding", "nodes": 0, "pot": "6 in", "health": "Excellent", "phenotype_match": true, "phenotype_note": "broad-band" },
+    "price": 44, "shipping": 12, "eta_days": 4, "late": false,
+    "message": "Grown in high humidity, no crisping."
+  },
+  {
+    "id": "o-cal-2", "plant_id": "calathea-orbifolia-med", "seller_id": "budgetjungle",
+    "photo_hue": "#7f9a5c", "photo_leaves": 3,
+    "specs": { "height_in": 9, "leaves": 3, "leaves_note": "edge crisping", "nodes": 0, "pot": "5 in", "health": "Minor stress", "phenotype_match": false, "phenotype_note": "faded" },
+    "price": 26, "shipping": 13, "eta_days": 9, "late": false,
+    "message": "Cheapest orbifolia around, minor edge damage."
+  },
+  {
+    "id": "o-cal-3", "plant_id": "calathea-orbifolia-med", "seller_id": "fernandflora",
+    "photo_hue": "#4ea86b", "photo_leaves": 6,
+    "specs": { "height_in": 16, "leaves": 6, "leaves_note": "pristine, no crisping", "nodes": 0, "pot": "6 in", "health": "Pristine", "phenotype_match": true, "phenotype_note": "broad-band" },
+    "price": 49, "shipping": 10, "eta_days": 3, "late": true,
+    "message": "Flawless leaves, wrapped for humidity in transit."
+  },
+
+  {
+    "id": "o-flf-1", "plant_id": "fiddle-leaf-fig-lg", "seller_id": "fernandflora",
+    "photo_hue": "#5aa35a", "photo_leaves": 8,
+    "specs": { "height_in": 34, "leaves": 8, "leaves_note": "branched, full canopy", "nodes": 0, "pot": "8 in", "health": "Excellent", "phenotype_match": true, "phenotype_note": "branched tree" },
+    "price": 89, "shipping": 16, "eta_days": 4, "late": false,
+    "message": "Proper branched tree form, acclimated to indoor light."
+  },
+  {
+    "id": "o-flf-2", "plant_id": "fiddle-leaf-fig-lg", "seller_id": "urbanroots",
+    "photo_hue": "#7f9a5c", "photo_leaves": 5,
+    "specs": { "height_in": 22, "leaves": 5, "leaves_note": "2 lower leaves dropping", "nodes": 0, "pot": "7 in", "health": "Minor stress", "phenotype_match": false, "phenotype_note": "single stem" },
+    "price": 54, "shipping": 20, "eta_days": 10, "late": false,
+    "message": "Single-stem, cheaper, recovering from a move."
+  },
+  {
+    "id": "o-flf-3", "plant_id": "fiddle-leaf-fig-lg", "seller_id": "leaflab_pnw",
+    "photo_hue": "#4fa2b4", "photo_leaves": 7,
+    "specs": { "height_in": 30, "leaves": 7, "leaves_note": "healthy, glossy", "nodes": 0, "pot": "8 in", "health": "Good", "phenotype_match": true, "phenotype_note": "branched tree" },
+    "price": 79, "shipping": 15, "eta_days": 5, "late": true,
+    "message": "Tall and glossy, just repotted into an 8 in."
+  },
+
+  {
+    "id": "o-sop-1", "plant_id": "string-of-pearls-sm", "seller_id": "leaflab_pnw",
+    "photo_hue": "#7fc98a", "photo_leaves": 8,
+    "specs": { "height_in": 12, "leaves": 9, "leaves_note": "full strands", "nodes": 0, "pot": "4 in hanging", "health": "Excellent", "phenotype_match": true, "phenotype_note": "dense" },
+    "price": 22, "shipping": 8, "eta_days": 4, "late": false,
+    "message": "Long full strands, ships in a hanging pot."
+  },
+  {
+    "id": "o-sop-2", "plant_id": "string-of-pearls-sm", "seller_id": "sprout_supply",
+    "photo_hue": "#7f9a5c", "photo_leaves": 4,
+    "specs": { "height_in": 5, "leaves": 4, "leaves_note": "sparse, some shriveled", "nodes": 0, "pot": "3 in", "health": "Minor stress", "phenotype_match": false, "phenotype_note": "thin" },
+    "price": 12, "shipping": 11, "eta_days": 9, "late": false,
+    "message": "Budget starter, a few beads shriveled."
+  },
+  {
+    "id": "o-sop-3", "plant_id": "string-of-pearls-sm", "seller_id": "greenthumbco",
+    "photo_hue": "#5fb87e", "photo_leaves": 8,
+    "specs": { "height_in": 10, "leaves": 8, "leaves_note": "healthy strands", "nodes": 0, "pot": "4 in", "health": "Good", "phenotype_match": true, "phenotype_note": "dense" },
+    "price": 20, "shipping": 8, "eta_days": 4, "late": true,
+    "message": "Plump beads, carefully coiled for shipping."
+  },
+
+  {
+    "id": "o-ppp-1", "plant_id": "philo-pink-princess-sm", "seller_id": "fernandflora",
+    "photo_hue": "#c07aa8", "photo_leaves": 4,
+    "specs": { "height_in": 10, "leaves": 4, "leaves_note": "stable pink on 3 leaves", "nodes": 5, "pot": "4 in", "health": "Pristine", "phenotype_match": true, "phenotype_note": "high variegation" },
+    "price": 145, "shipping": 14, "eta_days": 3, "late": false,
+    "message": "Strong stable pink, not a reverting cutting."
+  },
+  {
+    "id": "o-ppp-2", "plant_id": "philo-pink-princess-sm", "seller_id": "budgetjungle",
+    "photo_hue": "#9a7f8c", "photo_leaves": 3,
+    "specs": { "height_in": 7, "leaves": 3, "leaves_note": "mostly green, minimal pink", "nodes": 3, "pot": "3 in", "health": "Minor stress", "phenotype_match": false, "phenotype_note": "low variegation" },
+    "price": 79, "shipping": 16, "eta_days": 9, "late": false,
+    "message": "Cheapest PPP listed, variegation still coming in."
+  },
+  {
+    "id": "o-ppp-3", "plant_id": "philo-pink-princess-sm", "seller_id": "thefernery",
+    "photo_hue": "#c98ab0", "photo_leaves": 4,
+    "specs": { "height_in": 9, "leaves": 4, "leaves_note": "half-moon pink leaf", "nodes": 4, "pot": "4 in", "health": "Excellent", "phenotype_match": true, "phenotype_note": "high variegation" },
+    "price": 129, "shipping": 12, "eta_days": 4, "late": false,
+    "message": "Includes a dramatic half-moon leaf."
+  },
+  {
+    "id": "o-ppp-4", "plant_id": "philo-pink-princess-sm", "seller_id": "greenthumbco",
+    "photo_hue": "#cf93b6", "photo_leaves": 4,
+    "specs": { "height_in": 9, "leaves": 4, "leaves_note": "marbled pink", "nodes": 5, "pot": "4 in", "health": "Excellent", "phenotype_match": true, "phenotype_note": "high variegation" },
+    "price": 138, "shipping": 11, "eta_days": 3, "late": true,
+    "message": "Beautifully marbled, verified stable variegation."
+  }
+]
