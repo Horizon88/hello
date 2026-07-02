@@ -515,11 +515,15 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- THE MODEL — single source of truth, shared with scripts/validate_data.py (run
+     through node). Loaded before the app script; exposes window.PPModel. -->
+<script src="model.js"></script>
 <script>
 /* ============================================================
    PlantPeers MVP app logic — tissue culture (L2).
-   Data comes from data/*.json (fetched below). Survival model & framing
-   promoted from experiments/tc_compare_spike.html.
+   Data comes from data/*.json (fetched below). The survival/trust/rank MODEL is
+   NOT defined here — it lives in model.js (window.PPModel) so the app and the
+   data validator score offers with the exact same code. This file is UI glue.
    ============================================================ */
 
 var DB = { plants:[], sellers:[], offers:[], reviews:[], requests:[] };
@@ -529,7 +533,6 @@ var skill = 'some';        // buyer TC experience: beg | some | pro (set from th
 var currentPlant = null;   // plant being requested
 var currentRequest = null; // { request, offers:[enriched], plant, late, _lateAdded }
 
-var SKILL = { beg:0.65, some:0.85, pro:1.0 };
 var SKILL_LABEL = { beg:'a beginner', some:'someone with some experience', pro:'a pro with a flow hood' };
 var STAGE_LABEL = { invitro:'In-vitro cup', deflasked:'Deflasked & rooted', acclimated:'Acclimated (in soil)' };
 
@@ -619,121 +622,16 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 function pct(x){ return Math.round(x*100)+'%'; }
 
 /* ============================================================
-   OUTCOME-LEDGER TRUST — ported from experiments/verified_trust_spike.html.
-   The two decisive ranking inputs used to be self-reported. They are now
-   GROUNDED in a witnessed outcome ledger (seller.ledger) and confidence-
-   adjusted so an unproven optimistic claim can't win.
-
-   betaMean(): Beta posterior mean shrunk toward a cautious platform prior.
-   With few outcomes the estimate stays near the prior (a brand-new lab's low
-   claim is discounted, not trusted); with many outcomes the ledger dominates
-   and the claim is ignored entirely. Priors hand-picked, per the spike.
-     contamination = honored_claims / shipments        (real refunds the
-                     platform watched leave the lab — can't be faked down)
-     establishment = establishment_confirmed / checkins_responded
-                     (escrow-gated 8-week "did it live?" check-ins)
+   THE MODEL lives in model.js (window.PPModel) — the single source of truth for
+   the survival/trust/rank math and the anti-gaming #1-slot rule, shared verbatim
+   with scripts/validate_data.py (run through node). Nothing below re-implements
+   it; these aliases just name the pieces the UI glue calls. survival/labTrust/
+   score/enforceVerifiedFirst are reached through recompute(); recompute takes the
+   buyer skill explicitly (no hidden global) so the caller decides which skill to
+   rank at. The ledger-shrinkage priors + betaMean/confidenceTier are consumed
+   inside PPModel.enrich().
    ============================================================ */
-var CONTAM_PRIOR = 0.10, CONTAM_STRENGTH = 25;   // assume ~10% contamination until proven cleaner
-var DEFLASK_PRIOR = 0.65, DEFLASK_STRENGTH = 20; // assume ~65% establish until proven better
-function betaMean(k, n, priorRate, strength){
-  var a0 = priorRate*strength, b0 = (1-priorRate)*strength;
-  return (a0 + k) / (a0 + b0 + n);
-}
-/* Is a lab's ledger deep enough to trust over its claim? Thresholds per spike. */
-function confidenceTier(shipments, checkins){
-  if(shipments>=60 && checkins>=40) return 'verified';
-  if(shipments>=20) return 'thin';
-  return 'unverified';
-}
-
-/* ============================================================
-   THE SURVIVAL MODEL — the whole TC thesis, ported from the spike.
-   Translates lab (seller) + offer + buyer skill into "odds you end up
-   with a living plant." Everything is computed from the data fields.
-
-   TODO(real): the load-bearing inputs (o.contam, o.contam_deflask) are now
-   grounded in the witnessed OUTCOME LEDGER (see betaMean/enrich above), not
-   the lab's self-report — a lab can no longer win on an unproven low claim.
-   The remaining real-world risk is BEHAVIORAL, upstream of this math: whether
-   check-ins actually get filed and replacement claims actually get filed +
-   honored. If buyers don't respond to the 8-week "did it live?" prompt, or a
-   lab quietly discourages/denies claims, the ledger under-counts failures.
-   Escrow-gating check-ins and cross-checking honored_claims against dispute/
-   refund records is the next real-data step (flagged for Maintainer). The
-   scoring coefficients below are still hand-tuned for the demo, not fit.
-   ============================================================ */
-function survival(o){
-  var sk = SKILL[skill];
-  // per-plantlet survival depends on STAGE (later stage = risk already retired by the lab)
-  var perPlant;
-  // Later stages retire risk, but the LAB's establishment ledger (contam_deflask)
-  // still shows through: a 47%-establishment lab and a 95% one differ even when
-  // both ship deflasked/acclimated. Floor + ledger-scaled term (invitro unchanged).
-  if(o.stage==='invitro')        perPlant = o.contam_deflask * sk;      // buyer must deflask; skill matters a lot
-  else if(o.stage==='deflasked') perPlant = 0.80 + 0.18*o.contam_deflask; // rooted, but lab establishment still matters
-  else                            perPlant = 0.90 + 0.09*o.contam_deflask; // acclimated: mostly retired, ledger nudges
-  // cup-level contamination. A replacement guarantee makes the buyer whole,
-  // so effective loss is small; without one, a contaminated cup is a total loss.
-  var effContam = o.replace ? o.contam*0.15 : o.contam;
-  // Acclimated plants are already growing in soil — the cup-contamination risk is
-  // RETIRED, so pClean doesn't apply. Cup stages (invitro/deflasked) still carry it.
-  var pClean = (o.stage==='acclimated') ? 1 : (1 - effContam);
-  var n = o.plantlets;
-  var pAtLeastOne = pClean * (1 - Math.pow(1-perPlant, n)); // P(cup usable) * P(>=1 plantlet survives)
-  var expLive = pClean * n * perPlant;                      // expected surviving plantlets
-  var total = o.price + o.shipping;
-  var costPerLive = expLive>0 ? total/expLive : 999;
-  return { perPlant:perPlant, pClean:pClean, pAtLeastOne:pAtLeastOne, expLive:expLive,
-           costPerLive:costPerLive, total:total, moneyAtRisk: o.replace? 0 : total };
-}
-
-/* lab-trust score (0-100): TC-native reputation. Contamination + deflask track record
-   dominate; replacement guarantee, certs, rating & volume fold in. Ported from the spike. */
-function labTrust(o){
-  var contamScore = Math.max(0, 1 - o.contam/0.25);   // 0% contam -> 1, 25%+ -> 0
-  var deflaskScore = o.contam_deflask;                 // lab's reported deflask success
-  var ratingScore = (o.rating||0)/5;
-  var volScore = Math.min(1, Math.log10((o.sales||0)+1)/Math.log10(500));
-  var certScore = Math.min(1, (o.certsCount||0)/2);
-  // Honor rate (honored/filed): a lab that DENIES filed contamination claims
-  // scores low here and loses trust. No claims filed yet (or no ledger) = neutral.
-  var honorScore = (o.honorRate!=null) ? o.honorRate : 0.85;
-  var raw = 0.30*contamScore + 0.18*deflaskScore + 0.12*ratingScore
-          + 0.08*volScore + 0.10*certScore + 0.10*(o.replace?1:0) + 0.12*honorScore;
-  return Math.round(raw*100);
-}
-
-/* composite RANK score. survival(0.45) dominates; lab-trust(0.35) next; value(0.20) is
-   scored on COST-PER-EXPECTED-LIVE-PLANT, not sticker — so a cheap-but-doomed cup can't win. */
-function score(o){
-  var s = o._s;
-  var survScore = s.pAtLeastOne*100;
-  // Clamp to [0,100] so value can't exceed its 20% weight (a very cheap cup used
-  // to push priceScore >100 and inflate the score past the card bar, which caps it).
-  var priceScore = Math.max(0, Math.min(100, 100 - (s.costPerLive-15)*1.5));
-  return 0.45*survScore + 0.35*o._lt + 0.20*priceScore;
-}
-
-/* recompute survival/trust/score for the current skill, then sort by score desc */
-function recompute(arr){
-  arr.forEach(function(o){ o._s=survival(o); o._lt=labTrust(o); });
-  arr.forEach(function(o){ o._score=score(o); });
-  arr.sort(function(a,b){ return b._score-a._score; });
-  enforceVerifiedFirst(arr);
-}
-/* An offer may hold the #1 slot only if it has witnessed outcomes (a real ledger,
-   tier != unverified). A no-ledger / churned lab is 'unverified'. */
-function rankEligibleForTop(o){ return o.confidence!=='unverified'; }
-/* Anti-gaming hard rule: a no/thin-ledger (unverified) offer cannot rank first
-   while any ledger-backed offer exists. Stops the churn attack — re-register,
-   drop the ledger, claim 0%/100% — from ever topping the board. arr is already
-   score-sorted, so the first eligible offer found is the best-scoring one. */
-function enforceVerifiedFirst(arr){
-  if(arr.length<2 || rankEligibleForTop(arr[0])) return;
-  for(var i=1;i<arr.length;i++){
-    if(rankEligibleForTop(arr[i])){ arr.unshift(arr.splice(i,1)[0]); return; }
-  }
-}
+var recompute = PPModel.recompute;   // recompute(arr, skill): sets _s/_lt/_score, sorts, applies #1-slot rule
 
 /* Trade-off copy vs the top pick — reframes "cheaper" into TC-specific concessions. */
 function tradeoff(o, top){
@@ -885,66 +783,23 @@ function buildRequestOffers(req, plant){
 function enrich(raw){
   var o=JSON.parse(JSON.stringify(raw));
   var s=sellerById[o.seller_id]||{};
+  // The model-relevant fields — contam/contam_deflask (ledger-shrunk), confidence,
+  // honorRate, replace (with per-offer override), rating/sales/certsCount and the
+  // ledger-display numbers — are computed ONCE, in the shared model, so the buyer
+  // side, lab side and validator can never diverge.
+  var m=PPModel.enrich(raw, s);
+  for(var k in m){ o[k]=m[k]; }
+  // ---- UI-only augmentation (NOT read by the ranking model) ----
   o.handle=s.handle||('@'+o.seller_id);
-  o.rating=s.rating||0; o.sales=s.sales_count||0; o.badges=s.badges||[]; o.avatar_hue=s.avatar_hue||'#3b6b4a';
+  o.badges=s.badges||[]; o.avatar_hue=s.avatar_hue||'#3b6b4a';
   o.location=s.location||'';
-  // lab (seller) TC fields folded onto the offer for the model.
-  // The two decisive inputs are now the LEDGER-derived effective values
-  // (Beta-shrunk toward a cautious prior), not the lab's self-report.
-  o.contamClaimed  = (s.contamination_rate_claimed!=null)? s.contamination_rate_claimed : 0.15;
-  o.deflaskClaimed = (s.deflask_success_rate_claimed!=null)? s.deflask_success_rate_claimed : 0.6;
-  var lg = s.ledger;
-  if(lg && lg.shipments>0 && lg.checkins_responded>0){
-    o.hasLedger = true;
-    o.shipments = lg.shipments;
-    o.checkins = lg.checkins_responded;
-    // Witnessed contamination is derived from FILED claims (every buyer-reported
-    // bad cup the platform saw), NOT honored ones — so a lab can't look cleaner
-    // by DENYING claims. Fall back to honored_claims only for legacy rows.
-    var filed = (lg.filed_claims!=null) ? lg.filed_claims : lg.honored_claims;
-    o.filedClaims = filed; o.honoredClaims = lg.honored_claims;
-    o.contamVerified  = filed / lg.shipments;                          // raw witnessed rate
-    o.deflaskVerified = lg.establishment_confirmed / lg.checkins_responded;
-    // Honor rate is a SEPARATE trust signal: of the claims buyers filed, how many
-    // the lab actually honored. Denying filed claims drops this and HURTS trust.
-    o.honorRate = filed>0 ? lg.honored_claims/filed : 1;
-    o.confidence = confidenceTier(lg.shipments, lg.checkins_responded);
-    // effective values actually fed to survival()/labTrust(): ledger shrunk to prior.
-    o.contam         = betaMean(filed, lg.shipments, CONTAM_PRIOR, CONTAM_STRENGTH);
-    o.contam_deflask = betaMean(lg.establishment_confirmed, lg.checkins_responded, DEFLASK_PRIOR, DEFLASK_STRENGTH);
-    if(o.confidence==='unverified'){
-      // Ledger too thin to believe: pin to the cautious prior. An essentially
-      // unproven claim can never look BETTER than the platform prior.
-      o.contam = Math.max(CONTAM_PRIOR, o.contam);
-      o.contam_deflask = Math.min(DEFLASK_PRIOR, o.contam_deflask);
-    }
-  } else {
-    // No ledger at all (e.g. a churned / re-registered lab). DO NOT trust the
-    // claim: pin to the cautious prior so dropping the ledger and claiming
-    // 0%/100% buys nothing. Such an offer is also barred from the #1 slot
-    // (see enforceVerifiedFirst) until it has witnessed outcomes.
-    o.hasLedger = false; o.confidence = 'unverified';
-    o.contam = Math.max(CONTAM_PRIOR, o.contamClaimed);
-    o.contam_deflask = Math.min(DEFLASK_PRIOR, o.deflaskClaimed);
-    o.contamVerified = null; o.deflaskVerified = null;
-    o.honorRate = null; o.filedClaims = 0; o.honoredClaims = 0;
-  }
-  o.certsCount = (s.certs? s.certs.length : 0);
-  // Replacement guarantee: defaults to the SELLER's standing policy (buyer-side,
-  // unchanged). A lab-built offer may carry an explicit per-offer override
-  // (replacement_override) set from the lab console's guarantee toggle — the one
-  // field the offer form legitimately controls. Existing seed offers have no
-  // override, so buyer-side behavior is byte-for-byte identical to before.
+  // Replacement copy is display-only; model already set o.replace (incl. override).
   if(raw.replacement_override!=null){
-    o.replace = !!raw.replacement_override;
     o.replaceText = o.replace ? 'Free replacement if a cup arrives contaminated'
                               : 'No replacement on this offer';
   } else {
-    o.replace = !!(s.replacement_policy && s.replacement_policy.covers);
     o.replaceText = (s.replacement_policy && s.replacement_policy.text) || 'No replacement policy stated';
   }
-  // offer TC fields
-  o.plantlets = o.plantlets_per_cup || 1;
   o.stageLabel = STAGE_LABEL[o.stage] || o.stage;
   var rv=(reviewsBySeller[o.seller_id]||[]);
   var match=rv.filter(function(r){return r.plant_id===o.plant_id;})[0] || rv[0] || null;
@@ -1098,7 +953,7 @@ function card(o, isPick, top){
 
 function renderFeed(){
   var cr=currentRequest; if(!cr) return;
-  recompute(cr.offers);
+  recompute(cr.offers, skill); // buyer's live skill toggle re-ranks their own view
   var feed=document.getElementById('feed');
   if(!cr.offers.length){
     feed.innerHTML="<div class='empty'>No labs have offered on this variety yet. Hang tight — requests usually draw offers within a day.</div>";
@@ -1478,18 +1333,30 @@ function labRawOffer(f, id){
 function buildLabOffer(f){ var o=enrich(labRawOffer(f)); o._me=true; return o; }
 
 /* competitors = every current offer on this plant EXCEPT this lab's own
-   (you're replacing your bid, not competing with yourself). */
+   (you're replacing your bid, not competing with yourself).
+   #7 seam: `late` offers are held back from the buyer's INITIAL compare view for
+   the "new offer arrived" beat, so the projection ranks against the SAME set the
+   buyer is looking at right now — late offers excluded on BOTH sides. When a late
+   offer lands, the buyer re-ranks live; the projection never claims a rank the
+   buyer isn't currently seeing. */
 function labCompetitorPool(){
   return DB.offers.filter(function(o){
-    return o.plant_id===LAB.request.plant_id && o.seller_id!==LAB.sellerId;
+    return o.plant_id===LAB.request.plant_id && o.seller_id!==LAB.sellerId && !o.late;
   }).map(enrich);
 }
-/* THE projected rank — uses the shared recompute(), so it is the identical
-   computation the buyer's compare view will run. */
+/* #7: freeze the projection to the REQUEST's own stated skill — never a live
+   global toggle the buyer could flip elsewhere. This is the exact skill the
+   buyer's rank for this request is computed at, so the two agree. */
+function labFrozenSkill(){
+  return (LAB.request && LAB.request.notes && LAB.request.notes.skill) || 'some';
+}
+/* THE projected rank — uses the shared recompute() at the frozen request skill,
+   so it is the identical computation the buyer's compare view runs for the same
+   (frozen) skill over the same (late-excluded) pool. */
 function projectLabRank(f){
   var me=buildLabOffer(f);
   var all=labCompetitorPool().concat([me]);
-  recompute(all); // shared: sorts by score desc, sets _s/_lt/_score
+  recompute(all, labFrozenSkill()); // shared model, frozen skill: sorts + #1-slot rule
   return { all:all, me:me, rank:all.indexOf(me)+1, total:all.length };
 }
 
