@@ -144,11 +144,13 @@ if __name__ == "__main__":
         deduped.append(r)
     print(f"\ntotal unique cards: {len(deduped)}", file=sys.stderr)
 
-    # Phase 2: fetch coords (only for cards we don't already have)
+    # Phase 2: fetch coords. Only reuse cached coord if it's REAL (not the
+    # judet-centroid fallback — otherwise we'd never actually fetch).
     for i, r in enumerate(deduped):
-        if r["id"] in existing and existing[r["id"]].get("lat"):
-            r["lat"] = existing[r["id"]]["lat"]
-            r["lng"] = existing[r["id"]]["lng"]
+        cached = existing.get(r["id"])
+        if cached and cached.get("lat") and abs(cached["lat"] - r["fb_lat"]) > 0.005:
+            r["lat"] = cached["lat"]
+            r["lng"] = cached["lng"]
             continue
         if not r["url"]:
             r["lat"] = r["fb_lat"]; r["lng"] = r["fb_lng"]
