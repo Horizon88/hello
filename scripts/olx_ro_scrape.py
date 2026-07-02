@@ -106,7 +106,7 @@ if __name__ == "__main__":
     # Phase 1: collect all cards
     all_cards = []
     for label, slug, lat0, lng0 in JUDETE:
-        for page in (1, 2):
+        for page in range(1, 9):
             url = f"https://www.olx.ro/imobiliare/terenuri/{slug}/?page={page}" if page > 1 else f"https://www.olx.ro/imobiliare/terenuri/{slug}/"
             body = via_relay(url, timeout=35)
             if not body or len(body) < 30000: continue

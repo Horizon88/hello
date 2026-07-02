@@ -96,6 +96,41 @@ async function renderFetch(target, env, waitMs, waitUntil) {
     const page = await browser.newPage();
     await page.setUserAgent(UA);
     await page.setViewport({ width: 1280, height: 1000 });
+    // Inline stealth: patch the ~10 most common headless-detection signals so
+    // Willhaben/Immoscout/Immobiliare hydrate their listings. puppeteer-extra's
+    // stealth plugin doesn't compose with @cloudflare/puppeteer so we inline.
+    await page.evaluateOnNewDocument(() => {
+      // 1. navigator.webdriver false
+      Object.defineProperty(navigator, 'webdriver', { get: () => false });
+      // 2. window.chrome exists (present in real Chrome, absent in headless)
+      window.chrome = window.chrome || { runtime: {}, loadTimes: () => ({}), csi: () => ({}) };
+      // 3. Real permissions.query
+      const origQuery = navigator.permissions && navigator.permissions.query;
+      if (origQuery) {
+        navigator.permissions.query = (p) =>
+          p.name === 'notifications'
+            ? Promise.resolve({ state: Notification.permission })
+            : origQuery(p);
+      }
+      // 4. plugins non-empty (headless has 0)
+      Object.defineProperty(navigator, 'plugins', {
+        get: () => [1,2,3,4,5].map(i => ({ name: `Plugin ${i}` })),
+      });
+      // 5. languages non-empty
+      Object.defineProperty(navigator, 'languages', { get: () => ['en-US','en'] });
+      // 6. platform mac-ish (matches UA)
+      Object.defineProperty(navigator, 'platform', { get: () => 'MacIntel' });
+      // 7. WebGL vendor/renderer look like real Chrome (not SwiftShader)
+      const getParam = WebGLRenderingContext.prototype.getParameter;
+      WebGLRenderingContext.prototype.getParameter = function(p) {
+        if (p === 37445) return 'Intel Inc.';        // UNMASKED_VENDOR
+        if (p === 37446) return 'Intel Iris OpenGL'; // UNMASKED_RENDERER
+        return getParam.call(this, p);
+      };
+      // 8. deviceMemory / hardwareConcurrency realistic
+      Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 });
+      Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8 });
+    });
     // networkidle0 is strict and times out on ad-heavy sites; default to
     // domcontentloaded which is enough for scraping the initial listing HTML.
     const wu = waitUntil || 'domcontentloaded';

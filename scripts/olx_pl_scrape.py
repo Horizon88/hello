@@ -116,7 +116,7 @@ if __name__ == "__main__":
 
     all_cards = []
     for label, slug, lat0, lng0 in WOJ:
-        for page in (1, 2, 3):
+        for page in range(1, 9):
             sep = "&" if "?" in slug else "?"
             url = f"https://www.olx.pl/nieruchomosci/dzialki/{slug}/{sep}page={page}" if page > 1 else f"https://www.olx.pl/nieruchomosci/dzialki/{slug}/"
             body = via_relay(url, timeout=35)
