@@ -630,7 +630,19 @@ function avSVG(hex){
   return svgURI(s);
 }
 function starStr(r){var f=Math.round(r);return '★★★★★'.slice(0,f)+'☆☆☆☆☆'.slice(0,5-f);}
-function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+/* Validate a plant hero_img before it lands inside style='background-image:url(...)'.
+   Only http(s) and data:image/ URLs are allowed; anything else (incl. javascript:,
+   attribute-breakout payloads) falls back to the safe computed leafSVG placeholder.
+   Even for allowed URLs, encode the chars that could close url() or the single-quoted
+   style attribute early, so the value is inert everywhere it's embedded. */
+function heroImg(p){
+  var h=p.hero_img;
+  if(typeof h==='string' && /^(https?:|data:image\/)/.test(h)){
+    return h.replace(/'/g,'%27').replace(/"/g,'%22').replace(/\(/g,'%28').replace(/\)/g,'%29');
+  }
+  return leafSVG(p.hero_hue||'#4ea86b', p.hero_leaves||5);
+}
 function pct(x){ return Math.round(x*100)+'%'; }
 
 /* ============================================================
@@ -705,7 +717,7 @@ var activeFilter='All';
 function renderFilters(){
   var levels=['All'].concat(uniq(DB.plants.map(function(p){return p.care_level;})));
   document.getElementById('filters').innerHTML=levels.map(function(l){
-    return "<button class='chip"+(l===activeFilter?' on':'')+"' onclick=\"setFilter('"+esc(l)+"')\">"+esc(l)+(l==='All'?'':' to deflask')+"</button>";
+    return "<button class='chip"+(l===activeFilter?' on':'')+"' data-filter='"+esc(l)+"'>"+esc(l)+(l==='All'?'':' to deflask')+"</button>";
   }).join('');
 }
 function setFilter(l){ activeFilter=l; renderFilters(); renderCatalog(); }
@@ -732,8 +744,8 @@ function renderCatalog(){
   }
   if(!list.length){ el.innerHTML="<div class='empty' style='grid-column:1/3'>No varieties match “"+esc(q)+"”.</div>"; return; }
   el.innerHTML=list.map(function(p){
-    var img=p.hero_img||leafSVG(p.hero_hue||'#4ea86b', p.hero_leaves||5);
-    return "<div class='pcard' onclick=\"openPlant('"+p.id+"')\">"+
+    var img=heroImg(p);
+    return "<div class='pcard' data-plant-id='"+esc(p.id)+"'>"+
       "<div class='ph' style='background-image:url("+img+")'></div>"+
       "<div class='pb'><div class='cn'>"+esc(p.common_name)+"</div>"+
       "<div class='ln'>"+esc(p.latin_name)+"</div>"+
@@ -749,7 +761,7 @@ function openPlant(id){
   currentPlant=DB.plants.filter(function(p){return p.id===id;})[0];
   if(!currentPlant) return;
   var p=currentPlant;
-  var img=p.hero_img||leafSVG(p.hero_hue||'#4ea86b', p.hero_leaves||5);
+  var img=heroImg(p);
   document.getElementById('req-detail').innerHTML=
     "<div class='hero' style='background-image:url("+img+")'></div>"+
     "<div class='detail'><h2>"+esc(p.common_name)+"</h2>"+
@@ -885,7 +897,7 @@ function needsFitLine(o){
   if(o._overBudget)
     bits.push("<span class='nfit over'>⚠ $"+o._overBudgetBy+" over your budget</span>");
   if(o._lateEta)
-    bits.push("<span class='nfit late'>⏱ ~"+o.eta_days+"d — past your deadline</span>");
+    bits.push("<span class='nfit late'>⏱ ~"+Number(o.eta_days)+"d — past your deadline</span>");
   return bits.length ? "<div class='needsfit'>"+bits.join('')+"</div>" : "";
 }
 
@@ -959,7 +971,7 @@ function card(o, isPick, top){
     ['Medium', sp.medium||'—'],
     ['Plantlet size', sp.plantlet_size||'—'],
     ['Acclimation help', sp.acclimation_support? 'Included' : 'None'],
-    ['Ships', o.eta_days+'-day · $'+o.shipping]
+    ['Ships', Number(o.eta_days)+'-day · $'+Number(o.shipping)]
   ];
   return "<div class='card "+(isPick?'pick':'chall')+(o._new?' justin':'')+"'>"+
     (isPick?"<div class='pickbanner'>🏆 BEST ODDS <span class='why'>most likely to live</span></div>":"")+
@@ -971,7 +983,7 @@ function card(o, isPick, top){
       forecastBlock(o)+
       "<div class='seller'><div class='av' style='background-image:url("+avSVG(o.avatar_hue)+")'></div>"+
         "<div><div class='h'>"+esc(o.handle)+"</div>"+
-        "<div class='meta'><span class='stars'>"+starStr(o.rating)+"</span> "+o.rating+" · "+o.sales+" sales"+(o.location?" · "+esc(o.location):"")+"</div></div></div>"+
+        "<div class='meta'><span class='stars'>"+starStr(o.rating)+"</span> "+Number(o.rating)+" · "+Number(o.sales)+" sales"+(o.location?" · "+esc(o.location):"")+"</div></div></div>"+
       "<div class='badges'>"+o.badges.map(function(b){var g=(b.indexOf('guarantee')>-1||b.indexOf('Contam')>-1||b.indexOf('certified')>-1);return "<span class='badge "+(g?'guar':'')+"'>"+esc(b)+"</span>";}).join('')+"</div>"+
       labScorecard(o)+
       "<div class='value'><div class='top'><span>Overall rank score</span><b>"+Math.round(o._score)+"/100</b></div>"+
@@ -981,7 +993,7 @@ function card(o, isPick, top){
       "<div class='tradeoff "+(t.good?'good':'')+"'>"+(t.good?'✔':'⚖')+"<div>"+t.html+"</div></div>"+
       (showSpecs?"<div class='specs'>"+specRows.map(function(r){return "<div><span class='k'>"+r[0]+"</span> <span style='color:var(--ink);text-align:right'>"+esc(r[1])+"</span></div>";}).join('')+"</div>":"")+
       (o.review?"<div class='reviewq'>“"+esc(o.review.text)+"” <b>— "+esc(o.review.buyer_handle)+"</b></div>":"")+
-      "<button class='pickbtn' onclick=\"award('"+o.id+"')\">"+(isPick?'Award this lab ✓':'Pick '+esc(o.handle))+"</button>"+
+      "<button class='pickbtn' data-offer-id='"+esc(o.id)+"'>"+(isPick?'Award this lab ✓':'Pick '+esc(o.handle))+"</button>"+
     "</div></div>";
 }
 
@@ -1052,7 +1064,7 @@ function award(id){
   renderMetrics();
 
   document.getElementById('sh_h').textContent='Awarded to '+o.handle;
-  document.getElementById('sh_p').innerHTML='Your '+esc(cr.plant.common_name)+' is on the way — <b>$'+(o.price+o.shipping)+' shipped</b>, '+esc(o.stageLabel.toLowerCase())+', arriving in ~'+o.eta_days+' days.';
+  document.getElementById('sh_p').innerHTML='Your '+esc(cr.plant.common_name)+' is on the way — <b>$'+(o.price+o.shipping)+' shipped</b>, '+esc(o.stageLabel.toLowerCase())+', arriving in ~'+Number(o.eta_days)+' days.';
 
   var why=[];
   why.push(Math.round(s.pAtLeastOne*100)+'% odds of ending up with a living plant');
@@ -1064,7 +1076,7 @@ function award(id){
   if(o._overBudget)
     why.push('$'+o._overBudgetBy+' over your stated budget — flagged, ranked on merit not hidden');
   if(o._lateEta)
-    why.push('Ships in ~'+o.eta_days+' days — past your requested deadline');
+    why.push('Ships in ~'+Number(o.eta_days)+' days — past your requested deadline');
   why.push(o.stageLabel+' · '+pct(o.contam)+' lab contamination rate');
   why.push(o.replace? o.replaceText : 'No replacement — $'+(o.price+o.shipping)+' at risk');
   document.getElementById('sh_why').innerHTML=why.map(function(w){return '<li>'+esc(w)+'</li>';}).join('');
@@ -1200,11 +1212,11 @@ function renderLabPicker(){
     // reuse enrich() purely to surface this lab's ledger-derived numbers
     var o=enrich({ seller_id:s.id, plant_id:'_', stage:'invitro', plantlets_per_cup:1, price:0, shipping:0 });
     var tier = o.confidence==='unverified' ? 'unverified' : (o.confidence==='thin'?'thin ledger':'verified');
-    return "<button class='labpick' onclick=\"enterLab('"+s.id+"')\">"+
+    return "<button class='labpick' data-seller-id='"+esc(s.id)+"'>"+
       "<div class='av' style='background-image:url("+avSVG(s.avatar_hue)+")'></div>"+
       "<div class='lp-body'><div class='lp-h'>"+esc(s.handle)+"</div>"+
-      "<div class='lp-m'>"+esc(s.location)+" · ★ "+s.rating+" · "+s.sales_count+" sales</div>"+
-      "<div class='lp-led'>ledger: "+pct(o.contam)+" contamination · "+(o.shipments||0)+" shipments · <b>"+esc(tier)+"</b></div></div>"+
+      "<div class='lp-m'>"+esc(s.location)+" · ★ "+Number(s.rating)+" · "+Number(s.sales_count)+" sales</div>"+
+      "<div class='lp-led'>ledger: "+pct(o.contam)+" contamination · "+(Number(o.shipments)||0)+" shipments · <b>"+esc(tier)+"</b></div></div>"+
       "<div class='lp-go'>▸</div></button>";
   }).join('');
 }
@@ -1229,7 +1241,7 @@ function renderLabRequests(){
     var pool=DB.offers.filter(function(x){return x.plant_id===r.plant_id;});
     var wants=[n.target, n.skill?('buyer: '+skillWord(n.skill)):'', n.budget, n.deadline]
       .filter(Boolean).map(function(w){return "<span>"+esc(w)+"</span>";}).join('');
-    return "<button class='labreq' onclick=\"openLabOffer('"+esc(r.id)+"')\">"+
+    return "<button class='labreq' data-request-id='"+esc(r.id)+"'>"+
       "<div class='lr-h'>"+esc(p.common_name||r.plant_id)+"</div>"+
       "<div class='lr-l'>"+esc(p.latin_name||'')+" · tissue-culture plantlets</div>"+
       "<div class='lr-want'>"+wants+"</div>"+
@@ -1283,7 +1295,7 @@ function renderLabLedger(){
     "<div class='l-ledger'>"+
       "<div class='who'>"+
         "<div class='av' style='width:34px;height:34px;background-image:url("+avSVG(s.avatar_hue)+")'></div>"+
-        "<div><div class='h'>"+esc(s.handle)+"</div><div class='m'>"+esc(s.location)+" · "+s.sales_count+" sales · ★ "+s.rating+"</div></div>"+
+        "<div><div class='h'>"+esc(s.handle)+"</div><div class='m'>"+esc(s.location)+" · "+Number(s.sales_count)+" sales · ★ "+Number(s.rating)+"</div></div>"+
         "<div class='lock'>🔒 VERIFIED LEDGER</div>"+
       "</div>"+
       "<div class='l-ledstats'>"+
@@ -1524,7 +1536,7 @@ function showLabSubmitted(raw){
   el.innerHTML=
     "<div class='done'>✅ Offer submitted — you entered the ranking at <b>#"+r.rank+" of "+r.total+"</b>. "+
     "The buyer now sees it in their compare view, re-ranked by survival odds.</div>"+
-    "<button class='cta' style='margin:12px 0 0;width:100%' onclick=\"viewRequestAsBuyer('"+esc(LAB.request.id)+"')\">See it in the buyer's compare view ▸</button>"+
+    "<button class='cta js-view-as-buyer' style='margin:12px 0 0;width:100%' data-request-id='"+esc(LAB.request.id)+"'>See it in the buyer's compare view ▸</button>"+
     "<button class='cta' style='margin:9px 0 0;width:100%;background:var(--card2);color:var(--leaf2);border:1px solid var(--line)' onclick=\"renderLabRequests();go('labrequests')\">Back to open requests</button>";
   var sub=document.getElementById('lab-submit'); if(sub) sub.style.display='none';
 }
@@ -1543,7 +1555,30 @@ function viewRequestAsBuyer(reqId){
   go('compare');
 }
 
+/* ---------- event delegation (L13b XSS hardening) ----------
+   Ids/filters are never inlined into onclick="fn('...')" HTML-as-code anymore.
+   Each list renders a data-* attribute (quote-escaped via esc) and behavior is
+   attached here by reading el.dataset.*, so the raw value can never be parsed as
+   markup or script. Listeners bind once to the (static) container nodes; they keep
+   working across re-renders that only replace the containers' innerHTML. */
+function wireDelegation(){
+  var on=function(id, sel, fn){
+    var host=document.getElementById(id); if(!host) return;
+    host.addEventListener('click', function(e){
+      var t=e.target.closest? e.target.closest(sel) : null; if(!t || !host.contains(t)) return;
+      fn(t);
+    });
+  };
+  on('filters', '.chip', function(t){ setFilter(t.dataset.filter); });
+  on('catalog', '.pcard', function(t){ openPlant(t.dataset.plantId); });
+  on('feed', '.pickbtn', function(t){ award(t.dataset.offerId); });
+  on('labpicker-list', '.labpick', function(t){ enterLab(t.dataset.sellerId); });
+  on('labreq-list', '.labreq', function(t){ openLabOffer(t.dataset.requestId); });
+  on('lab-coach', '.js-view-as-buyer', function(t){ viewRequestAsBuyer(t.dataset.requestId); });
+}
+
 /* ---------- boot ---------- */
+wireDelegation();
 loadData().then(function(errs){
   if(errs.length){
     document.getElementById('dataerr').innerHTML=
