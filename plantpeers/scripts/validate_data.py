@@ -28,6 +28,12 @@ What it asserts (the invariants index.html relies on):
     Florida Beauty request. This is the core teaching example; a data or
     coefficient change that breaks it is caught. If `node` is not on PATH these
     ranking checks SKIP with a warning; every pure-data check still runs.
+  * BUYER NEEDS shape the ranking — the request's target quantity, budget and
+    deadline are no longer decorative (audit finding #4). Golden cases assert
+    (a) the seed request's real needs do NOT break gamer-last, and (b) changing
+    only the request flips the winner (want 1 -> a sure single plant; want 4+ under
+    a budget -> an in-budget multi-plantlet cup), with the gamer still LAST — i.e.
+    target/budget move the ranking without letting a low-trust lab buy its way up.
 """
 
 import json
@@ -231,8 +237,11 @@ CONTAM_PRIOR = 0.10             # must match model.js (asserted below, not recom
 
 # Tiny node driver: require the shared model, read a JSON job from stdin, and
 # print the ranked offers back. Two job shapes:
-#   {"offers":[...], "sellers":[...], "skill":"some"} -> enrich() then recompute()
-#   {"enriched":[...], "skill":"some"}                -> recompute() only (fixtures)
+#   {"offers":[...], "sellers":[...], "skill":"some", "needs":{...}?} -> enrich()+recompute()
+#   {"enriched":[...], "skill":"some", "needs":{...}?}                -> recompute() only (fixtures)
+# `needs` (optional) is the NUMERIC buyer needs {target,budget,deadline} the
+# ranking now folds in (target quantity fit + soft budget penalty + deadline flag);
+# omit it and the ranking behaves exactly as before that feature (graceful default).
 NODE_DRIVER = r"""
 const PP = require(process.argv[1]);
 let raw = "";
@@ -246,12 +255,15 @@ process.stdin.on("end", () => {
     (p.sellers || []).forEach(s => { byId[s.id] = s; });
     arr = (p.offers || []).map(o => PP.enrich(o, byId[o.seller_id] || {}));
   }
-  PP.recompute(arr, p.skill);
+  PP.recompute(arr, p.skill, p.needs || {});
   process.stdout.write(JSON.stringify(arr.map(o => ({
     id: o.id, handle: o.handle, confidence: o.confidence,
     contam: o.contam, contam_deflask: o.contam_deflask,
     _score: o._score, _lt: o._lt,
-    pAtLeastOne: (o._s ? o._s.pAtLeastOne : null)
+    pAtLeastOne: (o._s ? o._s.pAtLeastOne : null),
+    expLive: (o._s ? o._s.expLive : null),
+    overBudget: !!o._overBudget, overBudgetBy: o._overBudgetBy,
+    targetFit: o._targetFit, meetsTarget: o._meetsTarget, lateEta: !!o._lateEta
   }))));
 });
 """
@@ -369,6 +381,137 @@ def check_churn_attack(node, offers, sellers):
         fail("churn attack: no-ledger clone contam %.3f is better than the prior "
              "%.3f — an unproven claim was trusted." % (clone["contam"], CONTAM_PRIOR))
 
+    # ANTI-GAMING under the new needs objective: a quantity-maximising request must
+    # NOT let the cheap ledgerless clone (a 5-plantlet cup) buy the #1 slot by
+    # hitting the target count. Re-rank with an aggressive "as many as possible /
+    # any price" need and assert the #1-slot rule still holds.
+    ranked_qty = rank_via_node(node, {"offers": pool + [churn_offer],
+                                      "sellers": sellers + [churn_seller],
+                                      "skill": GOLDEN_SKILL,
+                                      "needs": {"target": 8, "budget": None,
+                                                "deadline": None}})
+    if ranked_qty is not None:
+        if ranked_qty[0]["id"] == "_churn_offer":
+            fail("churn attack (quantity request): the ledgerless 5-plantlet clone "
+                 "reached #1 by hitting the target count — target fit let an "
+                 "unverified lab buy its way up. Anti-gaming failed.")
+        if ranked_qty[0].get("confidence") == "unverified":
+            fail("churn attack (quantity request): #1 is unverified — the #1-slot "
+                 "rule failed under a target-quantity need.")
+
+
+def check_needs_shape_ranking(node):
+    """GOLDEN CASE (target/budget): the buyer's STATED NEEDS must actually move the
+    ranking — they used to be decorative (audit finding #4). On ONE fixed pool of
+    three offers, changing only the request flips the winner:
+
+      * Request A — "just 1 live plant, best odds regardless of price"
+        (target=1, no budget): the sure single ACCLIMATED plant from a top lab wins.
+      * Request B — "a few (4+) live plants, under $40"
+        (target=4, budget=40): the IN-BUDGET multi-plantlet cup from a trusted lab
+        wins, and the (now over-budget) single acclimated plant is demoted AND
+        flagged over budget.
+
+    In BOTH requests the seeded gamer clone ranks LAST — proving target/budget move
+    the ranking WITHOUT letting a low-trust lab buy its way up on plantlet count."""
+    single_lab = {
+        "id": "_trusted_single", "handle": "@trusted_single",
+        "rating": 4.85, "sales_count": 200, "certs": ["Verified lab", "Sterile-lab certified"],
+        "contamination_rate_claimed": 0.02, "deflask_success_rate_claimed": 0.96,
+        "ledger": {"shipments": 190, "honored_claims": 4, "filed_claims": 5,
+                   "checkins_responded": 140, "establishment_confirmed": 134},
+        "replacement_policy": {"covers": True},
+    }
+    multi_lab = {
+        "id": "_trusted_multi", "handle": "@trusted_multi",
+        "rating": 4.4, "sales_count": 90, "certs": ["Verified lab"],
+        "contamination_rate_claimed": 0.08, "deflask_success_rate_claimed": 0.75,
+        "ledger": {"shipments": 90, "honored_claims": 6, "filed_claims": 9,
+                   "checkins_responded": 100, "establishment_confirmed": 40},
+        "replacement_policy": {"covers": True},
+    }
+    gamer_lab = {
+        "id": "_gamer", "handle": GAMER_HANDLE,
+        "rating": 3.8, "sales_count": 41, "certs": [],
+        "contamination_rate_claimed": 0.02, "deflask_success_rate_claimed": 0.90,
+        "ledger": {"shipments": 240, "honored_claims": 48, "filed_claims": 60,
+                   "checkins_responded": 150, "establishment_confirmed": 70},
+        "replacement_policy": {"covers": False},
+    }
+    sellers = [single_lab, multi_lab, gamer_lab]
+    o_single = {"id": "o_single", "plant_id": "p", "seller_id": "_trusted_single",
+                "stage": "acclimated", "plantlets_per_cup": 1, "price": 38,
+                "shipping": 8, "eta_days": 4}
+    o_multi = {"id": "o_multi", "plant_id": "p", "seller_id": "_trusted_multi",
+               "stage": "invitro", "plantlets_per_cup": 6, "price": 22,
+               "shipping": 8, "eta_days": 5}
+    o_gamer = {"id": "o_gamer", "plant_id": "p", "seller_id": "_gamer",
+               "stage": "invitro", "plantlets_per_cup": 6, "price": 18,
+               "shipping": 9, "eta_days": 6}
+    offers = [o_single, o_multi, o_gamer]
+
+    need_a = {"target": 1, "budget": None, "deadline": None}
+    need_b = {"target": 4, "budget": 40, "deadline": None}
+    ra = rank_via_node(node, {"offers": offers, "sellers": sellers,
+                              "skill": GOLDEN_SKILL, "needs": need_a})
+    rb = rank_via_node(node, {"offers": offers, "sellers": sellers,
+                              "skill": GOLDEN_SKILL, "needs": need_b})
+    if ra is None or rb is None:
+        return
+    ord_a = [o["id"] for o in ra]
+    ord_b = [o["id"] for o in rb]
+
+    # Request A: the sure single plant wins when the buyer wants just 1 at any price.
+    if ord_a[0] != "o_single":
+        fail("needs case A ('just 1, any price'): expected the single acclimated "
+             "plant #1, got %s. Order: %s" % (ord_a[0], ord_a))
+    # Request B: the in-budget multi cup wins when the buyer wants 4+ under $40.
+    if ord_b[0] != "o_multi":
+        fail("needs case B ('want 4+, under $40'): expected the in-budget multi "
+             "cup #1, got %s. Order: %s" % (ord_b[0], ord_b))
+    # The needs actually MOVED the ranking (different winner for A vs B).
+    if ord_a[0] == ord_b[0]:
+        fail("needs cases: the winner did not change between 'want 1 / any price' "
+             "and 'want 4+ / under $40' — target/budget are still decorative.")
+    # The over-budget single must be demoted below the in-budget multi AND flagged.
+    single_b = next((o for o in rb if o["id"] == "o_single"), None)
+    if single_b is not None and not single_b.get("overBudget"):
+        fail("needs case B: the $46 single is not flagged over budget for a $40 "
+             "budget — the over-budget flag is not being set.")
+    # Anti-gaming preserved: the gamer clone is LAST in BOTH requests.
+    for label, order in (("A", ord_a), ("B", ord_b)):
+        if order[-1] != "o_gamer":
+            fail("needs case %s: gamer expected LAST but ranked %d/%d (order=%s). "
+                 "A low-trust lab must not climb via quantity/budget."
+                 % (label, order.index("o_gamer") + 1, len(order), order))
+    return ord_a, ord_b
+
+
+def check_seed_needs_gamer_last(node, offers, sellers):
+    """The seeded Florida Beauty request carries REAL needs (target '2–3', budget
+    '$70', deadline 'next week'). Folding those needs into the ranking must NOT
+    break the anti-gaming invariant: the gamer still ranks LAST and #1 is still a
+    verified/certified lab. (Guards the case where target quantity could otherwise
+    lift the gamer's cheap 6-plantlet cup.)"""
+    pool = [o for o in offers if o.get("plant_id") == GOLDEN_PLANT]
+    if not pool:
+        return
+    # parseNeeds equivalent for the seed request's notes.
+    seed_needs = {"target": 3, "budget": 70, "deadline": 7}
+    ranked = rank_via_node(node, {"offers": pool, "sellers": sellers,
+                                  "skill": GOLDEN_SKILL, "needs": seed_needs})
+    if ranked is None:
+        return
+    order = [o["handle"] for o in ranked]
+    if order[-1] != GAMER_HANDLE:
+        fail("seed-needs ranking: with the seed request's real needs (2-3 / $70 / "
+             "next week) the gamer %s expected LAST but ranked %d/%d (order=%s)."
+             % (GAMER_HANDLE, order.index(GAMER_HANDLE) + 1 if GAMER_HANDLE in order
+                else -1, len(order), order))
+    if ranked[0].get("confidence") == "unverified" or order[0] == GAMER_HANDLE:
+        fail("seed-needs ranking: #1 %s is not a verified lab under the seed needs."
+             % order[0])
+
 
 def check_rank_rule_unit(node):
     """Direct unit check of the #1-slot rule: even when an unverified offer has the
@@ -442,6 +585,8 @@ def main():
         if node:
             golden_order = check_golden_ranking(node, offers, sellers)
             check_churn_attack(node, offers, sellers)  # golden case (a): churn attack fails
+            check_seed_needs_gamer_last(node, offers, sellers)  # anti-gaming holds under real seed needs
+            check_needs_shape_ranking(node)            # golden case (b): target/budget move the ranking
             check_rank_rule_unit(node)                 # unit: #1-slot rule demotes unverified
         else:
             WARNINGS.append("node not found on PATH — SKIPPED the golden-ranking, "
@@ -475,8 +620,10 @@ def main():
         print("    ... ")
         print("    #%d  %s   (seeded gamer lab, correctly LAST)"
               % (len(golden_order), golden_order[-1]))
-        print("  anti-gaming: churn attack fails (#1-slot rule) · "
-              "unverified-demotion unit ok · honor-rate signal live")
+        print("  anti-gaming: churn attack fails (#1-slot rule, incl. quantity "
+              "request) · gamer LAST under seed needs · unverified-demotion unit ok")
+        print("  buyer needs: target/budget move the ranking (want-1 -> single "
+              "wins; want-4+/under-$40 -> in-budget multi wins), gamer still last")
     for w in WARNINGS:
         print("  note: " + w)
     print("=" * 64)

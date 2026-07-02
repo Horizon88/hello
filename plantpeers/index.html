@@ -153,6 +153,18 @@
   .forecast.mid .txt .lv{color:var(--gold)}
   .forecast.low .txt .lv{color:var(--warn)}
 
+  /* buyer-needs fit chips — target quantity / over-budget / past-deadline flags,
+     so the buyer sees their stated ask was honored (or where an offer falls short) */
+  .needsfit{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 0}
+  .nfit{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px;border:1px solid}
+  .nfit.ok{background:#12211a;border-color:#2f4636;color:var(--leaf2)}
+  .nfit.warn{background:#241a10;border-color:#5a4322;color:var(--gold)}
+  .nfit.over{background:#241413;border-color:#5a2f2f;color:var(--warn)}
+  .nfit.late{background:#20170f;border-color:#4a3320;color:#f0c9a3}
+  .photo .price.over{border-color:#8a3b3b;box-shadow:0 0 0 1px #8a3b3b}
+  .photo .price .obadge{position:absolute;right:0;top:-9px;background:#e05a5a;color:#160b0b;
+    font-size:8.5px;font-weight:800;padding:1px 6px;border-radius:999px;letter-spacing:.3px}
+
   .seller{display:flex;align-items:center;gap:9px}
   .av{width:34px;height:34px;border-radius:50%;background-size:cover;flex:none;border:1px solid var(--line)}
   .seller .h{font-weight:700;font-size:14px}
@@ -852,7 +864,29 @@ function forecastBlock(o){
     "<div class='gauge' style='--pct:"+p+";--col:"+col+"'><b>"+p+"%</b></div>"+
     "<div class='txt'><b>Odds you end up with a living plant</b><br>"+
     "≈ <span class='lv'>"+expTxt+"</span> expected from "+o.plantlets+" plantlet"+(o.plantlets>1?'s':'')+
-    " · ~$"+Math.round(s.costPerLive)+" per surviving plant</div></div>";
+    " · ~$"+Math.round(s.costPerLive)+" per surviving plant</div></div>"+
+    needsFitLine(o);
+}
+
+/* Chips that show the buyer their STATED ask was honored by the ranking: does the
+   expected live count meet the desired quantity, is the offer over their budget
+   (the model soft-penalised + flagged it, didn't silently rank it #1), and does it
+   ship past their deadline (display-only). Blank when a need wasn't stated. Reads
+   the flags recompute()->annotateNeeds() stamped on the offer. */
+function needsFitLine(o){
+  var bits=[], s=o._s;
+  if(o._target!=null){
+    var exp = s.expLive>=1 ? '~'+s.expLive.toFixed(1) : '<1';
+    if(o._meetsTarget)
+      bits.push("<span class='nfit ok'>✓ meets your quantity ask ("+exp+" live)</span>");
+    else
+      bits.push("<span class='nfit warn'>"+exp+" live — short of your ask</span>");
+  }
+  if(o._overBudget)
+    bits.push("<span class='nfit over'>⚠ $"+o._overBudgetBy+" over your budget</span>");
+  if(o._lateEta)
+    bits.push("<span class='nfit late'>⏱ ~"+o.eta_days+"d — past your deadline</span>");
+  return bits.length ? "<div class='needsfit'>"+bits.join('')+"</div>" : "";
 }
 
 /* One lab stat box with the spike's three-state trust badge:
@@ -931,7 +965,7 @@ function card(o, isPick, top){
     (isPick?"<div class='pickbanner'>🏆 BEST ODDS <span class='why'>most likely to live</span></div>":"")+
     "<div class='photo' style='background-image:url("+photo+")'>"+
       "<div class='stage "+stageCls+"'>"+esc(o.stageLabel)+"</div>"+
-      "<div class='price'>$"+o.price+"<small>$"+total+" shipped</small></div>"+
+      "<div class='price"+(o._overBudget?' over':'')+"'>"+(o._overBudget?"<span class='obadge'>OVER BUDGET</span>":"")+"$"+o.price+"<small>$"+total+" shipped</small></div>"+
     "</div>"+
     "<div class='body'>"+
       forecastBlock(o)+
@@ -953,7 +987,8 @@ function card(o, isPick, top){
 
 function renderFeed(){
   var cr=currentRequest; if(!cr) return;
-  recompute(cr.offers, skill); // buyer's live skill toggle re-ranks their own view
+  cr.needs=PPModel.parseNeeds(cr.request.notes); // buyer's stated target/budget/deadline (numeric)
+  recompute(cr.offers, skill, cr.needs); // buyer's live skill toggle + stated needs re-rank their own view
   var feed=document.getElementById('feed');
   if(!cr.offers.length){
     feed.innerHTML="<div class='empty'>No labs have offered on this variety yet. Hang tight — requests usually draw offers within a day.</div>";
@@ -1022,6 +1057,14 @@ function award(id){
   var why=[];
   why.push(Math.round(s.pAtLeastOne*100)+'% odds of ending up with a living plant');
   why.push('≈ '+s.expLive.toFixed(1)+' expected survivors from '+o.plantlets+' plantlet'+(o.plantlets>1?'s':''));
+  // reflect the buyer's stated ask so they see it was honored
+  if(o._target!=null)
+    why.push(o._meetsTarget ? 'Meets your quantity goal (≈'+s.expLive.toFixed(1)+' live)'
+                            : 'Yields ≈'+s.expLive.toFixed(1)+' live — short of your quantity goal');
+  if(o._overBudget)
+    why.push('$'+o._overBudgetBy+' over your stated budget — flagged, ranked on merit not hidden');
+  if(o._lateEta)
+    why.push('Ships in ~'+o.eta_days+' days — past your requested deadline');
   why.push(o.stageLabel+' · '+pct(o.contam)+' lab contamination rate');
   why.push(o.replace? o.replaceText : 'No replacement — $'+(o.price+o.shipping)+' at risk');
   document.getElementById('sh_why').innerHTML=why.map(function(w){return '<li>'+esc(w)+'</li>';}).join('');
@@ -1350,13 +1393,19 @@ function labCompetitorPool(){
 function labFrozenSkill(){
   return (LAB.request && LAB.request.notes && LAB.request.notes.skill) || 'some';
 }
-/* THE projected rank — uses the shared recompute() at the frozen request skill,
-   so it is the identical computation the buyer's compare view runs for the same
-   (frozen) skill over the same (late-excluded) pool. */
+/* #7 consistency: the projection must also fold in the SAME buyer needs (target/
+   budget/deadline) the buyer's compare view ranks with, or lab-side and buyer-side
+   rankings would diverge. Parsed from the request's own notes via the shared model. */
+function labNeeds(){
+  return PPModel.parseNeeds(LAB.request && LAB.request.notes);
+}
+/* THE projected rank — uses the shared recompute() at the frozen request skill AND
+   needs, so it is the identical computation the buyer's compare view runs for the
+   same (frozen) skill + needs over the same (late-excluded) pool. */
 function projectLabRank(f){
   var me=buildLabOffer(f);
   var all=labCompetitorPool().concat([me]);
-  recompute(all, labFrozenSkill()); // shared model, frozen skill: sorts + #1-slot rule
+  recompute(all, labFrozenSkill(), labNeeds()); // shared model, frozen skill+needs: sorts + #1-slot rule
   return { all:all, me:me, rank:all.indexOf(me)+1, total:all.length };
 }
 
