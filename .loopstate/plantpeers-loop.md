@@ -22,3 +22,5 @@ cadence: run a real round, commit+push, then schedule next wakeup; stop at deadl
 - L8 critic: ranked audit -> .loopstate/L8-critic-findings.md.
 - L9 anti-gaming fixes: SHIPPED (89a3a91). #2 no-ledger pinned to prior + cant hold #1; #3 contamination from filed claims + honor-rate trust signal; #5 deflask ledger into survival; #6 priceScore clamp; #8 thin badge; #10 acclimated pClean. Validator churn-attack case PASS. Builder.
 - L10 = #9 shared model module + #7 skill divergence (last tractable round). Then #1 outcome-spine + #4 request-inputs need user product input -> slow cadence.
+- L10 shared model.js + skill-divergence fix: SHIPPED (b4347f7). One model.js consumed by app+validator (node), -133 lines index.html; lab projection frozen skill + late-offer consistency. Sweeper.
+- L11 = #4 fold request target/budget into ranking objective (last clearly-valuable no-backend round). Then L12 = outcome-spine PROTOTYPE spike (explore #1 w/o committing product/backend), then HOLD (long wakeup) pending user product decision.
