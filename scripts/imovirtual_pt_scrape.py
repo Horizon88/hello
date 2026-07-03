@@ -93,35 +93,53 @@ def fetch_detail(url, timeout=30):
     body = via_relay(url, timeout)
     if not body or len(body) < 50000:
         return None, None, None
-    # Coords
+    # Coords — pull from raw regex since __NEXT_DATA__ has them stringified
     lat = lng = None
     m = re.search(r'"latitude"\s*:\s*"?([-\d.]+).{0,60}?"longitude"\s*:\s*"?([-\d.]+)', body, re.S)
     if m:
         try:
             la, lo = float(m.group(1)), float(m.group(2))
-            # PT is roughly 32-43 N, -32 to -6 E (includes Madeira/Azores)
             if 32 < la < 43 and -32 < lo < -6:
                 lat, lng = la, lo
         except: pass
-    # Area from description: "530 metros quadrados" or "1.500 m²" or "0,5 hectares"
+    # Area: extract from __NEXT_DATA__ JSON (parse properly to avoid
+    # matching the meta-description at top of HTML which is a generic tagline).
     sqm = None
-    # Match structured description
-    m_desc = re.search(r'"description"\s*:\s*"([^"]{20,4000})"', body)
-    if m_desc:
-        desc = m_desc.group(1)
-        # Portuguese uses `.` as thousands separator, `,` as decimal
-        m_area = re.search(r'([\d.,]+)\s*(?:m²|metros?\s*quadrados?|m2)\b', desc, re.I)
-        if m_area:
-            n_str = m_area.group(1).replace(".","").replace(",",".")
-            try:
-                n = float(n_str)
-                if 50 < n < 10_000_000: sqm = n
-            except: pass
-        if not sqm:
-            m_ha = re.search(r'([\d.,]+)\s*hectares?\b', desc, re.I)
-            if m_ha:
-                try: sqm = float(m_ha.group(1).replace(".","").replace(",",".")) * 10000
-                except: pass
+    m_nd = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', body, re.S)
+    if m_nd:
+        try:
+            d = json.loads(m_nd.group(1))
+            # Walk to find the ad object with a description field
+            def find_ad(o, depth=0):
+                if depth > 15: return None
+                if isinstance(o, dict):
+                    if "description" in o and isinstance(o["description"], str) and len(o["description"]) > 50 and ("m²" in o["description"] or "metros" in o["description"].lower() or "hectare" in o["description"].lower()):
+                        return o["description"]
+                    for v in o.values():
+                        r = find_ad(v, depth+1)
+                        if r: return r
+                elif isinstance(o, list):
+                    for vv in o:
+                        r = find_ad(vv, depth+1)
+                        if r: return r
+                return None
+            desc = find_ad(d)
+            if desc:
+                # Try "N m²" or "N metros quadrados"
+                m_a = re.search(r'(\d[\d.,]*)\s*(?:m²|metros?\s*quadrados?|m2)\b', desc, re.I)
+                if m_a:
+                    n_str = m_a.group(1).replace(".","").replace(",",".")
+                    try:
+                        n = float(n_str)
+                        if 50 < n < 10_000_000: sqm = n
+                    except: pass
+                if not sqm:
+                    m_ha = re.search(r'(\d[\d.,]*)\s*hectares?\b', desc, re.I)
+                    if m_ha:
+                        try: sqm = float(m_ha.group(1).replace(".","").replace(",",".")) * 10000
+                        except: pass
+        except json.JSONDecodeError:
+            pass
     return lat, lng, sqm
 
 if __name__ == "__main__":
