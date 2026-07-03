@@ -40,3 +40,5 @@ Remaining backlog (paced, lower priority — do 1 per wake if genuinely worth it
 Stop heavy multi-agent rounds unless clearly high-value; re-verify + re-arm otherwise; stop at deadline 09:10Z or when backlog exhausted.
 - L14 post-award my-orders + lab Won: SHIPPED (685d17f). localStorage orders, "My orders" view + reopen detail, lab "✓ Won" section. XSS-safe. Builder.
 - Recovered from a container restart (17:06Z) — repo intact, toolchain ok. Heartbeat re-armed.
+- Standalone build + Artifact: SHIPPED (02d7fb4). scripts/build_standalone.py inlines model.js+data -> dist/plantpeers.standalone.html + .artifact.html (works file://, no server). Published Artifact: https://claude.ai/code/artifact/5368d6c7-de43-4f79-90b7-70721f074088 (redeploy same file_path to update same URL).
+- L15 = richer seed data (fuller catalog + more labs/offers) so the live demo feels complete, then REBUILD standalone + REDEPLOY artifact (same URL).
