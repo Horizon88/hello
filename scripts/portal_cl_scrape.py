@@ -102,7 +102,7 @@ if __name__ == "__main__":
 
     all_cards = []
     for label, path, lat0, lng0 in REGIONS:
-        for page in range(1, 5):
+        for page in range(1, 11):
             offset = (page - 1) * 48 + 1
             if page > 1:
                 url = f"https://www.portalinmobiliario.com/venta/{path}/_Desde_{offset}_NoIndex_True"
