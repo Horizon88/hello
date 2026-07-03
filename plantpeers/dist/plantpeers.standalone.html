@@ -1,0 +1,2095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PlantPeers — buy tissue culture, labs compete on survival</title>
+<!--
+  PlantPeers clickable MVP — tissue-culture (L2). Static SPA, no backend/build step.
+  Mock data loaded from data/*.json via fetch (plants, sellers=labs, offers, reviews, requests).
+  Compare screen promoted from experiments/tc_compare_spike.html: the headline per offer is a
+  WILL-THIS-LIVE survival forecast computed from TC-native signals (stage, plantlets_per_cup,
+  lab contamination_rate + deflask_success_rate, phenotype_stability, contaminated-cup
+  replacement policy) AND the buyer's own skill. A skill selector re-ranks the whole set live.
+  Scoring: survival(0.45) / lab-trust(0.35) / value-per-surviving-plant(0.20). Cheapest raw cup
+  != most likely to end up a living plant. No third-party CDN: photos/avatars are inline SVG.
+-->
+<style>
+  :root{
+    --bg:#0f1511; --card:#18211b; --card2:#1e2a22; --line:#2a382e;
+    --ink:#eaf3ec; --sub:#9db4a5; --leaf:#4ea86b; --leaf2:#7fd39a;
+    --gold:#e9c46a; --warn:#e08a5a; --danger:#e05a5a; --pill:#22302786;
+    --shadow:0 6px 22px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    max-width:430px; margin:0 auto; padding:0 0 40px;
+    -webkit-font-smoothing:antialiased; min-height:100vh;
+  }
+  .view{display:none}
+  .view.active{display:block;animation:fade .2s ease}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+
+  /* --- top bars --- */
+  .topbar{position:sticky;top:0;z-index:20;background:linear-gradient(#0f1511,#0f1511f2);
+    padding:14px 16px 12px;border-bottom:1px solid var(--line);backdrop-filter:blur(6px)}
+  .brand{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:800;letter-spacing:.2px}
+  .brand .mark{font-size:20px}
+  .tagline{color:var(--sub);font-size:12.5px;margin-top:3px}
+  .back{background:none;border:none;color:var(--leaf2);font-size:13.5px;font-weight:600;
+    padding:0;cursor:pointer;display:inline-flex;align-items:center;gap:6px;margin-bottom:8px}
+
+  .req h1{margin:0;font-size:17px;font-weight:700;letter-spacing:.2px}
+  .req .latin{color:var(--sub);font-style:italic;font-size:12.5px}
+  .req .want{margin-top:6px;font-size:12.5px;color:var(--leaf2);display:flex;gap:6px;flex-wrap:wrap}
+  .req .want b{color:var(--ink);font-weight:600;background:var(--pill);border:1px solid #2f4636;
+    padding:2px 8px;border-radius:999px}
+  .live{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--sub);margin-top:9px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--leaf);animation:pulse 1.8s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(78,168,107,.6)}70%{box-shadow:0 0 0 7px rgba(78,168,107,0)}100%{box-shadow:0 0 0 0 rgba(78,168,107,0)}}
+
+  /* --- search / filter --- */
+  .search{margin:12px 16px 8px}
+  .search input{width:100%;padding:11px 14px;border-radius:12px;border:1px solid var(--line);
+    background:var(--card2);color:var(--ink);font-size:14px}
+  .search input::placeholder{color:#6f8778}
+  .chips{display:flex;gap:7px;overflow-x:auto;padding:2px 16px 4px;-webkit-overflow-scrolling:touch}
+  .chip{flex:none;font-size:12px;padding:7px 12px;border-radius:999px;background:var(--card2);
+    border:1px solid var(--line);color:var(--sub);font-weight:600;cursor:pointer;white-space:nowrap}
+  .chip.on{background:var(--leaf);color:#08120b;border-color:var(--leaf)}
+
+  /* --- catalog grid --- */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px 16px}
+  .pcard{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;
+    cursor:pointer;box-shadow:var(--shadow);display:flex;flex-direction:column}
+  .pcard .ph{height:120px;background-size:cover;background-position:center}
+  .pcard .pb{padding:9px 11px 12px}
+  .pcard .cn{font-weight:700;font-size:13.5px;line-height:1.25}
+  .pcard .ln{color:var(--sub);font-style:italic;font-size:11px;margin-top:1px}
+  .pcard .tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+  .ptag{font-size:10px;padding:2px 7px;border-radius:999px;background:var(--pill);
+    color:var(--leaf2);border:1px solid #2f4636;font-weight:600}
+  .empty{color:var(--sub);text-align:center;padding:40px 24px;font-size:13.5px}
+
+  /* --- request form --- */
+  .hero{height:190px;background-size:cover;background-position:center;border-radius:16px;margin:14px 16px 0;
+    border:1px solid var(--line)}
+  .detail{padding:14px 16px 0}
+  .detail h2{margin:2px 0 2px;font-size:20px}
+  .detail .ln{color:var(--sub);font-style:italic;font-size:13px}
+  .detail p{color:#c4d6c9;font-size:13.5px;margin:12px 0 4px}
+  .detail .metaline{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .form{padding:6px 16px 0}
+  .flabel{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--sub);
+    font-weight:700;margin:18px 0 8px}
+  .opts{display:flex;gap:8px;flex-wrap:wrap}
+  .opt{font-size:13px;padding:9px 13px;border-radius:11px;background:var(--card2);
+    border:1px solid var(--line);color:var(--ink);cursor:pointer;font-weight:600}
+  .opt.on{background:var(--leaf);color:#08120b;border-color:var(--leaf)}
+  .opt small{display:block;font-size:10px;font-weight:500;opacity:.75;margin-top:1px}
+  .form textarea{width:100%;margin-top:4px;padding:11px 13px;border-radius:12px;border:1px solid var(--line);
+    background:var(--card2);color:var(--ink);font-size:13.5px;resize:vertical;min-height:60px;font-family:inherit}
+  .cta{margin:22px 16px 8px;width:calc(100% - 32px);padding:15px;border:none;border-radius:14px;
+    font-size:15.5px;font-weight:800;cursor:pointer;background:var(--leaf);color:#08120b}
+  .cta:disabled{opacity:.45;cursor:not-allowed}
+
+  .sectlbl{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--sub);
+    margin:18px 16px 8px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .sectlbl .rule{flex:1;height:1px;background:var(--line)}
+
+  /* --- skill selector: the interaction that makes the risk self-assessable --- */
+  .skill{margin:12px 12px 4px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:11px 12px}
+  .skill .lbl{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--sub);font-weight:700;display:flex;gap:7px;align-items:center}
+  .skill .lbl .q{margin-left:auto;color:var(--leaf2);font-weight:600;letter-spacing:0;text-transform:none;font-size:11px}
+  .segs{display:flex;gap:7px;margin-top:9px}
+  .segs button{flex:1;background:var(--card2);border:1px solid var(--line);color:var(--sub);
+    padding:9px 4px;border-radius:11px;font-size:12px;font-weight:600;cursor:pointer;line-height:1.2}
+  .segs button small{display:block;font-size:9.5px;font-weight:500;opacity:.8;margin-top:2px}
+  .segs button.on{background:var(--leaf);color:#08120b;border-color:var(--leaf)}
+  .segs button.on small{opacity:.9}
+
+  /* --- compare toolbar --- */
+  .toolbar{display:flex;gap:8px;margin:12px 12px 6px}
+  .toolbar button{flex:1;background:var(--card2);border:1px solid var(--line);color:var(--sub);
+    padding:9px;border-radius:11px;font-size:12.5px;font-weight:600;cursor:pointer}
+  .toolbar button.on{background:var(--leaf);color:#08120b;border-color:var(--leaf)}
+
+  /* --- offer cards --- */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;
+    margin:0 12px 14px;overflow:hidden;box-shadow:var(--shadow)}
+  .card.pick{border-color:var(--leaf);box-shadow:0 0 0 1px var(--leaf),0 8px 26px rgba(0,0,0,.5)}
+  .card.justin{animation:landin .6s ease}
+  @keyframes landin{0%{transform:translateY(-8px);box-shadow:0 0 0 2px var(--leaf2)}100%{transform:none}}
+  .pickbanner{background:linear-gradient(90deg,#2f7a4d,#4ea86b);color:#fff;
+    font-size:12px;font-weight:700;letter-spacing:.4px;padding:7px 14px;display:flex;align-items:center;gap:7px}
+  .pickbanner .why{margin-left:auto;font-weight:600;opacity:.9;font-size:11px}
+
+  .photo{height:150px;background-size:cover;background-position:center;position:relative}
+  .card.chall .photo{height:120px}
+  .photo .price{position:absolute;right:10px;bottom:10px;background:#0d130fdd;
+    padding:6px 11px;border-radius:12px;font-weight:700;font-size:15px;border:1px solid var(--line)}
+  .photo .price small{color:var(--sub);font-weight:500;font-size:10.5px;display:block;text-align:right}
+  .photo .stage{position:absolute;left:10px;top:10px;background:#0d130fdd;color:var(--leaf2);
+    font-size:11px;padding:4px 9px;border-radius:10px;font-weight:700;border:1px solid #2f4636}
+  .photo .stage.invitro{color:var(--warn);border-color:#5a3f28}
+
+  .body{padding:12px 14px 14px}
+
+  /* WILL-THIS-LIVE forecast — the TC-native centerpiece (replaces the generic value/100 headline) */
+  .forecast{display:flex;align-items:center;gap:12px;background:#12211a;border:1px solid #2f4636;
+    border-radius:14px;padding:11px 12px;margin-bottom:11px}
+  .forecast.mid{background:#1f1c10;border-color:#4a4022}
+  .forecast.low{background:#241413;border-color:#5a2f2f}
+  .gauge{--pct:80;--col:var(--leaf2);width:52px;height:52px;border-radius:50%;flex:none;
+    background:conic-gradient(var(--col) calc(var(--pct)*1%),#101712 0);display:flex;align-items:center;justify-content:center}
+  .gauge b{width:40px;height:40px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center;
+    font-size:13.5px;font-weight:800;color:var(--ink)}
+  .forecast .txt{font-size:12px;color:var(--sub);line-height:1.35}
+  .forecast .txt b{color:var(--ink);font-weight:700;font-size:13px}
+  .forecast .txt .lv{color:var(--leaf2);font-weight:700}
+  .forecast.mid .txt .lv{color:var(--gold)}
+  .forecast.low .txt .lv{color:var(--warn)}
+
+  /* buyer-needs fit chips — target quantity / over-budget / past-deadline flags,
+     so the buyer sees their stated ask was honored (or where an offer falls short) */
+  .needsfit{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 0}
+  .nfit{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px;border:1px solid}
+  .nfit.ok{background:#12211a;border-color:#2f4636;color:var(--leaf2)}
+  .nfit.warn{background:#241a10;border-color:#5a4322;color:var(--gold)}
+  .nfit.over{background:#241413;border-color:#5a2f2f;color:var(--warn)}
+  .nfit.late{background:#20170f;border-color:#4a3320;color:#f0c9a3}
+  .photo .price.over{border-color:#8a3b3b;box-shadow:0 0 0 1px #8a3b3b}
+  .photo .price .obadge{position:absolute;right:0;top:-9px;background:#e05a5a;color:#160b0b;
+    font-size:8.5px;font-weight:800;padding:1px 6px;border-radius:999px;letter-spacing:.3px}
+
+  .seller{display:flex;align-items:center;gap:9px}
+  .av{width:34px;height:34px;border-radius:50%;background-size:cover;flex:none;border:1px solid var(--line)}
+  .seller .h{font-weight:700;font-size:14px}
+  .stars{color:var(--gold);font-size:12.5px;letter-spacing:1px}
+  .seller .meta{color:var(--sub);font-size:11.5px}
+  .badges{display:flex;gap:5px;flex-wrap:wrap;margin:9px 0 2px}
+  .badge{font-size:10.5px;padding:3px 8px;border-radius:999px;background:var(--pill);
+    color:var(--leaf2);border:1px solid #2f4636;font-weight:600}
+  .badge.guar{color:var(--gold);border-color:#4a4022}
+
+  /* lab scorecard mini-strip — the TC "seller = lab" trust signals, front of card */
+  .labcard{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:11px 0 2px}
+  .labstat{background:#101712;border:1px solid var(--line);border-radius:10px;padding:7px 9px}
+  .labstat .k{font-size:9.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--sub);font-weight:700}
+  .labstat .v{font-size:14px;font-weight:800;margin-top:1px}
+  .labstat .v.good{color:var(--leaf2)} .labstat .v.mid{color:var(--gold)} .labstat .v.bad{color:var(--warn)}
+  .labstat .s{font-size:9.5px;color:var(--sub);margin-top:1px}
+  .labstat .s s{color:#6f8778}
+  .lbadge{display:inline-block;margin-top:6px;font-size:8.5px;line-height:1.3;font-weight:700;
+    padding:2px 6px;border-radius:999px;letter-spacing:.2px}
+  .lbadge.verified{background:#12211a;border:1px solid #2f4636;color:var(--leaf2)}
+  .lbadge.thin{background:#241a10;border:1px solid #5a4322;color:var(--gold)}
+  .lbadge.claim{background:#241413;border:1px solid #5a2f2f;color:var(--warn)}
+
+  /* value meter — preserved from the MVP, segments retargeted to TC drivers */
+  .value{margin:12px 0 4px}
+  .value .top{display:flex;justify-content:space-between;font-size:11.5px;color:var(--sub);margin-bottom:5px}
+  .value .top b{color:var(--ink)}
+  .bar{height:9px;border-radius:6px;background:#101712;overflow:hidden;display:flex}
+  .bar span{height:100%}
+  .bar .q{background:var(--leaf2)}
+  .bar .t{background:var(--leaf)}
+  .bar .p{background:var(--gold)}
+  .legend{display:flex;gap:12px;margin-top:6px;font-size:10.5px;color:var(--sub)}
+  .legend i{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle}
+
+  .specs{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-top:12px;font-size:12.5px}
+  .specs div{display:flex;justify-content:space-between;border-bottom:1px dashed #24322a;padding-bottom:4px;gap:8px}
+  .specs span.k{color:var(--sub);flex:none}
+
+  /* money-at-risk callout — makes the downside of no-replacement viscerally legible */
+  .risk{margin-top:11px;border-radius:12px;padding:9px 11px;font-size:12px;display:flex;gap:8px;align-items:flex-start}
+  .risk.bad{background:#241413;border:1px solid #5a2f2f;color:#f0b0a3}
+  .risk.ok{background:#12211a;border:1px solid #2f4636;color:var(--leaf2)}
+  .risk b{color:#ffd0c4}
+  .risk.ok b{color:var(--leaf2)}
+
+  .tradeoff{margin-top:11px;background:#20170f;border:1px solid #4a3320;border-radius:12px;
+    padding:9px 11px;font-size:12px;color:#f0c9a3;display:flex;gap:8px;align-items:flex-start}
+  .tradeoff.good{background:#12211a;border-color:#2f4636;color:var(--leaf2)}
+  .tradeoff b{color:#ffd9b0}
+  .tradeoff.good b{color:var(--leaf2)}
+
+  .reviewq{margin-top:11px;font-size:12.5px;color:var(--sub);font-style:italic;
+    border-left:3px solid var(--leaf);padding:2px 0 2px 10px}
+  .reviewq b{color:var(--ink);font-style:normal}
+
+  .pickbtn{margin-top:14px;width:100%;padding:13px;border:none;border-radius:13px;
+    font-size:15px;font-weight:700;cursor:pointer;background:var(--leaf);color:#08120b}
+  .card.chall .pickbtn{background:transparent;color:var(--leaf2);border:1.5px solid #35513f}
+
+  /* toast for new offer beat */
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;z-index:50;
+    background:#12211a;border:1px solid var(--leaf);color:var(--leaf2);font-size:12.5px;font-weight:600;
+    padding:11px 16px;border-radius:12px;box-shadow:var(--shadow);max-width:360px;text-align:center;
+    opacity:0;pointer-events:none;transition:opacity .25s ease,transform .25s ease}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
+
+  /* awarded overlay */
+  .sheet{position:fixed;inset:0;background:#07100a;z-index:60;display:none;
+    flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:30px;overflow:auto}
+  .sheet.show{display:flex;animation:fade .25s ease}
+  .sheet .big{font-size:52px}
+  .sheet h2{margin:10px 0 4px}
+  .sheet p{color:var(--sub);max-width:300px}
+  .sheet .override{background:#20170f;border:1px solid #4a3320;color:#f0c9a3;font-size:12.5px;
+    border-radius:12px;padding:10px 13px;margin-top:14px;max-width:320px}
+  .sheet .why2{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:14px 16px;margin-top:16px;text-align:left;font-size:13px;max-width:320px}
+  .sheet .why2 li{margin:4px 0;color:var(--leaf2)}
+  .sheet button{margin-top:22px;background:var(--leaf);border:none;color:#08120b;
+    font-weight:700;padding:12px 26px;border-radius:12px;font-size:15px;cursor:pointer}
+
+  .banner{background:#3a2418;border:1px solid #6b4a2a;color:#f0c9a3;font-size:12.5px;
+    padding:10px 14px;margin:10px 16px;border-radius:10px}
+  .foot{color:#5f7566;font-size:10.5px;text-align:center;margin:22px 16px 0;line-height:1.5}
+
+  /* ============================================================
+     LAB MODE (L7) — the SELL side. Styles promoted from
+     experiments/lab_offer_spike.html, scoped so they don't touch the
+     buyer-side visuals. Reuses buyer .segs/.av/.dot/.empty/.back/.foot.
+     ============================================================ */
+  .rolebtn{float:right;margin-top:2px;font-size:11px;font-weight:700;color:var(--gold);
+    border:1px solid #4a4022;background:#241a10;padding:5px 10px;border-radius:999px;cursor:pointer;letter-spacing:.2px}
+  .labtag{margin-left:auto;font-size:10.5px;font-weight:700;color:var(--gold);
+    border:1px solid #4a4022;background:#241a10;padding:3px 8px;border-radius:999px}
+
+  /* lab picker */
+  .labpick{display:flex;align-items:center;gap:11px;width:calc(100% - 24px);margin:10px 12px 0;text-align:left;
+    background:var(--card);border:1px solid var(--line);border-radius:14px;padding:11px 12px;cursor:pointer;color:var(--ink)}
+  .labpick .lp-body{flex:1;min-width:0}
+  .labpick .lp-h{font-weight:800;font-size:14px}
+  .labpick .lp-m{color:var(--sub);font-size:11.5px;margin-top:1px}
+  .labpick .lp-led{color:var(--leaf2);font-size:11px;margin-top:4px}
+  .labpick .lp-led b{color:var(--gold);text-transform:uppercase;font-size:9.5px;letter-spacing:.4px}
+  .labpick .lp-go{color:var(--leaf2);font-size:18px;font-weight:800;flex:none}
+
+  /* open-requests list */
+  .labreq{display:block;width:calc(100% - 24px);margin:10px 12px 0;text-align:left;
+    background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 13px;cursor:pointer;color:var(--ink);box-shadow:var(--shadow)}
+  .labreq .lr-h{font-weight:800;font-size:15px}
+  .labreq .lr-l{color:var(--sub);font-style:italic;font-size:12px;margin-top:1px}
+  .labreq .lr-want{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+  .labreq .lr-want span{font-size:11px;background:var(--pill);border:1px solid #2f4636;color:var(--ink);padding:3px 8px;border-radius:999px}
+  .labreq .lr-note{font-size:11.5px;color:#bcd3c3;margin-top:8px;font-style:italic}
+  .labreq .lr-pool{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--sub);margin-top:10px}
+
+  /* locked verified ledger — the honesty spine */
+  .l-ledger{background:#12211a;border:1px solid #2f4636;border-radius:16px;padding:12px 13px;margin:12px}
+  .l-ledger .who{display:flex;align-items:center;gap:9px}
+  .l-ledger .who .h{font-weight:800;font-size:14px}
+  .l-ledger .who .m{color:var(--sub);font-size:11px}
+  .l-ledger .lock{margin-left:auto;font-size:10px;font-weight:700;color:var(--leaf2);border:1px solid #2f4636;
+    background:#0d130f;padding:3px 8px;border-radius:999px;flex:none}
+  .l-ledstats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:11px}
+  .l-ledstat{background:#0d130f;border:1px solid var(--line);border-radius:11px;padding:8px 10px;position:relative}
+  .l-ledstat .k{font-size:9.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--sub);font-weight:700}
+  .l-ledstat .v{font-size:19px;font-weight:800;margin-top:2px}
+  .l-ledstat .v.good{color:var(--leaf2)} .l-ledstat .v.mid{color:var(--gold)} .l-ledstat .v.bad{color:var(--warn)}
+  .l-ledstat .padlock{position:absolute;right:8px;top:7px;font-size:11px;opacity:.55}
+  .l-badge{display:inline-block;margin-top:5px;font-size:8.5px;font-weight:700;padding:2px 6px;border-radius:999px;
+    background:#12211a;border:1px solid #2f4636;color:var(--leaf2)}
+  .l-badge.thin{background:#241a10;border-color:#5a4322;color:var(--gold)}
+  .l-ledger .note{font-size:11.5px;color:#bcd3c3;margin-top:11px;line-height:1.4}
+  .l-ledger .note b{color:var(--leaf2)}
+
+  /* form levers */
+  .l-field{margin:16px 12px 0}
+  .l-field > .name{font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:7px}
+  .l-field > .name .hint{margin-left:auto;font-weight:600;color:var(--sub);font-size:10.5px;letter-spacing:0}
+  .l-stepper{display:flex;align-items:center;gap:12px;margin-top:8px}
+  .l-stepper button{width:40px;height:40px;border-radius:11px;background:var(--card2);border:1px solid var(--line);
+    color:var(--ink);font-size:20px;font-weight:700;cursor:pointer}
+  .l-stepper .val{font-size:17px;font-weight:800;min-width:120px}
+  .l-stepper .val small{color:var(--sub);font-weight:500;font-size:11px}
+  .l-range{margin-top:10px}
+  .l-range input[type=range]{width:100%;accent-color:var(--leaf)}
+  .l-range .rv{font-size:16px;font-weight:800;margin-top:2px}
+  .l-range .rv small{color:var(--sub);font-weight:500;font-size:11px}
+  .l-toggle{display:flex;align-items:center;gap:11px;margin-top:8px;background:var(--card2);
+    border:1px solid var(--line);border-radius:12px;padding:11px 12px;cursor:pointer}
+  .l-toggle .sw{width:44px;height:26px;border-radius:999px;background:#2a382e;position:relative;flex:none;transition:background .15s}
+  .l-toggle .sw::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;
+    background:#8aa294;transition:transform .15s}
+  .l-toggle.on .sw{background:var(--leaf)}
+  .l-toggle.on .sw::after{transform:translateX(18px);background:#08120b}
+  .l-toggle .t{font-size:12.5px;font-weight:700}
+  .l-toggle .d{font-size:10.5px;color:var(--sub);margin-top:1px}
+  .l-toggle .free{margin-left:auto;font-size:9.5px;font-weight:800;color:var(--gold);border:1px solid #4a4022;
+    background:#241a10;padding:3px 7px;border-radius:999px;flex:none}
+  .l-minor{opacity:.85}
+  .l-minor .name .hint{color:var(--warn)}
+
+  /* sticky live projection */
+  .l-proj{display:none;position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;z-index:40;
+    background:linear-gradient(#141d17f2,#0f1511);border-top:1px solid var(--leaf);
+    box-shadow:0 -8px 26px rgba(0,0,0,.55);padding:11px 14px 14px;backdrop-filter:blur(8px)}
+  .l-proj.show{display:block}
+  .l-proj .row1{display:flex;align-items:center;gap:12px}
+  .l-gauge{--pct:80;--col:var(--leaf2);width:54px;height:54px;border-radius:50%;flex:none;
+    background:conic-gradient(var(--col) calc(var(--pct)*1%),#101712 0);display:flex;align-items:center;justify-content:center}
+  .l-gauge b{width:42px;height:42px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800}
+  .l-rankbig{flex:1}
+  .l-rankbig .r{font-size:22px;font-weight:800;line-height:1}
+  .l-rankbig .r em{font-style:normal;font-size:13px;color:var(--sub);font-weight:600}
+  .l-rankbig .meta{font-size:11px;color:var(--sub);margin-top:4px}
+  .l-rankbig .meta b{color:var(--leaf2)}
+  .l-rankmove{font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:999px;margin-top:5px;display:inline-block}
+  .l-rankmove.up{color:var(--leaf2);background:#12211a;border:1px solid #2f4636}
+  .l-rankmove.down{color:var(--warn);background:#241413;border:1px solid #5a2f2f}
+  .l-rankmove.flat{color:var(--sub);background:#0d130f;border:1px solid var(--line)}
+  .l-board{margin-top:10px;border-top:1px dashed #24322a;padding-top:9px}
+  .l-brow{display:flex;align-items:center;gap:8px;font-size:11.5px;padding:3px 0;color:var(--sub)}
+  .l-brow .n{width:16px;color:#6f8778;font-weight:700}
+  .l-brow .who{flex:1;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .l-brow .sc{font-weight:700;color:var(--sub)}
+  .l-brow.me .who{color:var(--leaf2);font-weight:800}
+  .l-brow.me{background:#12211a;border-radius:8px;margin:0 -6px;padding:4px 6px}
+
+  /* coach */
+  .l-coach{margin:2px 12px 0}
+  .cmove{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);
+    border-radius:13px;padding:10px 12px;margin-top:9px}
+  .cmove .delta{flex:none;min-width:52px;text-align:center;font-size:15px;font-weight:800;border-radius:10px;padding:7px 4px;line-height:1}
+  .cmove .delta small{display:block;font-size:8.5px;font-weight:700;opacity:.85;margin-top:2px;letter-spacing:.3px}
+  .cmove .delta.up{color:#08120b;background:var(--leaf2)}
+  .cmove .delta.flat{color:var(--sub);background:#0d130f;border:1px solid var(--line)}
+  .cmove .body{flex:1}
+  .cmove .body .t{font-size:12.5px;font-weight:700}
+  .cmove .body .d{font-size:10.5px;color:var(--sub);margin-top:2px}
+  .cmove.best{border-color:var(--leaf)}
+  .l-coach .done{font-size:12px;color:var(--leaf2);background:#12211a;border:1px solid #2f4636;
+    border-radius:12px;padding:11px 13px;margin-top:9px;text-align:center;font-weight:700}
+  .l-note{font-size:10.5px;color:#7f9488;margin:10px 12px 0;line-height:1.5}
+  .l-note b{color:#9db4a5}
+
+  /* ============================================================
+     MY ORDERS (buyer) + LAB "YOU WON" (L14) — closes the post-award dead-end.
+     On award we persist a compact order to plantpeers_orders_v1; the buyer
+     revisits it here and the winning lab derives its "✓ Won" state from the
+     same records. Reuses card/nav styling; mobile-first.
+     ============================================================ */
+  .ordersbtn{margin-top:10px;font-size:12px;font-weight:700;color:var(--leaf2);border:1px solid #2f4636;
+    background:#12211a;padding:6px 12px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+  .ordersbtn .cnt{background:var(--leaf);color:#08120b;font-weight:800;border-radius:999px;padding:0 7px;font-size:11px}
+  .order{background:var(--card);border:1px solid var(--line);border-radius:16px;margin:10px 12px 0;padding:13px 14px;box-shadow:var(--shadow)}
+  .order .or-top{display:flex;align-items:flex-start;gap:10px}
+  .order .or-h{font-weight:800;font-size:15px;flex:1;line-height:1.25}
+  .order .or-price{font-weight:800;font-size:15px;text-align:right;flex:none}
+  .order .or-price small{display:block;color:var(--sub);font-weight:500;font-size:10px}
+  .order .or-lab{color:var(--sub);font-size:12.5px;margin-top:4px}
+  .order .or-lab b{color:var(--leaf2)}
+  .order .or-surv{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sub);margin-top:9px}
+  .order .or-surv b{color:var(--ink)}
+  .order .or-gauge{--pct:80;width:22px;height:22px;border-radius:50%;flex:none;
+    background:conic-gradient(var(--leaf2) calc(var(--pct)*1%),#101712 0)}
+  .order .or-want{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+  .order .or-want span{font-size:11px;background:var(--pill);border:1px solid #2f4636;color:var(--ink);padding:3px 8px;border-radius:999px}
+  .order .or-why{margin-top:11px;width:100%;padding:10px;border:1px solid #35513f;background:transparent;
+    color:var(--leaf2);border-radius:12px;font-size:13px;font-weight:700;cursor:pointer}
+  .labwon{background:#12211a;border:1px solid #2f4636;border-radius:14px;margin:10px 12px 0;padding:11px 13px}
+  .labwon .lw-top{display:flex;align-items:center;gap:10px}
+  .labwon .lw-h{font-weight:800;font-size:14px;flex:1;line-height:1.25}
+  .labwon .lw-won{font-size:11px;font-weight:800;color:#08120b;background:var(--leaf2);padding:3px 9px;border-radius:999px;flex:none}
+  .labwon .lw-want{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .labwon .lw-want span{font-size:11px;background:var(--pill);border:1px solid #2f4636;color:var(--ink);padding:3px 8px;border-radius:999px}
+  .labwon .lw-price{font-size:12px;color:var(--sub);margin-top:8px}
+  .labwon .lw-price b{color:var(--leaf2)}
+</style>
+</head>
+<body>
+
+<!-- ========== 1. CATALOG ========== -->
+<section id="view-catalog" class="view active">
+  <div class="topbar">
+    <button class="rolebtn" id="rolebtn" onclick="toggleRole()">I&#39;m a lab &#9656;</button>
+    <div class="brand"><span class="mark">&#129514;</span> plantpeers</div>
+    <div class="tagline">Buy rare plants as tissue culture. Labs compete on the odds it lives.</div>
+    <!-- My orders entry point — filled by renderOrdersEntry() only when >=1 order exists -->
+    <div id="orders-entry"></div>
+  </div>
+  <div id="dataerr"></div>
+  <div class="search"><input id="q" type="search" placeholder="Search TC varieties by name…" autocomplete="off"></div>
+  <div class="chips" id="filters"></div>
+  <div class="grid" id="catalog"></div>
+  <div class="foot">MVP prototype · mock data, no backend · buyer picks the offer most likely to become a living plant, not the cheapest cup.</div>
+  <!-- PMF instrument: per-session award tally (see metrics module). Blank until first award. -->
+  <div class="foot" id="metrics-foot" style="margin-top:6px"></div>
+</section>
+
+<!-- ========== 2. REQUEST ========== -->
+<section id="view-request" class="view">
+  <div class="topbar">
+    <button class="back" onclick="go('catalog')">&#8592; Catalog</button>
+    <div class="brand" style="font-size:15px"><span class="mark">&#129514;</span> Request this variety</div>
+  </div>
+  <div id="req-detail"></div>
+  <div class="form" id="req-form">
+    <div class="flabel">How many do you want to end up with?</div>
+    <div class="opts" data-group="target">
+      <button class="opt" data-v="just 1 live plant">Just 1</button>
+      <button class="opt on" data-v="2–3 live plants">2–3</button>
+      <button class="opt" data-v="a few (4+) live plants">A few (4+)</button>
+      <button class="opt" data-v="as many as possible">As many as possible</button>
+    </div>
+    <div class="flabel">Your tissue-culture experience</div>
+    <div class="opts" data-group="skill">
+      <button class="opt" data-v="beg">Beginner<small>never deflasked</small></button>
+      <button class="opt on" data-v="some">Some experience<small>a few cups</small></button>
+      <button class="opt" data-v="pro">Pro<small>own flow hood</small></button>
+    </div>
+    <div class="flabel">Budget hint</div>
+    <div class="opts" data-group="budget">
+      <button class="opt" data-v="under $40 shipped">Under $40</button>
+      <button class="opt on" data-v="under $70 shipped">Under $70</button>
+      <button class="opt" data-v="under $120 shipped">Under $120</button>
+      <button class="opt" data-v="best odds regardless of price">Best odds, any price</button>
+    </div>
+    <div class="flabel">Deadline</div>
+    <div class="opts" data-group="deadline">
+      <button class="opt" data-v="no rush">No rush</button>
+      <button class="opt on" data-v="by next week">By next week</button>
+      <button class="opt" data-v="within 2 weeks">Within 2 weeks</button>
+      <button class="opt" data-v="ASAP">ASAP</button>
+    </div>
+    <div class="flabel">Anything else? (optional)</div>
+    <textarea id="req-note" placeholder="e.g. must be stable variegation, prefer already-deflasked, no agar cups, humidity-controlled shipping…"></textarea>
+  </div>
+  <button class="cta" id="postbtn" onclick="postRequest()">Post request &#183; let labs compete</button>
+  <div class="foot">Your request goes out to labs that propagate this variety. They bid; you compare on survival odds.</div>
+</section>
+
+<!-- ========== 3 + 4. COMPARE & PICK ========== -->
+<section id="view-compare" class="view">
+  <div class="topbar req" id="compare-head"></div>
+
+  <!-- skill selector — modulates deflask odds; re-ranks the whole set live -->
+  <div class="skill">
+    <div class="lbl">Your tissue-culture experience <span class="q">affects your deflask odds &#8595;</span></div>
+    <div class="segs" id="segs">
+      <button data-skill="beg" onclick="setSkill('beg')">Beginner<small>never deflasked</small></button>
+      <button data-skill="some" onclick="setSkill('some')">Some<small>a few cups</small></button>
+      <button data-skill="pro" onclick="setSkill('pro')">Pro<small>own flow hood</small></button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button id="tabValue" class="on" onclick="setMode('value')">Best odds</button>
+    <button id="tabSpecs" onclick="setMode('specs')">Compare specs</button>
+  </div>
+  <div class="sectlbl"><span class="rule"></span> Most likely to become a living plant <span class="rule"></span></div>
+  <div id="feed"></div>
+  <div class="foot" id="compare-foot">Ranked by odds it lives (0.45) + lab trust (0.35) + value per surviving plant (0.20). Cheapest cup &#8800; most likely to live.</div>
+</section>
+
+<!-- ========== MY ORDERS (L14) — buyer revisits awarded orders ========== -->
+<section id="view-orders" class="view">
+  <div class="topbar">
+    <button class="back" onclick="go('catalog')">&#8592; Catalog</button>
+    <div class="brand" style="font-size:15px"><span class="mark">&#129514;</span> My orders</div>
+    <div class="tagline">Labs you awarded &#183; reopen why each one won.</div>
+  </div>
+  <div id="orders-list"></div>
+  <div class="foot">Awarded orders are saved on this device (localStorage, no backend). Tap an order to reopen its &ldquo;why you picked it&rdquo; detail.</div>
+</section>
+
+<!-- ========== LAB MODE (L7) — the sell side ========== -->
+
+<!-- L1. LAB PICKER (no real auth — pick which lab you are) -->
+<section id="view-labpicker" class="view">
+  <div class="topbar">
+    <button class="back" onclick="exitLab()">&#8592; Shop as buyer</button>
+    <div class="brand" style="font-size:15px"><span class="mark">&#129514;</span> Lab console <span class="labtag">WHO ARE YOU?</span></div>
+    <div class="tagline">Pick your lab to respond to open buyer requests. You compete on the odds it lives — not price.</div>
+  </div>
+  <div id="labpicker-list"></div>
+  <div class="foot">No sign-in in the MVP — this just chooses which lab&#39;s verified ledger you act under.</div>
+</section>
+
+<!-- L2. OPEN REQUESTS -->
+<section id="view-labrequests" class="view">
+  <div class="topbar">
+    <button class="back" onclick="exitLab()">&#8592; Shop as buyer</button>
+    <div class="brand" style="font-size:15px"><span class="mark">&#129514;</span> Open buyer requests</div>
+    <div class="tagline" id="lab-who"></div>
+  </div>
+  <!-- L14: requests this lab WON, derived from persisted buyer orders (seller_id==this lab). Hidden when none. -->
+  <div class="sectlbl" id="labwon-sect" style="display:none"><span class="rule"></span> &#10003; You won <span class="rule"></span></div>
+  <div id="labwon-list"></div>
+  <div class="sectlbl"><span class="rule"></span> Buyers waiting for offers <span class="rule"></span></div>
+  <div id="labreq-list"></div>
+  <div class="foot">These are live buyer requests with status <b>open</b>. Tap one to build your competing offer.</div>
+</section>
+
+<!-- L3. OFFER BUILDER -->
+<section id="view-laboffer" class="view">
+  <div class="topbar">
+    <button class="back" onclick="go('labrequests')">&#8592; Requests</button>
+    <div class="brand" style="font-size:15px"><span class="mark">&#129514;</span> Build your offer</div>
+  </div>
+  <div id="lab-req-summary"></div>
+  <div id="lab-ledger"></div>
+
+  <div class="sectlbl"><span class="rule"></span> Your levers <span class="rule"></span></div>
+  <div id="lab-form"></div>
+
+  <div class="sectlbl"><span class="rule"></span> How to win this request <span class="rule"></span></div>
+  <div class="l-coach" id="lab-coach"></div>
+
+  <button class="cta" id="lab-submit" onclick="submitLabOffer()">Submit offer &#183; enter the ranking</button>
+  <div class="l-note">Contamination &amp; deflask success come only from your <b>verified ledger</b> and have no form field —
+    the anti-gaming guarantee. Variegation % and acclimation guide are shown to buyers but, exactly as on the buyer side,
+    are <b>not read by the ranking model</b> (flagged).</div>
+  <div style="height:230px"></div><!-- spacer so the sticky projection never covers the submit button -->
+</section>
+
+<!-- Sticky live projected rank (only visible in the offer builder) -->
+<div class="l-proj" id="lab-proj">
+  <div class="row1">
+    <div class="l-gauge" id="lab-gauge"><b id="lab-gauge-pct">—</b></div>
+    <div class="l-rankbig">
+      <div class="r">Projected rank <span id="lab-rank-n">—</span> <em>of <span id="lab-rank-tot">—</span></em></div>
+      <div class="meta">survival <b id="lab-p-surv">—</b> &middot; trust <b id="lab-p-trust">—</b> &middot; $<span id="lab-p-cpl">—</span>/live plant &middot; score <b id="lab-p-score">—</b></div>
+      <span class="l-rankmove flat" id="lab-rankmove">fill the form to see moves</span>
+    </div>
+  </div>
+  <div class="l-board" id="lab-board"></div>
+</div>
+
+<!-- ========== 5. AWARD CONFIRMATION ========== -->
+<div class="sheet" id="sheet">
+  <div class="big">&#129514;</div>
+  <h2 id="sh_h">Offer awarded</h2>
+  <p id="sh_p"></p>
+  <div id="sh_override"></div>
+  <div class="why2"><div style="color:#eaf3ec;font-weight:700;margin-bottom:6px">Why this gives you the best odds</div><ul id="sh_why" style="margin:0;padding-left:18px"></ul></div>
+  <button id="sh_close" onclick="closeSheet()">Back to catalog</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- THE MODEL — single source of truth, shared with scripts/validate_data.py (run
+     through node). Loaded before the app script; exposes window.PPModel. -->
+<script>
+/* ============================================================
+   PlantPeers SURVIVAL / TRUST / RANK MODEL — THE single source of truth.
+
+   This one file holds the entire scoring model (priors, weights, betaMean,
+   confidenceTier, enrich, survival, labTrust, score, recompute and the
+   anti-gaming #1-slot rule). It is consumed unchanged in TWO places:
+
+     * the browser — index.html loads it via <script src="model.js"> BEFORE its
+       inline script and reads window.PPModel (no build step).
+     * Node       — scripts/validate_data.py shells out to `node` which
+       require()s this file, so the validator's golden ranking is computed by
+       the SAME code the app runs. There is no re-implementation to drift from.
+
+   Everything is a pure function of its inputs (offer + seller + buyer skill);
+   nothing here touches the DOM, fetch, or globals other than the export object.
+   ============================================================ */
+(function (global) {
+  "use strict";
+
+  /* buyer TC experience -> per-plantlet deflask multiplier */
+  var SKILL = { beg: 0.65, some: 0.85, pro: 1.0 };
+
+  /* ---- BUYER-NEEDS knobs (target quantity / budget / deadline) ----
+     The request form collects how many LIVING plants the buyer wants (target),
+     a max shipped $ (budget) and a by-when (deadline). These shape the ranking:
+       * TARGET_W  — the share of the survival credit that is governed by hitting
+         the desired count (the rest is the plain "at least one lives" odds). It
+         REFINES survival; it is never a fresh pool of points a low-trust lab can
+         farm by stuffing plantlets — see score()/the anti-gaming note.
+       * BUDGET_SLOPE / BUDGET_FLOOR — an over-budget offer is SOFT-penalised
+         (multiplicative), never hard-filtered: it keeps at least BUDGET_FLOOR of
+         its score so a great over-budget option is still visible, just can't win
+         over a comparable in-budget one.
+     Deadline is display-only (an eta-vs-by-when flag); it does not move score. */
+  var TARGET_W = 0.25;
+  var BUDGET_SLOPE = 0.5;
+  var BUDGET_FLOOR = 0.6;
+
+  /* Beta-shrinkage priors: assume ~10% contamination / ~65% establishment until a
+     lab's witnessed ledger proves otherwise. Strength = pseudo-count of evidence. */
+  var CONTAM_PRIOR = 0.10, CONTAM_STRENGTH = 25;
+  var DEFLASK_PRIOR = 0.65, DEFLASK_STRENGTH = 20;
+
+  /* Beta posterior mean shrunk toward the platform prior. Few outcomes -> stays
+     near the prior (an unproven optimistic claim is discounted); many outcomes ->
+     the ledger dominates and the claim is ignored. */
+  function betaMean(k, n, priorRate, strength) {
+    var a0 = priorRate * strength, b0 = (1 - priorRate) * strength;
+    return (a0 + k) / (a0 + b0 + n);
+  }
+
+  /* Parse the buyer's free-text request notes into the NUMERIC needs the ranking
+     reads: desired living-plant count (target), max shipped $ (budget), and a
+     by-when eta in days (deadline). An absent / unparseable field returns null ==
+     "no constraint", so a request missing a field ranks EXACTLY as it did before
+     this feature existed (graceful default). Consumed by recompute()/score(). */
+  function parseTarget(str) {
+    if (str == null) return null;
+    var t = String(str).toLowerCase();
+    if (/as many|as possible|maximum|max out/.test(t)) return 8; // "more is better"
+    var m = t.match(/\d+/);
+    return m ? parseInt(m[0], 10) : null;                        // first number: "4+"->4, "2-3"->2
+  }
+  function parseBudget(str) {
+    if (str == null) return null;
+    var t = String(str).toLowerCase();
+    if (/regardless|any price|best odds/.test(t)) return null;   // explicit "price is no object"
+    var m = t.match(/\d+/);
+    return m ? parseInt(m[0], 10) : null;
+  }
+  function parseDeadline(str) {
+    if (str == null) return null;
+    var t = String(str).toLowerCase();
+    if (/no rush|whenever|flexible/.test(t)) return null;
+    if (/asap|urgent/.test(t)) return 3;
+    var wk = t.match(/(\d+)\s*week/);
+    if (wk) return parseInt(wk[1], 10) * 7;
+    if (/next week|this week|a week|1 week|one week/.test(t)) return 7;
+    var dm = t.match(/(\d+)\s*day/);
+    if (dm) return parseInt(dm[1], 10);
+    return null;
+  }
+  function parseNeeds(notes) {
+    notes = notes || {};
+    return {
+      target: parseTarget(notes.target),
+      budget: parseBudget(notes.budget),
+      deadline: parseDeadline(notes.deadline)
+    };
+  }
+
+  /* Is a lab's ledger deep enough to trust over its claim? */
+  function confidenceTier(shipments, checkins) {
+    if (shipments >= 60 && checkins >= 40) return "verified";
+    if (shipments >= 20) return "thin";
+    return "unverified";
+  }
+
+  /* Fold a raw offer + its seller into the model object the ranking reads. The two
+     decisive inputs (contam, contam_deflask) come ONLY from the witnessed ledger,
+     Beta-shrunk to the prior — never the lab's self-report. A no/thin ledger is
+     pinned to the cautious prior so dropping the ledger and claiming 0%/100% buys
+     nothing. Also carries the ledger-display fields the buyer/lab UI surfaces. */
+  function enrich(offer, seller) {
+    offer = offer || {};
+    seller = seller || {};
+    var o = {};
+    o.id = offer.id;
+    o.plant_id = offer.plant_id;
+    o.seller_id = offer.seller_id;
+    o.handle = seller.handle || ("@" + offer.seller_id);
+    o.rating = seller.rating || 0;
+    o.sales = seller.sales_count || 0;
+    o.certsCount = seller.certs ? seller.certs.length : 0;
+    o.contamClaimed = (seller.contamination_rate_claimed != null) ? seller.contamination_rate_claimed : 0.15;
+    o.deflaskClaimed = (seller.deflask_success_rate_claimed != null) ? seller.deflask_success_rate_claimed : 0.6;
+
+    var lg = seller.ledger;
+    if (lg && lg.shipments > 0 && lg.checkins_responded > 0) {
+      o.hasLedger = true;
+      o.shipments = lg.shipments;
+      o.checkins = lg.checkins_responded;
+      // witnessed contamination = FILED claims / shipments (denying claims can't hide it)
+      var filed = (lg.filed_claims != null) ? lg.filed_claims : lg.honored_claims;
+      o.filedClaims = filed;
+      o.honoredClaims = lg.honored_claims;
+      o.contamVerified = filed / lg.shipments;
+      o.deflaskVerified = lg.establishment_confirmed / lg.checkins_responded;
+      // honor rate is a SEPARATE trust signal (denying filed claims hurts it)
+      o.honorRate = filed > 0 ? lg.honored_claims / filed : 1;
+      o.confidence = confidenceTier(lg.shipments, lg.checkins_responded);
+      o.contam = betaMean(filed, lg.shipments, CONTAM_PRIOR, CONTAM_STRENGTH);
+      o.contam_deflask = betaMean(lg.establishment_confirmed, lg.checkins_responded, DEFLASK_PRIOR, DEFLASK_STRENGTH);
+      if (o.confidence === "unverified") {
+        // ledger too thin to believe: never better than the cautious prior
+        o.contam = Math.max(CONTAM_PRIOR, o.contam);
+        o.contam_deflask = Math.min(DEFLASK_PRIOR, o.contam_deflask);
+      }
+    } else {
+      // no ledger (churned / re-registered lab): pin to the prior, distrust the claim
+      o.hasLedger = false;
+      o.confidence = "unverified";
+      o.contam = Math.max(CONTAM_PRIOR, o.contamClaimed);
+      o.contam_deflask = Math.min(DEFLASK_PRIOR, o.deflaskClaimed);
+      o.contamVerified = null;
+      o.deflaskVerified = null;
+      o.honorRate = null;
+      o.filedClaims = 0;
+      o.honoredClaims = 0;
+    }
+
+    // Replacement guarantee: an explicit per-offer override (from the lab console
+    // toggle) wins; otherwise fall back to the seller's standing policy.
+    var rp = seller.replacement_policy || {};
+    o.replace = (offer.replacement_override != null) ? !!offer.replacement_override : !!rp.covers;
+
+    o.stage = offer.stage;
+    o.plantlets = offer.plantlets_per_cup || 1;
+    o.price = offer.price || 0;
+    o.shipping = offer.shipping || 0;
+    o.eta = (offer.eta_days != null) ? offer.eta_days : null; // for the deadline flag (display-only)
+    return o;
+  }
+
+  /* Odds the buyer ends up with a living plant, given stage, ledger-derived
+     establishment/contamination, plantlet count, replacement policy and skill. */
+  function survival(o, skill) {
+    var sk = SKILL[skill];
+    var perPlant;
+    if (o.stage === "invitro") perPlant = o.contam_deflask * sk;      // buyer deflasks; skill matters
+    else if (o.stage === "deflasked") perPlant = 0.80 + 0.18 * o.contam_deflask; // lab establishment shows through
+    else perPlant = 0.90 + 0.09 * o.contam_deflask;                   // acclimated: ledger nudges
+    var effContam = o.replace ? o.contam * 0.15 : o.contam;
+    var pClean = (o.stage === "acclimated") ? 1 : (1 - effContam);    // acclimated: cup risk retired
+    var n = o.plantlets;
+    var pAtLeastOne = pClean * (1 - Math.pow(1 - perPlant, n));
+    var expLive = pClean * n * perPlant;
+    var total = o.price + o.shipping;
+    var costPerLive = expLive > 0 ? total / expLive : 999;
+    return {
+      perPlant: perPlant, pClean: pClean, pAtLeastOne: pAtLeastOne, expLive: expLive,
+      costPerLive: costPerLive, total: total, moneyAtRisk: o.replace ? 0 : total
+    };
+  }
+
+  /* Lab-trust score (0-100). Contamination + deflask track record dominate;
+     replacement guarantee, certs, rating, volume and honor-rate fold in. */
+  function labTrust(o) {
+    var contamScore = Math.max(0, 1 - o.contam / 0.25);
+    var deflaskScore = o.contam_deflask;
+    var ratingScore = (o.rating || 0) / 5;
+    var volScore = Math.min(1, Math.log10((o.sales || 0) + 1) / Math.log10(500));
+    var certScore = Math.min(1, (o.certsCount || 0) / 2);
+    var honorScore = (o.honorRate != null) ? o.honorRate : 0.85;
+    var raw = 0.30 * contamScore + 0.18 * deflaskScore + 0.12 * ratingScore
+      + 0.08 * volScore + 0.10 * certScore + 0.10 * (o.replace ? 1 : 0) + 0.12 * honorScore;
+    return Math.round(raw * 100);
+  }
+
+  /* TARGET fit: how well an offer's EXPECTED SURVIVORS meet the buyer's desired
+     living-plant count. 1 == meets/exceeds the target; <1 falls short. Absent
+     target -> 1 (no effect). This is the lever that lets a 6-plantlet cup (whose
+     expected live count clears "a few (4+)") out-rank a single acclimated plant. */
+  function targetFit(expLive, needs) {
+    if (!needs || needs.target == null || needs.target <= 0) return 1;
+    return Math.min(1, expLive / needs.target);
+  }
+
+  /* BUDGET soft penalty: an over-budget offer is DOWN-WEIGHTED in proportion to how
+     far over it is, but never below BUDGET_FLOOR of its score and never hidden — a
+     great over-budget option still appears, it just can't win over a comparable
+     in-budget one. In-budget (or no budget stated) -> 1 (untouched). */
+  function budgetPenalty(o, needs) {
+    if (!needs || needs.budget == null || needs.budget <= 0) return 1;
+    var total = o.price + o.shipping;
+    if (total <= needs.budget) return 1;
+    var over = total / needs.budget - 1;              // 0.5 == 50% over budget
+    return Math.max(BUDGET_FLOOR, 1 - over * BUDGET_SLOPE);
+  }
+
+  /* Composite RANK score: survival(0.45) + lab-trust(0.35) + value(0.20), then the
+     buyer's stated needs shape it: the survival credit is refined by TARGET fit
+     (do the expected survivors meet the desired count?), and the whole score is
+     scaled by the soft BUDGET penalty. Value is cost-per-expected-live-plant,
+     clamped [0,100] so a cheap-but-doomed cup can't win.
+
+     ANTI-GAMING: target enters as a MULTIPLIER on the survival credit (bounded by
+     [1-TARGET_W, 1]), not as a new additive pool of points. A low-trust lab that
+     stuffs plantlets still earns survival credit only in proportion to its (low)
+     per-plant survival, and lab-trust(0.35) is untouched — so hitting the count
+     cannot buy a churned/untrusted lab up the board. */
+  function score(o, skill, needs) {
+    var s = survival(o, skill);
+    var survScore = s.pAtLeastOne * 100;
+    var priceScore = Math.max(0, Math.min(100, 100 - (s.costPerLive - 15) * 1.5));
+    var tf = targetFit(s.expLive, needs);
+    var survComponent = survScore * (1 - TARGET_W + TARGET_W * tf);
+    var base = 0.45 * survComponent + 0.35 * labTrust(o) + 0.20 * priceScore;
+    return base * budgetPenalty(o, needs);
+  }
+
+  /* Stamp the display-only needs flags the buyer UI reads onto the offer: is it
+     over budget (and by how much), does its expected live count meet the target,
+     and does its eta miss the by-when deadline. Pure annotation — the ranking is
+     already decided by score(); deadline in particular NEVER moves score. */
+  function annotateNeeds(o, needs) {
+    needs = needs || {};
+    var s = o._s || survival(o, "some");
+    var total = o.price + o.shipping;
+    o._overBudget = (needs.budget != null && total > needs.budget);
+    o._overBudgetBy = o._overBudget ? total - needs.budget : 0;
+    o._targetFit = (needs.target != null && needs.target > 0) ? targetFit(s.expLive, needs) : null;
+    o._target = (needs.target != null) ? needs.target : null;
+    o._meetsTarget = (o._target != null) ? (s.expLive >= o._target - 1e-9) : null;
+    o._lateEta = (needs.deadline != null && o.eta != null) ? (o.eta > needs.deadline) : false;
+    o._etaGap = o._lateEta ? o.eta - needs.deadline : 0;
+    o._deadline = (needs.deadline != null) ? needs.deadline : null;
+  }
+
+  /* An offer may hold #1 only if it has witnessed outcomes (tier != unverified). */
+  function rankEligibleForTop(o) { return o.confidence !== "unverified"; }
+
+  /* Anti-gaming hard rule: a no/thin-ledger (unverified) offer cannot rank first
+     while any ledger-backed offer exists — stops the churn attack. arr is already
+     score-sorted, so the first eligible offer found is the best-scoring one. */
+  function enforceVerifiedFirst(arr) {
+    if (arr.length < 2 || rankEligibleForTop(arr[0])) return;
+    for (var i = 1; i < arr.length; i++) {
+      if (rankEligibleForTop(arr[i])) { arr.unshift(arr.splice(i, 1)[0]); return; }
+    }
+  }
+
+  /* Recompute survival/trust/score for `skill` and the buyer's `needs` (target/
+     budget/deadline — pass numeric needs, e.g. from parseNeeds(); omitted == no
+     constraints == behaves exactly as before this feature), sort by score desc,
+     apply the #1-slot rule. Sets o._s / o._lt / o._score and the needs flags in
+     place (the UI reads o._s and o._overBudget/_targetFit/_lateEta). */
+  function recompute(arr, skill, needs) {
+    needs = needs || {};
+    arr.forEach(function (o) { o._s = survival(o, skill); o._lt = labTrust(o); });
+    arr.forEach(function (o) { o._score = score(o, skill, needs); annotateNeeds(o, needs); });
+    arr.sort(function (a, b) { return b._score - a._score; });
+    enforceVerifiedFirst(arr);
+    return arr;
+  }
+
+  var PPModel = {
+    SKILL: SKILL,
+    CONTAM_PRIOR: CONTAM_PRIOR, CONTAM_STRENGTH: CONTAM_STRENGTH,
+    DEFLASK_PRIOR: DEFLASK_PRIOR, DEFLASK_STRENGTH: DEFLASK_STRENGTH,
+    TARGET_W: TARGET_W, BUDGET_SLOPE: BUDGET_SLOPE, BUDGET_FLOOR: BUDGET_FLOOR,
+    betaMean: betaMean,
+    parseTarget: parseTarget, parseBudget: parseBudget, parseDeadline: parseDeadline,
+    parseNeeds: parseNeeds,
+    confidenceTier: confidenceTier,
+    enrich: enrich,
+    survival: survival,
+    labTrust: labTrust,
+    targetFit: targetFit,
+    budgetPenalty: budgetPenalty,
+    annotateNeeds: annotateNeeds,
+    score: score,
+    rankEligibleForTop: rankEligibleForTop,
+    enforceVerifiedFirst: enforceVerifiedFirst,
+    recompute: recompute
+  };
+
+  global.PPModel = PPModel;
+  if (typeof module !== "undefined" && module.exports) { module.exports = PPModel; }
+})(typeof window !== "undefined" ? window : (typeof globalThis !== "undefined" ? globalThis : this));
+
+</script>
+<script>
+/* offline bundle: serve inlined data/*.json without network */
+(function(){var __D={
+  "plants": [{"id": "philo-florida-beauty-tc", "common_name": "Philodendron 'Florida Beauty'", "latin_name": "Philodendron pedatum hybrid", "variety": "variegated", "size_class": "Variegated aroid", "care_level": "Moderate", "light": "Bright indirect", "hero_img": null, "hero_hue": "#7fae5c", "hero_leaves": 5, "description": "Highly sought variegated aroid, mass-propagated in vitro. Buyers go TC for cheap access to the cream/green splash \u2014 but variegation stability varies by lab and deflasking is the make-or-break step."}, {"id": "monstera-thai-constellation-tc", "common_name": "Monstera 'Thai Constellation'", "latin_name": "Monstera deliciosa 'Thai Constellation'", "variety": "variegated", "size_class": "Variegated aroid", "care_level": "Advanced", "light": "Bright indirect", "hero_img": null, "hero_hue": "#6fbf7e", "hero_leaves": 5, "description": "The lab-stable variegated Monstera \u2014 creamy galaxy speckling that (unlike albo) doesn't revert. Slow in vitro, so expect fewer plantlets per cup and a premium price."}, {"id": "anthurium-clarinervium-tc", "common_name": "Anthurium clarinervium", "latin_name": "Anthurium clarinervium", "variety": "velvet", "size_class": "Velvet anthurium", "care_level": "Advanced", "light": "Medium indirect", "hero_img": null, "hero_hue": "#3f7d63", "hero_leaves": 4, "description": "Velvety heart-shaped leaves with bright white venation. TC gives pest-free, uniform stock \u2014 but clarinervium plantlets are humidity-fussy and unforgiving to deflask for beginners."}, {"id": "syngonium-three-kings-tc", "common_name": "Syngonium 'Three Kings'", "latin_name": "Syngonium podophyllum 'Three Kings'", "variety": "variegated", "size_class": "Arrowhead vine", "care_level": "Easy", "light": "Bright indirect", "hero_img": null, "hero_hue": "#8fcf7a", "hero_leaves": 6, "description": "Fast, forgiving arrowhead vine with green-and-cream variegation. One of the easier TC plants to deflask \u2014 high plantlet counts per cup make it a great first tissue-culture buy."}, {"id": "alocasia-frydek-variegata-tc", "common_name": "Alocasia 'Frydek' Variegata", "latin_name": "Alocasia micholitziana 'Frydek Variegata'", "variety": "variegated", "size_class": "Variegated alocasia", "care_level": "Advanced", "light": "Bright indirect", "hero_img": null, "hero_hue": "#4f9d70", "hero_leaves": 4, "description": "Dark velvet leaves with white venation and splashed variegation. Alocasia are notoriously hard to acclimate out of flask \u2014 later-stage cups from a proven lab are worth the premium here."}, {"id": "phalaenopsis-bellina-tc", "common_name": "Phalaenopsis bellina", "latin_name": "Phalaenopsis bellina", "variety": "species orchid", "size_class": "Species orchid", "care_level": "Moderate", "light": "Medium indirect", "hero_img": null, "hero_hue": "#7ab0c9", "hero_leaves": 3, "description": "Fragrant species orchid, almost always started in flask. Orchid seedlings are slow and sold as community pots or deflasked compots \u2014 a low-contamination lab matters more than raw plantlet count."}, {"id": "begonia-escargot-tc", "common_name": "Begonia 'Escargot'", "latin_name": "Begonia 'Escargot' (rex hybrid)", "variety": "rex", "size_class": "Rex begonia", "care_level": "Moderate", "light": "Medium indirect", "hero_img": null, "hero_hue": "#8a7fae", "hero_leaves": 5, "description": "Spiralled silver-and-plum rex begonia. Propagates prolifically in vitro (high plantlet counts) but the thin leaves resent low humidity right after deflasking."}, {"id": "philo-pink-princess-tc", "common_name": "Philodendron 'Pink Princess'", "latin_name": "Philodendron erubescens 'Pink Princess'", "variety": "variegated", "size_class": "Variegated aroid", "care_level": "Moderate", "light": "Bright indirect", "hero_img": null, "hero_hue": "#c07aa8", "hero_leaves": 4, "description": "The coveted pink-variegated aroid. TC plantlets can carry unstable pink that reverts \u2014 phenotype_stability and a lab that culls reverting stock are everything for this one."}],
+  "sellers": [{"id": "fernandflora", "handle": "@verdant_tclab", "avatar_hue": "#3b6b4a", "rating": 4.9, "sales_count": 430, "badges": ["\u2713 Sterile-lab certified", "Contam-replace guarantee", "Deflask guide included"], "location": "Portland, OR", "response_time": "~2h", "contamination_rate_claimed": 0.02, "deflask_success_rate_claimed": 0.92, "ledger": {"shipments": 240, "honored_claims": 7, "filed_claims": 8, "checkins_responded": 180, "establishment_confirmed": 166}, "certs": ["Sterile-lab certified", "Phyto-clean stock"], "replacement_policy": {"covers": true, "text": "Free replacement if a cup arrives contaminated"}}, {"id": "budgetjungle", "handle": "@tropiflask_wholesale", "avatar_hue": "#7a6b3b", "rating": 3.8, "sales_count": 41, "badges": ["Wholesale", "New-ish lab"], "location": "Austin, TX", "response_time": "~1d", "contamination_rate_claimed": 0.02, "deflask_success_rate_claimed": 0.9, "ledger": {"shipments": 240, "honored_claims": 48, "filed_claims": 60, "checkins_responded": 150, "establishment_confirmed": 70}, "certs": [], "replacement_policy": {"covers": false, "text": "No replacement \u2014 all sales final"}}, {"id": "leaflab_pnw", "handle": "@aroid_culture_co", "avatar_hue": "#3b5a6b", "rating": 4.6, "sales_count": 190, "badges": ["\u2713 Verified", "Contam-replace guarantee"], "location": "Seattle, WA", "response_time": "~5h", "contamination_rate_claimed": 0.06, "deflask_success_rate_claimed": 0.78, "ledger": {"shipments": 95, "honored_claims": 7, "filed_claims": 9, "checkins_responded": 60, "establishment_confirmed": 47}, "certs": ["Verified lab"], "replacement_policy": {"covers": true, "text": "Replaces contaminated cups within 5 days"}}, {"id": "potandsoil", "handle": "@beginner_botanica", "avatar_hue": "#5a3b6b", "rating": 4.8, "sales_count": 150, "badges": ["\u2713 Verified", "Establishment guarantee"], "location": "Denver, CO", "response_time": "~8h", "contamination_rate_claimed": 0.01, "deflask_success_rate_claimed": 0.98, "ledger": {"shipments": 150, "honored_claims": 3, "filed_claims": 3, "checkins_responded": 110, "establishment_confirmed": 106}, "certs": ["Verified lab"], "replacement_policy": {"covers": true, "text": "DOA + establishment guarantee, 14 days"}}, {"id": "greenthumbco", "handle": "@cleanroom_aroids", "avatar_hue": "#2f7a4d", "rating": 4.8, "sales_count": 205, "badges": ["\u2713 Sterile-lab certified", "Fast shipper", "Contam-replace guarantee"], "location": "San Diego, CA", "response_time": "~3h", "contamination_rate_claimed": 0.02, "deflask_success_rate_claimed": 0.9, "ledger": {"shipments": 205, "honored_claims": 6, "filed_claims": 7, "checkins_responded": 140, "establishment_confirmed": 128}, "certs": ["Sterile-lab certified"], "replacement_policy": {"covers": true, "text": "Free replacement on contaminated cups"}}, {"id": "urbanroots", "handle": "@midwest_micropropagation", "avatar_hue": "#4a6b3b", "rating": 4.4, "sales_count": 48, "badges": ["\u2713 Verified"], "location": "Chicago, IL", "response_time": "~12h", "contamination_rate_claimed": 0.09, "deflask_success_rate_claimed": 0.7, "ledger": {"shipments": 48, "honored_claims": 5, "filed_claims": 8, "checkins_responded": 30, "establishment_confirmed": 21}, "certs": ["Verified lab"], "replacement_policy": {"covers": false, "text": "No replacement \u2014 buyer assumes contamination risk"}}, {"id": "thefernery", "handle": "@flask_and_frond", "avatar_hue": "#3b6b5a", "rating": 4.85, "sales_count": 176, "badges": ["\u2713 Sterile-lab certified", "Contam-replace guarantee"], "location": "Asheville, NC", "response_time": "~4h", "contamination_rate_claimed": 0.03, "deflask_success_rate_claimed": 0.88, "ledger": {"shipments": 176, "honored_claims": 6, "filed_claims": 7, "checkins_responded": 118, "establishment_confirmed": 104}, "certs": ["Sterile-lab certified", "Verified lab"], "replacement_policy": {"covers": true, "text": "Replaces contaminated cups within 7 days"}}, {"id": "sprout_supply", "handle": "@backyard_flasks", "avatar_hue": "#6b6b3b", "rating": 3.9, "sales_count": 15, "badges": ["New-ish lab"], "location": "Miami, FL", "response_time": "~2d", "contamination_rate_claimed": 0.02, "deflask_success_rate_claimed": 0.93, "ledger": {"shipments": 5, "honored_claims": 0, "filed_claims": 0, "checkins_responded": 2, "establishment_confirmed": 2}, "certs": [], "replacement_policy": {"covers": false, "text": "No replacement offered"}}],
+  "offers": [{"id": "o-fb-1", "plant_id": "philo-florida-beauty-tc", "seller_id": "budgetjungle", "photo_hue": "#8fae5c", "stage": "invitro", "plantlets_per_cup": 6, "specs": {"phenotype_stability": 60, "medium": "Agar gel", "plantlet_size": "2\u20134 cm plantlets", "acclimation_support": false}, "price": 18, "shipping": 9, "eta_days": 6, "late": false, "message": "6 plantlets for $18 \u2014 deflask them yourself. Wholesale flask, all sales final."}, {"id": "o-fb-2", "plant_id": "philo-florida-beauty-tc", "seller_id": "fernandflora", "photo_hue": "#57b479", "stage": "deflasked", "plantlets_per_cup": 3, "specs": {"phenotype_stability": 95, "medium": "Rooted in sphagnum", "plantlet_size": "5\u20137 cm rooted", "acclimation_support": true}, "price": 52, "shipping": 10, "eta_days": 4, "late": false, "message": "Already deflasked & rooting \u2014 you skip the step beginners lose plants on. Contaminated cups replaced free."}, {"id": "o-fb-3", "plant_id": "philo-florida-beauty-tc", "seller_id": "leaflab_pnw", "photo_hue": "#5fb87e", "stage": "invitro", "plantlets_per_cup": 5, "specs": {"phenotype_stability": 88, "medium": "Agar gel", "plantlet_size": "3\u20135 cm plantlets", "acclimation_support": true}, "price": 34, "shipping": 8, "eta_days": 5, "late": false, "message": "Clean cup, 5 plantlets, written deflask guide included. Replaces cups that arrive contaminated."}, {"id": "o-fb-4", "plant_id": "philo-florida-beauty-tc", "seller_id": "potandsoil", "photo_hue": "#57b479", "stage": "acclimated", "plantlets_per_cup": 1, "specs": {"phenotype_stability": 96, "medium": "Potted, hardened off", "plantlet_size": "1 established plant", "acclimation_support": true}, "price": 68, "shipping": 11, "eta_days": 4, "late": false, "message": "One plant, already growing in soil. Zero deflasking, establishment guaranteed."}, {"id": "o-fb-5", "plant_id": "philo-florida-beauty-tc", "seller_id": "greenthumbco", "photo_hue": "#5fb87e", "stage": "deflasked", "plantlets_per_cup": 3, "specs": {"phenotype_stability": 92, "medium": "Rooted in sphagnum", "plantlet_size": "5\u20136 cm rooted", "acclimation_support": true}, "price": 49, "shipping": 9, "eta_days": 3, "late": false, "message": "Deflasked trio from a sterile cleanroom, ships fast. Cups replaced if contaminated."}, {"id": "o-fb-6", "plant_id": "philo-florida-beauty-tc", "seller_id": "thefernery", "photo_hue": "#57b479", "stage": "deflasked", "plantlets_per_cup": 3, "specs": {"phenotype_stability": 90, "medium": "Rooted in sphagnum", "plantlet_size": "5\u20137 cm rooted", "acclimation_support": true}, "price": 52, "shipping": 10, "eta_days": 4, "late": true, "message": "Just freed up a rooted trio \u2014 sterile-lab certified, contam-replace covered."}, {"id": "o-tc-1", "plant_id": "monstera-thai-constellation-tc", "seller_id": "fernandflora", "photo_hue": "#6fbf7e", "stage": "deflasked", "plantlets_per_cup": 2, "specs": {"phenotype_stability": 90, "medium": "Rooted in sphagnum", "plantlet_size": "5\u20137 cm rooted", "acclimation_support": true}, "price": 120, "shipping": 12, "eta_days": 4, "late": false, "message": "Slow-culture Thai, deflasked and stable-speckled. Replaced free if contaminated."}, {"id": "o-tc-2", "plant_id": "monstera-thai-constellation-tc", "seller_id": "budgetjungle", "photo_hue": "#8fae5c", "stage": "invitro", "plantlets_per_cup": 4, "specs": {"phenotype_stability": 55, "medium": "Agar gel", "plantlet_size": "2\u20133 cm plantlets", "acclimation_support": false}, "price": 65, "shipping": 10, "eta_days": 7, "late": false, "message": "4 Thai plantlets cheap \u2014 variegation not guaranteed, no replacement."}, {"id": "o-tc-3", "plant_id": "monstera-thai-constellation-tc", "seller_id": "thefernery", "photo_hue": "#6fbf7e", "stage": "acclimated", "plantlets_per_cup": 1, "specs": {"phenotype_stability": 95, "medium": "Potted, hardened off", "plantlet_size": "1 established plant", "acclimation_support": true}, "price": 165, "shipping": 14, "eta_days": 4, "late": false, "message": "Established Thai already in soil, verified speckling. Zero deflask risk."}, {"id": "o-ac-1", "plant_id": "anthurium-clarinervium-tc", "seller_id": "leaflab_pnw", "photo_hue": "#3f7d63", "stage": "invitro", "plantlets_per_cup": 5, "specs": {"phenotype_stability": 92, "medium": "Agar gel", "plantlet_size": "2\u20134 cm plantlets", "acclimation_support": true}, "price": 40, "shipping": 9, "eta_days": 5, "late": false, "message": "Clean clarinervium cup, 5 plantlets, deflask guide. Contam-replace covered."}, {"id": "o-ac-2", "plant_id": "anthurium-clarinervium-tc", "seller_id": "sprout_supply", "photo_hue": "#8fae5c", "stage": "invitro", "plantlets_per_cup": 6, "specs": {"phenotype_stability": 70, "medium": "Agar gel", "plantlet_size": "2\u20133 cm plantlets", "acclimation_support": false}, "price": 22, "shipping": 10, "eta_days": 9, "late": false, "message": "Most plantlets for the money. Backyard flask, no replacement."}, {"id": "o-ac-3", "plant_id": "anthurium-clarinervium-tc", "seller_id": "greenthumbco", "photo_hue": "#4f9d70", "stage": "deflasked", "plantlets_per_cup": 3, "specs": {"phenotype_stability": 94, "medium": "Rooted in sphagnum", "plantlet_size": "5\u20136 cm rooted", "acclimation_support": true}, "price": 58, "shipping": 9, "eta_days": 3, "late": false, "message": "Deflasked trio, strong white venation. Replaced free if contaminated."}, {"id": "o-sy-1", "plant_id": "syngonium-three-kings-tc", "seller_id": "urbanroots", "photo_hue": "#8fcf7a", "stage": "invitro", "plantlets_per_cup": 5, "specs": {"phenotype_stability": 85, "medium": "Agar gel", "plantlet_size": "3\u20135 cm plantlets", "acclimation_support": false}, "price": 20, "shipping": 7, "eta_days": 6, "late": false, "message": "Easy-deflask syngonium, 5 plantlets. No replacement though."}, {"id": "o-sy-2", "plant_id": "syngonium-three-kings-tc", "seller_id": "budgetjungle", "photo_hue": "#8fae5c", "stage": "invitro", "plantlets_per_cup": 8, "specs": {"phenotype_stability": 60, "medium": "Agar gel", "plantlet_size": "2\u20133 cm plantlets", "acclimation_support": false}, "price": 14, "shipping": 9, "eta_days": 8, "late": false, "message": "8 plantlets for $14 \u2014 cheapest around. All sales final."}, {"id": "o-sy-3", "plant_id": "syngonium-three-kings-tc", "seller_id": "potandsoil", "photo_hue": "#8fcf7a", "stage": "acclimated", "plantlets_per_cup": 1, "specs": {"phenotype_stability": 92, "medium": "Potted, hardened off", "plantlet_size": "1 established plant", "acclimation_support": true}, "price": 34, "shipping": 8, "eta_days": 4, "late": false, "message": "One established plant in soil, establishment guaranteed."}, {"id": "o-af-1", "plant_id": "alocasia-frydek-variegata-tc", "seller_id": "fernandflora", "photo_hue": "#4f9d70", "stage": "deflasked", "plantlets_per_cup": 2, "specs": {"phenotype_stability": 88, "medium": "Rooted in sphagnum", "plantlet_size": "4\u20136 cm rooted", "acclimation_support": true}, "price": 95, "shipping": 12, "eta_days": 4, "late": false, "message": "Frydek variegata past the scary deflask stage. Replaced free if contaminated."}, {"id": "o-af-2", "plant_id": "alocasia-frydek-variegata-tc", "seller_id": "sprout_supply", "photo_hue": "#8fae5c", "stage": "invitro", "plantlets_per_cup": 3, "specs": {"phenotype_stability": 50, "medium": "Agar gel", "plantlet_size": "2\u20133 cm plantlets", "acclimation_support": false}, "price": 48, "shipping": 11, "eta_days": 9, "late": false, "message": "Cheap variegated Frydek cup \u2014 alocasia are hard to deflask. No replacement."}, {"id": "o-af-3", "plant_id": "alocasia-frydek-variegata-tc", "seller_id": "thefernery", "photo_hue": "#4f9d70", "stage": "deflasked", "plantlets_per_cup": 2, "specs": {"phenotype_stability": 90, "medium": "Rooted in sphagnum", "plantlet_size": "5\u20136 cm rooted", "acclimation_support": true}, "price": 88, "shipping": 10, "eta_days": 4, "late": false, "message": "Rooted variegated pair, sterile-lab certified. Contam-replace covered."}, {"id": "o-pb-1", "plant_id": "phalaenopsis-bellina-tc", "seller_id": "greenthumbco", "photo_hue": "#7ab0c9", "stage": "deflasked", "plantlets_per_cup": 3, "specs": {"phenotype_stability": 90, "medium": "Deflasked compot", "plantlet_size": "3\u20135 cm seedlings", "acclimation_support": true}, "price": 42, "shipping": 9, "eta_days": 3, "late": false, "message": "Deflasked bellina compot from a sterile cleanroom. Replaced free if contaminated."}, {"id": "o-pb-2", "plant_id": "phalaenopsis-bellina-tc", "seller_id": "urbanroots", "photo_hue": "#8fae5c", "stage": "invitro", "plantlets_per_cup": 5, "specs": {"phenotype_stability": 78, "medium": "Orchid flask agar", "plantlet_size": "2\u20133 cm seedlings", "acclimation_support": false}, "price": 26, "shipping": 8, "eta_days": 6, "late": false, "message": "5 orchid seedlings in flask. Slow growers, no replacement."}, {"id": "o-pb-3", "plant_id": "phalaenopsis-bellina-tc", "seller_id": "fernandflora", "photo_hue": "#7ab0c9", "stage": "acclimated", "plantlets_per_cup": 1, "specs": {"phenotype_stability": 95, "medium": "Potted in bark", "plantlet_size": "1 established seedling", "acclimation_support": true}, "price": 55, "shipping": 10, "eta_days": 4, "late": false, "message": "One hardened-off seedling already in bark. Zero deflask risk."}, {"id": "o-be-1", "plant_id": "begonia-escargot-tc", "seller_id": "leaflab_pnw", "photo_hue": "#8a7fae", "stage": "deflasked", "plantlets_per_cup": 4, "specs": {"phenotype_stability": 88, "medium": "Rooted in sphagnum", "plantlet_size": "4\u20135 cm rooted", "acclimation_support": true}, "price": 30, "shipping": 8, "eta_days": 5, "late": false, "message": "Deflasked rex quartet, spirals already showing. Contam-replace covered."}, {"id": "o-be-2", "plant_id": "begonia-escargot-tc", "seller_id": "budgetjungle", "photo_hue": "#8fae5c", "stage": "invitro", "plantlets_per_cup": 6, "specs": {"phenotype_stability": 62, "medium": "Agar gel", "plantlet_size": "1\u20133 cm plantlets", "acclimation_support": false}, "price": 16, "shipping": 9, "eta_days": 8, "late": false, "message": "6 rex plantlets cheap. Thin leaves, tricky deflask, no replacement."}, {"id": "o-be-3", "plant_id": "begonia-escargot-tc", "seller_id": "thefernery", "photo_hue": "#8a7fae", "stage": "acclimated", "plantlets_per_cup": 2, "specs": {"phenotype_stability": 92, "medium": "Potted, hardened off", "plantlet_size": "2 established plants", "acclimation_support": true}, "price": 40, "shipping": 8, "eta_days": 4, "late": false, "message": "Two established rex begonias in soil, past the humidity-shock stage."}, {"id": "o-pp-1", "plant_id": "philo-pink-princess-tc", "seller_id": "fernandflora", "photo_hue": "#c07aa8", "stage": "deflasked", "plantlets_per_cup": 2, "specs": {"phenotype_stability": 92, "medium": "Rooted in sphagnum", "plantlet_size": "5\u20137 cm rooted", "acclimation_support": true}, "price": 110, "shipping": 12, "eta_days": 4, "late": false, "message": "Deflasked pair with stable pink \u2014 reverting stock culled. Replaced free if contaminated."}, {"id": "o-pp-2", "plant_id": "philo-pink-princess-tc", "seller_id": "sprout_supply", "photo_hue": "#9a7f8c", "stage": "invitro", "plantlets_per_cup": 4, "specs": {"phenotype_stability": 45, "medium": "Agar gel", "plantlet_size": "2\u20133 cm plantlets", "acclimation_support": false}, "price": 55, "shipping": 12, "eta_days": 9, "late": false, "message": "4 PPP plantlets cheap \u2014 pink may revert to green. No replacement."}, {"id": "o-pp-3", "plant_id": "philo-pink-princess-tc", "seller_id": "greenthumbco", "photo_hue": "#cf93b6", "stage": "deflasked", "plantlets_per_cup": 3, "specs": {"phenotype_stability": 90, "medium": "Rooted in sphagnum", "plantlet_size": "5\u20136 cm rooted", "acclimation_support": true}, "price": 98, "shipping": 10, "eta_days": 3, "late": false, "message": "Deflasked trio, marbled pink verified. Cups replaced if contaminated."}, {"id": "o-pp-4", "plant_id": "philo-pink-princess-tc", "seller_id": "thefernery", "photo_hue": "#c98ab0", "stage": "acclimated", "plantlets_per_cup": 1, "specs": {"phenotype_stability": 95, "medium": "Potted, hardened off", "plantlet_size": "1 established plant", "acclimation_support": true}, "price": 128, "shipping": 11, "eta_days": 4, "late": true, "message": "One established half-moon plant in soil. Zero deflask risk."}],
+  "reviews": [{"id": "rev-1", "seller_id": "fernandflora", "buyer_handle": "aroidnerd", "stars": 5, "plant_id": "philo-florida-beauty-tc", "text": "Already deflasked and rooting \u2014 I skipped the scariest step. All 3 alive at 6 weeks.", "date": "2026-06-18"}, {"id": "rev-2", "seller_id": "budgetjungle", "buyer_handle": "lostmy_cup", "stars": 2, "plant_id": "philo-florida-beauty-tc", "text": "6 plantlets for $18 seemed unreal. Half the cup molded in transit, no refund. Lesson learned.", "date": "2026-05-30"}, {"id": "rev-3", "seller_id": "leaflab_pnw", "buyer_handle": "greenhouse_jen", "stars": 4, "plant_id": "philo-florida-beauty-tc", "text": "Clean cup, good instructions. Lost one deflasking but 3 made it \u2014 fair for the price.", "date": "2026-06-10"}, {"id": "rev-4", "seller_id": "potandsoil", "buyer_handle": "nervous_newbie", "stars": 5, "plant_id": "philo-florida-beauty-tc", "text": "Pricey and just one plant, but it arrived already growing in soil. Zero stress.", "date": "2026-06-02"}, {"id": "rev-5", "seller_id": "greenthumbco", "buyer_handle": "flaskflipper", "stars": 5, "plant_id": "anthurium-clarinervium-tc", "text": "Cleanroom stock is legit \u2014 deflasked trio, not a speck of contamination. Shipped next day.", "date": "2026-06-22"}, {"id": "rev-6", "seller_id": "thefernery", "buyer_handle": "velvetleaf", "stars": 5, "plant_id": "alocasia-frydek-variegata-tc", "text": "Rooted Frydek made it through acclimation where my flask cups always died. Worth the premium.", "date": "2026-06-14"}, {"id": "rev-7", "seller_id": "urbanroots", "buyer_handle": "orchidraiser", "stars": 4, "plant_id": "phalaenopsis-bellina-tc", "text": "Seedlings are tiny and slow, but healthy out of flask. Shipping was a touch slow.", "date": "2026-06-05"}, {"id": "rev-8", "seller_id": "sprout_supply", "buyer_handle": "budgetgrower", "stars": 2, "plant_id": "anthurium-clarinervium-tc", "text": "You get what you pay for \u2014 one plantlet arrived slimy with contamination, no replacement.", "date": "2026-05-20"}, {"id": "rev-9", "seller_id": "fernandflora", "buyer_handle": "rareaquire", "stars": 5, "plant_id": "philo-pink-princess-tc", "text": "The pink is real and stable, exactly as pictured. They cull the reverting stock \u2014 worth every penny.", "date": "2026-06-25"}, {"id": "rev-10", "seller_id": "thefernery", "buyer_handle": "aroidhoarder", "stars": 5, "plant_id": "philo-pink-princess-tc", "text": "Half-moon plant was even better in person. Impeccable sterile packing.", "date": "2026-06-19"}, {"id": "rev-11", "seller_id": "leaflab_pnw", "buyer_handle": "rexcollector", "stars": 5, "plant_id": "begonia-escargot-tc", "text": "Deflasked rex quartet, spirals already forming. Guide got me through acclimation.", "date": "2026-06-11"}, {"id": "rev-12", "seller_id": "greenthumbco", "buyer_handle": "quickgreen", "stars": 5, "plant_id": "philo-florida-beauty-tc", "text": "Ordered morning, shipped by noon. Rooted trio, zero contamination.", "date": "2026-06-21"}],
+  "requests": [{"id": "req-seed-1", "plant_id": "philo-florida-beauty-tc", "buyer_id": "you", "notes": {"target": "2\u20133 live plants", "skill": "some", "budget": "under $70 shipped", "deadline": "by next week"}, "status": "open", "created": "2026-07-01"}]
+};
+var _f=window.fetch?window.fetch.bind(window):null;
+window.fetch=function(u,o){var s=String(u);for(var k in __D){if(s.indexOf('data/'+k+'.json')!==-1){var d=__D[k];return Promise.resolve({ok:true,status:200,json:function(){return Promise.resolve(d);},text:function(){return Promise.resolve(JSON.stringify(d));}});}}return _f?_f(u,o):Promise.reject(new Error('offline bundle: '+s));};})();
+</script>
+
+<script>
+/* ============================================================
+   PlantPeers MVP app logic — tissue culture (L2).
+   Data comes from data/*.json (fetched below). The survival/trust/rank MODEL is
+   NOT defined here — it lives in model.js (window.PPModel) so the app and the
+   data validator score offers with the exact same code. This file is UI glue.
+   ============================================================ */
+
+var DB = { plants:[], sellers:[], offers:[], reviews:[], requests:[] };
+var sellerById = {}, reviewsBySeller = {};
+var MODE = 'value';
+var skill = 'some';        // buyer TC experience: beg | some | pro (set from the request)
+var currentPlant = null;   // plant being requested
+var currentRequest = null; // { request, offers:[enriched], plant, late, _lateAdded }
+
+var SKILL_LABEL = { beg:'a beginner', some:'someone with some experience', pro:'a pro with a flow hood' };
+var STAGE_LABEL = { invitro:'In-vitro cup', deflasked:'Deflasked & rooted', acclimated:'Acclimated (in soil)' };
+
+/* ---------- inline SVG placeholder art (no CDN, no backend) ----------
+   Real seller-uploaded photos need a backend that doesn't exist yet (OUT OF
+   SCOPE). Until then these are intentional, labeled placeholders: a clean
+   gradient tinted by the variety/offer hue with a plant motif and a "SAMPLE"
+   tag, so a viewer reads "placeholder image", not "broken card". */
+/* shade a #rrggbb hex toward white (amt>0) or black (amt<0), amt in -1..1 */
+function shade(hex, amt){
+  var h=String(hex).replace('#',''); if(h.length===3) h=h.replace(/(.)/g,'$1$1');
+  var r=parseInt(h.slice(0,2),16), g=parseInt(h.slice(2,4),16), b=parseInt(h.slice(4,6),16);
+  function m(c){ c = amt<0 ? c*(1+amt) : c+(255-c)*amt; return Math.max(0,Math.min(255,Math.round(c))); }
+  return '#'+[m(r),m(g),m(b)].map(function(c){return ('0'+c.toString(16)).slice(-2);}).join('');
+}
+/* catalog / request-hero plant placeholder: gradient + a fan of `count` leaves */
+/* Encode an inline SVG string as a data URI safe for background-image:url(...)
+   inside a double-quoted style attribute. encodeURIComponent leaves ' ( )
+   un-encoded, and a raw ) from an SVG transform="translate(...)"/rotate(...)
+   closes the url() early (and raw quotes break the attribute) -> broken image.
+   Encode those three too so the URI is inert everywhere it's embedded. */
+function svgURI(svg){
+  return "data:image/svg+xml;utf8,"+encodeURIComponent(svg)
+    .replace(/'/g,"%27").replace(/\(/g,"%28").replace(/\)/g,"%29");
+}
+function leafSVG(hex, count){
+  var top=shade(hex,0.42), bot=shade(hex,-0.45), leaf=shade(hex,0.6), pot=shade(hex,-0.2);
+  var n=Math.max(3,Math.min(count||5,6)), leaves='';
+  for(var i=0;i<n;i++){
+    var a=-58+i*(116/(n-1));
+    leaves+="<g transform='translate(200,206) rotate("+a+")'>"+
+      "<path d='M0 0 C-17 -34 -13 -78 0 -104 C13 -78 17 -34 0 0 Z' fill='"+leaf+"' opacity='0.92'/>"+
+      "<path d='M0 -8 L0 -96' stroke='"+bot+"' stroke-width='2' opacity='0.45'/></g>";
+  }
+  var svg="<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'>"+
+    "<defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='"+top+"'/><stop offset='1' stop-color='"+bot+"'/></linearGradient></defs>"+
+    "<rect width='400' height='300' fill='url(#g)'/>"+
+    "<circle cx='200' cy='150' r='118' fill='#ffffff' opacity='0.06'/>"+
+    leaves+
+    "<path d='M172 206 L228 206 L221 250 L179 250 Z' fill='"+pot+"'/>"+
+    "<text x='200' y='283' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='700' fill='#ffffff' opacity='0.8' letter-spacing='2'>SAMPLE IMAGE</text>"+
+    "</svg>";
+  return svgURI(svg);
+}
+/* offer photo placeholder: gradient tinted by offer hue, motif distinct per stage
+   (invitro=cup+gel+plantlets, deflasked=nursery pot, acclimated=potted plant) */
+function cupSVG(hex, count, stage){
+  var top=shade(hex,0.4), bot=shade(hex,-0.47), acc=shade(hex,0.58), pot=shade(hex,-0.22);
+  var n=Math.max(1,Math.min(count||1,8)), motif='', i;
+  if(stage==='acclimated'){
+    var lv='';
+    for(i=0;i<5;i++){ var a=-54+i*27; lv+="<g transform='translate(200,150) rotate("+a+")'><path d='M0 0 C-15 -30 -11 -66 0 -88 C11 -66 15 -30 0 0 Z' fill='"+acc+"' opacity='0.92'/></g>"; }
+    motif="<path d='M164 150 L236 150 L226 214 L174 214 Z' fill='"+pot+"'/><rect x='158' y='140' width='84' height='14' rx='4' fill='"+shade(hex,-0.08)+"'/>"+lv;
+  } else if(stage==='deflasked'){
+    var pl='';
+    for(i=0;i<n;i++){ var x=200+(i-(n-1)/2)*24; pl+="<g transform='translate("+x+",152)'><path d='M0 0 C-9 -22 -6 -46 0 -60 C6 -46 9 -22 0 0 Z' fill='"+acc+"' opacity='0.92'/></g>"; }
+    motif="<path d='M150 152 L250 152 L240 212 L160 212 Z' fill='"+pot+"'/><path d='M150 152 L250 152 L246 170 L154 170 Z' fill='"+shade(hex,-0.34)+"'/>"+pl;
+  } else {
+    var pv='';
+    for(i=0;i<n;i++){ var xx=200+(i-(n-1)/2)*22; pv+="<g transform='translate("+xx+",184)'><path d='M0 0 C-8 -20 -5 -42 0 -56 C5 -42 8 -20 0 0 Z' fill='"+acc+"' opacity='0.9'/></g>"; }
+    motif="<rect x='140' y='118' width='120' height='114' rx='12' fill='#ffffff' opacity='0.12'/>"+
+      "<rect x='140' y='186' width='120' height='46' fill='#ffffff' opacity='0.16'/>"+
+      "<rect x='138' y='112' width='124' height='12' rx='5' fill='#ffffff' opacity='0.3'/>"+pv;
+  }
+  var svg="<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'>"+
+    "<defs><linearGradient id='g' x1='0' y1='0' x2='0.35' y2='1'><stop offset='0' stop-color='"+top+"'/><stop offset='1' stop-color='"+bot+"'/></linearGradient></defs>"+
+    "<rect width='400' height='300' fill='url(#g)'/>"+
+    "<circle cx='200' cy='150' r='128' fill='#ffffff' opacity='0.05'/>"+
+    motif+
+    "<text x='200' y='283' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='700' fill='#ffffff' opacity='0.78' letter-spacing='2'>SELLER SAMPLE</text>"+
+    "</svg>";
+  return svgURI(svg);
+}
+/* seller avatar placeholder: soft gradient tile with a two-tone leaf glyph */
+function avSVG(hex){
+  var top=shade(hex,0.4), bot=shade(hex,-0.4), lf=shade(hex,0.68);
+  var s="<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'>"+
+    "<defs><linearGradient id='a' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='"+top+"'/><stop offset='1' stop-color='"+bot+"'/></linearGradient></defs>"+
+    "<rect width='64' height='64' rx='14' fill='url(#a)'/>"+
+    "<path d='M32 47 C24 41 20 29 22 18 C34 20 40 33 32 47 Z' fill='"+lf+"' opacity='0.95'/>"+
+    "<path d='M32 47 C40 41 44 29 42 18 C30 20 24 33 32 47 Z' fill='#ffffff' opacity='0.82'/>"+
+    "<path d='M32 47 L32 22' stroke='#ffffff' stroke-width='1.6' opacity='0.5'/></svg>";
+  return svgURI(s);
+}
+function starStr(r){var f=Math.round(r);return '★★★★★'.slice(0,f)+'☆☆☆☆☆'.slice(0,5-f);}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+/* Validate a plant hero_img before it lands inside style='background-image:url(...)'.
+   Only http(s) and data:image/ URLs are allowed; anything else (incl. javascript:,
+   attribute-breakout payloads) falls back to the safe computed leafSVG placeholder.
+   Even for allowed URLs, encode the chars that could close url() or the single-quoted
+   style attribute early, so the value is inert everywhere it's embedded. */
+function heroImg(p){
+  var h=p.hero_img;
+  if(typeof h==='string' && /^(https?:|data:image\/)/.test(h)){
+    return h.replace(/'/g,'%27').replace(/"/g,'%22').replace(/\(/g,'%28').replace(/\)/g,'%29');
+  }
+  return leafSVG(p.hero_hue||'#4ea86b', p.hero_leaves||5);
+}
+function pct(x){ return Math.round(x*100)+'%'; }
+
+/* ============================================================
+   THE MODEL lives in model.js (window.PPModel) — the single source of truth for
+   the survival/trust/rank math and the anti-gaming #1-slot rule, shared verbatim
+   with scripts/validate_data.py (run through node). Nothing below re-implements
+   it; these aliases just name the pieces the UI glue calls. survival/labTrust/
+   score/enforceVerifiedFirst are reached through recompute(); recompute takes the
+   buyer skill explicitly (no hidden global) so the caller decides which skill to
+   rank at. The ledger-shrinkage priors + betaMean/confidenceTier are consumed
+   inside PPModel.enrich().
+   ============================================================ */
+var recompute = PPModel.recompute;   // recompute(arr, skill): sets _s/_lt/_score, sorts, applies #1-slot rule
+
+/* Trade-off copy vs the top pick — reframes "cheaper" into TC-specific concessions. */
+function tradeoff(o, top){
+  if(o.id===top.id){
+    var head = o.stage==='invitro'
+      ? "<b>Best odds overall.</b> A clean cup ("+pct(o.contam)+" contamination) from a proven lab"
+      : "<b>Best odds overall.</b> "+STAGE_LABEL[o.stage].toLowerCase()+" by a lab that contaminates just "+pct(o.contam)+" of cups";
+    return {good:true, html: head + (o.replace?" — and it replaces any cup that arrives contaminated":"") +
+      (o.stage==='invitro' ? "." : ". You skip the deflasking step beginners lose plants on.")};
+  }
+  var s=o._s, dPrice=(o.price+o.shipping)-(top.price+top.shipping);
+  if(dPrice<0){ // cheaper sticker
+    var give=[];
+    if(o.stage==='invitro') give.push('you must deflask '+o.plantlets+' plantlet'+(o.plantlets>1?'s':'')+' yourself');
+    if(o.contam>=0.10) give.push(pct(o.contam)+' contamination (~1 in '+Math.round(1/o.contam)+' cups)');
+    else if(o.contam>top.contam) give.push('a less-sterile lab');
+    if(!o.replace) give.push('<b>no replacement</b> if it molds');
+    return {good:false, html:"<b>$"+Math.abs(dPrice)+" cheaper</b> — but you'd take on "+(give.join(', ')||'lower odds')+". Your odds it lives: <b>"+Math.round(s.pAtLeastOne*100)+"%</b>."};
+  }
+  var gain=[];
+  if(o.stage==='acclimated') gain.push('a plant already growing in soil — zero deflasking');
+  else if(o.stage==='deflasked' && top.stage==='invitro') gain.push('already deflasked & rooted');
+  if(o.contam<top.contam) gain.push('an even cleaner lab');
+  return {good:false, html:"<b>$"+dPrice+" more</b> — you'd get "+(gain.join(', ')||'a small upgrade')+", but only "+o.plantlets+" plant"+(o.plantlets>1?'s':'')+". Worth it for near-zero risk."};
+}
+
+function cls3(pAtLeastOne){ return pAtLeastOne>=0.90?'':(pAtLeastOne>=0.78?'mid':'low'); }
+
+/* ---------- data load ---------- */
+function loadData(){
+  var files=['plants','sellers','offers','reviews','requests'];
+  var errs=[];
+  return Promise.all(files.map(function(f){
+    return fetch('data/'+f+'.json').then(function(r){
+      if(!r.ok) throw new Error(r.status);
+      return r.json();
+    }).then(function(j){ DB[f]=j; }).catch(function(){ errs.push(f); DB[f]=[]; });
+  })).then(function(){
+    DB.sellers.forEach(function(s){ sellerById[s.id]=s; });
+    DB.reviews.forEach(function(rv){ (reviewsBySeller[rv.seller_id]=reviewsBySeller[rv.seller_id]||[]).push(rv); });
+    return errs;
+  });
+}
+
+/* ---------- navigation ---------- */
+function go(view){
+  ['catalog','request','compare','orders','labpicker','labrequests','laboffer'].forEach(function(v){
+    document.getElementById('view-'+v).classList.toggle('active', v===view);
+  });
+  // the sticky projected-rank bar belongs to the offer builder only
+  document.getElementById('lab-proj').classList.toggle('show', view==='laboffer');
+  window.scrollTo(0,0);
+}
+
+/* ============================================================
+   1. CATALOG
+   ============================================================ */
+var activeFilter='All';
+function renderFilters(){
+  var levels=['All'].concat(uniq(DB.plants.map(function(p){return p.care_level;})));
+  document.getElementById('filters').innerHTML=levels.map(function(l){
+    return "<button class='chip"+(l===activeFilter?' on':'')+"' data-filter='"+esc(l)+"'>"+esc(l)+(l==='All'?'':' to deflask')+"</button>";
+  }).join('');
+}
+function setFilter(l){ activeFilter=l; renderFilters(); renderCatalog(); }
+function uniq(a){ var seen={},out=[]; a.forEach(function(x){ if(!seen[x]){seen[x]=1;out.push(x);} }); return out; }
+
+function renderCatalog(){
+  var q=(document.getElementById('q').value||'').toLowerCase().trim();
+  var list=DB.plants.filter(function(p){
+    if(activeFilter!=='All' && p.care_level!==activeFilter) return false;
+    if(q && (p.common_name+' '+p.latin_name+' '+(p.variety||'')).toLowerCase().indexOf(q)<0) return false;
+    return true;
+  });
+  var el=document.getElementById('catalog');
+  if(!DB.plants.length){
+    // Data failed to load (fetch error / malformed JSON) — degrade to a clear,
+    // recoverable state instead of a blank page. See loadData()/boot: a failed
+    // fetch leaves DB.plants=[]. Never reached on the happy path.
+    el.innerHTML="<div class='empty' style='grid-column:1/3'>"+
+      "Couldn't load the plant listings.<br>"+
+      "<button class='chip' style='margin-top:10px' onclick='location.reload()'>Retry</button>"+
+      "<div style='margin-top:8px;font-size:12px;opacity:.7'>If this keeps happening, serve this folder with <b>python -m http.server</b> from plantpeers/.</div>"+
+      "</div>";
+    return;
+  }
+  if(!list.length){ el.innerHTML="<div class='empty' style='grid-column:1/3'>No varieties match “"+esc(q)+"”.</div>"; return; }
+  el.innerHTML=list.map(function(p){
+    var img=heroImg(p);
+    return "<div class='pcard' data-plant-id='"+esc(p.id)+"'>"+
+      "<div class='ph' style='background-image:url("+img+")'></div>"+
+      "<div class='pb'><div class='cn'>"+esc(p.common_name)+"</div>"+
+      "<div class='ln'>"+esc(p.latin_name)+"</div>"+
+      "<div class='tags'><span class='ptag'>"+esc(p.size_class)+"</span><span class='ptag'>"+esc(p.care_level)+" deflask</span></div>"+
+      "</div></div>";
+  }).join('');
+}
+
+/* ============================================================
+   2. REQUEST
+   ============================================================ */
+function openPlant(id){
+  currentPlant=DB.plants.filter(function(p){return p.id===id;})[0];
+  if(!currentPlant) return;
+  var p=currentPlant;
+  var img=heroImg(p);
+  document.getElementById('req-detail').innerHTML=
+    "<div class='hero' style='background-image:url("+img+")'></div>"+
+    "<div class='detail'><h2>"+esc(p.common_name)+"</h2>"+
+    "<div class='ln'>"+esc(p.latin_name)+(p.variety?' · '+esc(p.variety):'')+"</div>"+
+    "<div class='metaline'><span class='ptag'>"+esc(p.size_class)+"</span><span class='ptag'>"+esc(p.care_level)+" to deflask</span><span class='ptag'>"+esc(p.light)+"</span></div>"+
+    "<p>"+esc(p.description||'')+"</p></div>";
+  go('request');
+}
+
+/* option toggles in the request form */
+document.addEventListener('click', function(e){
+  var b=e.target.closest? e.target.closest('.form .opt') : null;
+  if(!b) return;
+  var group=b.parentElement;
+  Array.prototype.forEach.call(group.children, function(c){ c.classList.remove('on'); });
+  b.classList.add('on');
+});
+function pickedVal(group){
+  var g=document.querySelector('.opts[data-group="'+group+'"] .opt.on');
+  return g? g.getAttribute('data-v') : '';
+}
+
+function postRequest(){
+  if(!currentPlant) return;
+  skill = pickedVal('skill') || 'some';
+  var notes={ target:pickedVal('target'), skill:skill, budget:pickedVal('budget'), deadline:pickedVal('deadline'),
+              note:(document.getElementById('req-note').value||'').trim() };
+  var req={ id:'req-'+Date.now(), plant_id:currentPlant.id, buyer_id:'you', notes:notes, status:'open', created:new Date().toISOString().slice(0,10) };
+  DB.requests.push(req); // register the session request so lab mode's open-requests list can see it (in-memory only; no effect on buyer ranking)
+  buildRequestOffers(req, currentPlant);
+  renderCompare(true);
+  go('compare');
+}
+
+/* Pull the offer pool for this plant, enrich with lab fields + review,
+   hold back the "late" offer for the new-offer beat. */
+function buildRequestOffers(req, plant){
+  var pool=DB.offers.filter(function(o){ return o.plant_id===plant.id; }).map(enrich);
+  var initial=pool.filter(function(o){ return !o.late; });
+  var late=pool.filter(function(o){ return o.late; });
+  currentRequest={ request:req, plant:plant, offers:initial, late:late, _lateAdded:false };
+}
+function enrich(raw){
+  var o=JSON.parse(JSON.stringify(raw));
+  var s=sellerById[o.seller_id]||{};
+  // The model-relevant fields — contam/contam_deflask (ledger-shrunk), confidence,
+  // honorRate, replace (with per-offer override), rating/sales/certsCount and the
+  // ledger-display numbers — are computed ONCE, in the shared model, so the buyer
+  // side, lab side and validator can never diverge.
+  var m=PPModel.enrich(raw, s);
+  for(var k in m){ o[k]=m[k]; }
+  // ---- UI-only augmentation (NOT read by the ranking model) ----
+  o.handle=s.handle||('@'+o.seller_id);
+  o.badges=s.badges||[]; o.avatar_hue=s.avatar_hue||'#3b6b4a';
+  o.location=s.location||'';
+  // Replacement copy is display-only; model already set o.replace (incl. override).
+  if(raw.replacement_override!=null){
+    o.replaceText = o.replace ? 'Free replacement if a cup arrives contaminated'
+                              : 'No replacement on this offer';
+  } else {
+    o.replaceText = (s.replacement_policy && s.replacement_policy.text) || 'No replacement policy stated';
+  }
+  o.stageLabel = STAGE_LABEL[o.stage] || o.stage;
+  var rv=(reviewsBySeller[o.seller_id]||[]);
+  var match=rv.filter(function(r){return r.plant_id===o.plant_id;})[0] || rv[0] || null;
+  o.review=match;
+  return o;
+}
+
+/* ============================================================
+   3 + 4. COMPARE & PICK  (promoted from the TC spike)
+   ============================================================ */
+function setMode(m){
+  MODE=m;
+  document.getElementById('tabValue').classList.toggle('on',m==='value');
+  document.getElementById('tabSpecs').classList.toggle('on',m==='specs');
+  renderFeed();
+}
+function setSkill(s){
+  skill=s;
+  syncSkillSegs();
+  renderFeed(); // re-ranks live
+}
+function syncSkillSegs(){
+  Array.prototype.forEach.call(document.querySelectorAll('#segs button'),function(b){
+    b.classList.toggle('on', b.getAttribute('data-skill')===skill);
+  });
+}
+
+function renderCompare(fresh){
+  var cr=currentRequest; if(!cr) return;
+  var p=cr.plant, n=cr.request.notes;
+  syncSkillSegs();
+  var wants=[n.target,n.budget,n.deadline].filter(Boolean).map(function(w){return "<b>"+esc(w)+"</b>";}).join('');
+  document.getElementById('compare-head').innerHTML=
+    "<button class='back' onclick=\"go('catalog')\">&#8592; Catalog</button>"+
+    "<h1>"+esc(p.common_name)+" <span style='font-weight:400'>— "+esc(p.size_class)+"</span></h1>"+
+    "<div class='latin'>"+esc(p.latin_name)+" · tissue-culture plantlets</div>"+
+    "<div class='want'><span style='color:#9db4a5'>You asked for:</span>"+wants+"</div>"+
+    "<div class='live' id='live'><span class='dot'></span> "+cr.offers.length+" labs competing · ranked by your odds of ending up with a living plant</div>";
+  renderFeed();
+  if(fresh && cr.late.length && !cr._lateAdded){
+    scheduleNewOffer();
+  }
+}
+
+function forecastBlock(o){
+  var s=o._s, p=Math.round(s.pAtLeastOne*100), c=cls3(s.pAtLeastOne);
+  var col = c===''? 'var(--leaf2)' : (c==='mid'?'var(--gold)':'var(--warn)');
+  var expTxt = s.expLive>=1 ? s.expLive.toFixed(1)+' live plants' : 'less than 1 live plant';
+  return "<div class='forecast "+c+"'>"+
+    "<div class='gauge' style='--pct:"+p+";--col:"+col+"'><b>"+p+"%</b></div>"+
+    "<div class='txt'><b>Odds you end up with a living plant</b><br>"+
+    "≈ <span class='lv'>"+expTxt+"</span> expected from "+o.plantlets+" plantlet"+(o.plantlets>1?'s':'')+
+    " · ~$"+Math.round(s.costPerLive)+" per surviving plant</div></div>"+
+    needsFitLine(o);
+}
+
+/* Chips that show the buyer their STATED ask was honored by the ranking: does the
+   expected live count meet the desired quantity, is the offer over their budget
+   (the model soft-penalised + flagged it, didn't silently rank it #1), and does it
+   ship past their deadline (display-only). Blank when a need wasn't stated. Reads
+   the flags recompute()->annotateNeeds() stamped on the offer. */
+function needsFitLine(o){
+  var bits=[], s=o._s;
+  if(o._target!=null){
+    var exp = s.expLive>=1 ? '~'+s.expLive.toFixed(1) : '<1';
+    if(o._meetsTarget)
+      bits.push("<span class='nfit ok'>✓ meets your quantity ask ("+exp+" live)</span>");
+    else
+      bits.push("<span class='nfit warn'>"+exp+" live — short of your ask</span>");
+  }
+  if(o._overBudget)
+    bits.push("<span class='nfit over'>⚠ $"+o._overBudgetBy+" over your budget</span>");
+  if(o._lateEta)
+    bits.push("<span class='nfit late'>⏱ ~"+Number(o.eta_days)+"d — past your deadline</span>");
+  return bits.length ? "<div class='needsfit'>"+bits.join('')+"</div>" : "";
+}
+
+/* One lab stat box with the spike's three-state trust badge:
+   verified  → headline the WITNESSED number, "✓ verified by N outcomes",
+               strike the lab's diverging claim
+   unverified→ headline the prior-discounted effective value, amber
+               "unverified · claim discounted · only N outcomes"
+   no ledger → fall back to "self-reported" (graceful degrade)             */
+function labStatBox(kind, o){
+  var isContam = kind==='contam';
+  var eff      = isContam ? o.contam : o.contam_deflask;              // what the ranking uses
+  var claimed  = isContam ? o.contamClaimed : o.deflaskClaimed;
+  var n        = isContam ? o.shipments : o.checkins;
+  var label    = isContam ? 'Contamination rate' : 'Deflask success';
+  var cls      = isContam ? (eff<=0.03?'good':(eff<=0.10?'mid':'bad'))
+                          : (eff>=0.85?'good':(eff>=0.70?'mid':'bad'));
+  var big, sub, badge;
+  if(!o.hasLedger){
+    // No ledger: ranking uses the cautious prior (eff), NOT the claim.
+    big = pct(eff);
+    sub = "claimed <s>"+pct(claimed)+"</s> · no outcomes yet";
+    badge = "<span class='lbadge claim'>unverified · claim discounted</span>";
+  } else if(o.confidence==='unverified'){
+    // thin sample: don't trust the claim; ranking uses the cautious prior
+    big = pct(eff);
+    sub = "claimed <s>"+pct(claimed)+"</s> · only "+n+" outcome"+(n===1?'':'s');
+    badge = "<span class='lbadge claim'>unverified · claim discounted · only "+n+" outcomes</span>";
+  } else if(o.confidence==='thin'){
+    // limited history: NOT "verified" — show the SAME shrunk value the ranking uses.
+    var divergeT = Math.abs(eff-claimed)>=0.03;
+    big = pct(eff);
+    sub = divergeT ? "lab claimed <s>"+pct(claimed)+"</s>" : "lab claimed "+pct(claimed);
+    badge = "<span class='lbadge thin'>limited history · "+n+" outcomes</span>";
+  } else {
+    // verified: show the shrunk value the ranking uses (≈ witnessed at this N).
+    var diverge = Math.abs(eff-claimed)>=0.03;
+    big = pct(eff);
+    sub = diverge ? "lab claimed <s>"+pct(claimed)+"</s>" : "lab claimed "+pct(claimed);
+    badge = "<span class='lbadge verified'>✓ verified by "+n+" outcomes</span>";
+  }
+  return "<div class='labstat'><div class='k'>"+label+"</div>"+
+    "<div class='v "+cls+"'>"+big+"</div>"+
+    "<div class='s'>"+sub+"</div>"+badge+"</div>";
+}
+function labScorecard(o){
+  return "<div class='labcard'>"+labStatBox('contam',o)+labStatBox('deflask',o)+"</div>";
+}
+
+function riskBlock(o){
+  var s=o._s;
+  return o.replace
+    ? "<div class='risk ok'>✓<div><b>$0 at risk.</b> "+esc(o.replaceText)+".</div></div>"
+    : "<div class='risk bad'>⚠<div><b>$"+s.moneyAtRisk+" at risk.</b> "+esc(o.replaceText)+" — if this cup arrives contaminated ("+pct(o.contam)+" of theirs do), you lose it all.</div></div>";
+}
+
+function card(o, isPick, top){
+  var s=o._s, t=tradeoff(o,top);
+  var survScore=s.pAtLeastOne*100;
+  var priceScore=Math.max(0,Math.min(100,100-(s.costPerLive-15)*1.5)); // same clamp score() uses
+  var qW=Math.round(0.45*survScore), tW=Math.round(0.35*o._lt), pW=Math.round(0.20*priceScore);
+  var showSpecs = MODE==='specs' || isPick;
+  var photo=cupSVG(o.photo_hue||'#57b479', o.plantlets, o.stage);
+  var stageCls = o.stage==='invitro' ? 'invitro' : '';
+  var sp=o.specs||{};
+  var total=o.price+o.shipping;
+  var specRows=[
+    ['Stage', o.stageLabel],
+    ['Plantlets', o.plantlets+' per cup'],
+    ['Variegation stability', (sp.phenotype_stability!=null?sp.phenotype_stability+'%':'—')],
+    ['Medium', sp.medium||'—'],
+    ['Plantlet size', sp.plantlet_size||'—'],
+    ['Acclimation help', sp.acclimation_support? 'Included' : 'None'],
+    ['Ships', Number(o.eta_days)+'-day · $'+Number(o.shipping)]
+  ];
+  return "<div class='card "+(isPick?'pick':'chall')+(o._new?' justin':'')+"'>"+
+    (isPick?"<div class='pickbanner'>🏆 BEST ODDS <span class='why'>most likely to live</span></div>":"")+
+    "<div class='photo' style='background-image:url("+photo+")'>"+
+      "<div class='stage "+stageCls+"'>"+esc(o.stageLabel)+"</div>"+
+      "<div class='price"+(o._overBudget?' over':'')+"'>"+(o._overBudget?"<span class='obadge'>OVER BUDGET</span>":"")+"$"+o.price+"<small>$"+total+" shipped</small></div>"+
+    "</div>"+
+    "<div class='body'>"+
+      forecastBlock(o)+
+      "<div class='seller'><div class='av' style='background-image:url("+avSVG(o.avatar_hue)+")'></div>"+
+        "<div><div class='h'>"+esc(o.handle)+"</div>"+
+        "<div class='meta'><span class='stars'>"+starStr(o.rating)+"</span> "+Number(o.rating)+" · "+Number(o.sales)+" sales"+(o.location?" · "+esc(o.location):"")+"</div></div></div>"+
+      "<div class='badges'>"+o.badges.map(function(b){var g=(b.indexOf('guarantee')>-1||b.indexOf('Contam')>-1||b.indexOf('certified')>-1);return "<span class='badge "+(g?'guar':'')+"'>"+esc(b)+"</span>";}).join('')+"</div>"+
+      labScorecard(o)+
+      "<div class='value'><div class='top'><span>Overall rank score</span><b>"+Math.round(o._score)+"/100</b></div>"+
+        "<div class='bar'><span class='q' style='width:"+qW+"%'></span><span class='t' style='width:"+tW+"%'></span><span class='p' style='width:"+pW+"%'></span></div>"+
+        "<div class='legend'><span><i style='background:var(--leaf2)'></i>Survival odds</span><span><i style='background:var(--leaf)'></i>Lab trust</span><span><i style='background:var(--gold)'></i>Value/plant</span></div></div>"+
+      riskBlock(o)+
+      "<div class='tradeoff "+(t.good?'good':'')+"'>"+(t.good?'✔':'⚖')+"<div>"+t.html+"</div></div>"+
+      (showSpecs?"<div class='specs'>"+specRows.map(function(r){return "<div><span class='k'>"+r[0]+"</span> <span style='color:var(--ink);text-align:right'>"+esc(r[1])+"</span></div>";}).join('')+"</div>":"")+
+      (o.review?"<div class='reviewq'>“"+esc(o.review.text)+"” <b>— "+esc(o.review.buyer_handle)+"</b></div>":"")+
+      "<button class='pickbtn' data-offer-id='"+esc(o.id)+"'>"+(isPick?'Award this lab ✓':'Pick '+esc(o.handle))+"</button>"+
+    "</div></div>";
+}
+
+function renderFeed(){
+  var cr=currentRequest; if(!cr) return;
+  cr.needs=PPModel.parseNeeds(cr.request.notes); // buyer's stated target/budget/deadline (numeric)
+  recompute(cr.offers, skill, cr.needs); // buyer's live skill toggle + stated needs re-rank their own view
+  var feed=document.getElementById('feed');
+  if(!cr.offers.length){
+    feed.innerHTML="<div class='empty'>No labs have offered on this variety yet. Hang tight — requests usually draw offers within a day.</div>";
+    return;
+  }
+  var top=cr.offers[0];
+  var html=card(top,true,top);
+  if(cr.offers.length>1){
+    html+="<div class='sectlbl'><span class='rule'></span> Challengers · "+(cr.offers.length-1)+" more <span class='rule'></span></div>";
+    html+=cr.offers.slice(1).map(function(o){return card(o,false,top);}).join('');
+  }
+  feed.innerHTML=html;
+  cr.offers.forEach(function(o){o._new=false;});
+  // footer: show that the cheapest sticker is not the top pick
+  var cheapest=cr.offers.slice().sort(function(a,b){return (a.price+a.shipping)-(b.price+b.shipping);})[0];
+  var rank=cr.offers.indexOf(cheapest)+1;
+  var foot=document.getElementById('compare-foot');
+  if(foot && cr.offers.length>1){
+    foot.innerHTML="Ranked for <b>"+SKILL_LABEL[skill]+"</b> by odds it lives (0.45) + lab trust (0.35) + value per surviving plant (0.20).<br>"+
+      "Cheapest cup ("+esc(cheapest.handle)+", $"+(cheapest.price+cheapest.shipping)+" shipped) ranks <b>#"+rank+" of "+cr.offers.length+"</b> — cheapest ≠ most likely to live.";
+  }
+}
+
+/* the "a new offer just arrived" beat — conveys the compete dynamic */
+function scheduleNewOffer(){
+  var cr=currentRequest;
+  setTimeout(function(){
+    if(!currentRequest || currentRequest!==cr || cr._lateAdded) return;
+    cr._lateAdded=true;
+    cr.late.forEach(function(o){ o._new=true; cr.offers.push(o); });
+    cr.late=[];
+    renderFeed();
+    var live=document.getElementById('live');
+    var newest=cr.offers.filter(function(o){return o._new;})[0];
+    if(live) live.innerHTML="<span class='dot'></span> New offer from "+esc(newest?newest.handle:'a lab')+" just arrived · re-ranked by survival odds";
+    toast("🧫 New offer from "+(newest?esc(newest.handle):'a lab')+" — offers re-ranked");
+  }, 3800);
+}
+
+function toast(msg){
+  var t=document.getElementById('toast');
+  t.innerHTML=msg; t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 3600);
+}
+
+/* ============================================================
+   5. AWARD & CONFIRM  (buyer stays in control; override acknowledged)
+   ============================================================ */
+function award(id){
+  var cr=currentRequest; if(!cr) return;
+  var o=cr.offers.filter(function(x){return x.id===id;})[0];
+  var top=cr.offers[0];
+  if(!o) return;
+  cr.request.status='awarded';
+  cr.request.awarded_offer=o.id;
+  var s=o._s;
+
+  // OBSERVE ONLY — tally this award for PMF (does not affect ranking/scoring/flow).
+  var cheapestTotal=cr.offers.reduce(function(mn,x){var t=x.price+x.shipping; return t<mn?t:mn;}, Infinity);
+  recordAward(o, top, cheapestTotal);
+  renderMetrics();
+
+  var why=[];
+  why.push(Math.round(s.pAtLeastOne*100)+'% odds of ending up with a living plant');
+  why.push('≈ '+s.expLive.toFixed(1)+' expected survivors from '+o.plantlets+' plantlet'+(o.plantlets>1?'s':''));
+  // reflect the buyer's stated ask so they see it was honored
+  if(o._target!=null)
+    why.push(o._meetsTarget ? 'Meets your quantity goal (≈'+s.expLive.toFixed(1)+' live)'
+                            : 'Yields ≈'+s.expLive.toFixed(1)+' live — short of your quantity goal');
+  if(o._overBudget)
+    why.push('$'+o._overBudgetBy+' over your stated budget — flagged, ranked on merit not hidden');
+  if(o._lateEta)
+    why.push('Ships in ~'+Number(o.eta_days)+' days — past your requested deadline');
+  why.push(o.stageLabel+' · '+pct(o.contam)+' lab contamination rate');
+  why.push(o.replace? o.replaceText : 'No replacement — $'+(o.price+o.shipping)+' at risk');
+
+  // The compact payload that drives BOTH the live sheet and the persisted order,
+  // so a reopened order shows the exact same "why you picked it" detail.
+  var data={
+    handle:o.handle, plant_name:cr.plant.common_name, price:o.price+o.shipping,
+    stage_label:o.stageLabel, eta_days:Number(o.eta_days), why:why,
+    override:(o.id!==top.id) ? { handle:top.handle, pct:Math.round(top._s.pAtLeastOne*100) } : null
+  };
+
+  recordOrder(o, cr, s, data);  // persist so the buyer can revisit + the winning lab sees it won
+  renderOrdersEntry();
+  showAwardSheet(data, 'catalog');
+}
+/* Populate + show the award sheet from a compact payload. Shared by a live award
+   and a reopened order (openOrderDetail) so the two never diverge. All order-
+   derived strings go through esc — no XSS surface even for stored fields. */
+var sheetReturn='catalog';
+function showAwardSheet(data, ret){
+  sheetReturn=ret||'catalog';
+  document.getElementById('sh_h').textContent='Awarded to '+data.handle;
+  document.getElementById('sh_p').innerHTML='Your '+esc(data.plant_name)+' is on the way — <b>$'+Number(data.price)+' shipped</b>, '+esc(String(data.stage_label||'').toLowerCase())+', arriving in ~'+Number(data.eta_days)+' days.';
+  var ov=document.getElementById('sh_override');
+  if(data.override){
+    ov.innerHTML="⚖ You picked a challenger over the best-odds pick ("+esc(data.override.handle)+", "+Number(data.override.pct)+"% it lives). That's your call — you stay in control.";
+    ov.style.display='block';
+  } else {
+    ov.innerHTML=''; ov.style.display='none';
+  }
+  document.getElementById('sh_why').innerHTML=(data.why||[]).map(function(w){return '<li>'+esc(w)+'</li>';}).join('');
+  var cb=document.getElementById('sh_close'); if(cb) cb.textContent = (ret==='orders') ? 'Back to my orders' : 'Back to catalog';
+  document.getElementById('sheet').classList.add('show');
+}
+function closeSheet(){
+  document.getElementById('sheet').classList.remove('show');
+  if(sheetReturn==='orders'){ renderOrders(); go('orders'); }
+  else { renderOrdersEntry(); go('catalog'); }
+}
+
+/* ============================================================
+   MY ORDERS (L14) — closes the post-award dead-end. On award we persist a
+   compact order record to plantpeers_orders_v1 (loadX/saveX with try/catch, the
+   same pattern as role + metrics). The buyer revisits awarded orders here and
+   the winning lab derives its "✓ Won" state from the SAME records — no backend,
+   no notification channel. Monotonic counter n = max(existing n)+1 (NO Date.now).
+   Order shape:
+     { n, request_id, plant_id, plant_name, awarded_offer_id, seller_id,
+       seller_handle, price(total shipped), awarded_survival(0..1), skill,
+       needs{target,budget,deadline}, + stage_label/eta_days/why/override to
+       reopen the exact award detail }
+   ============================================================ */
+var ORDERS_KEY='plantpeers_orders_v1';
+function loadOrders(){ try{ var raw=localStorage.getItem(ORDERS_KEY); return raw?JSON.parse(raw):[]; }catch(e){ return []; } }
+function saveOrders(arr){ try{ localStorage.setItem(ORDERS_KEY, JSON.stringify(arr)); }catch(e){} }
+function recordOrder(o, cr, s, data){
+  var full=loadOrders();
+  var maxN=full.reduce(function(mx,od){ return od.n>mx?od.n:mx; }, 0); // monotonic, no Date.now
+  // one order per request: a re-award of the same request replaces its prior record
+  var arr=full.filter(function(od){ return od.request_id!==cr.request.id; });
+  var notes=cr.request.notes||{};
+  arr.push({
+    n:maxN+1,
+    request_id:cr.request.id,
+    plant_id:cr.plant.id,
+    plant_name:cr.plant.common_name,
+    awarded_offer_id:o.id,
+    seller_id:o.seller_id,
+    seller_handle:o.handle,
+    price:o.price+o.shipping,
+    awarded_survival:Math.round(s.pAtLeastOne*1000)/1000,
+    skill:skill,
+    needs:{ target:notes.target||'', budget:notes.budget||'', deadline:notes.deadline||'' },
+    // detail-reopen payload (plain data; re-rendered through esc)
+    stage_label:data.stage_label, eta_days:data.eta_days, why:data.why, override:data.override
+  });
+  saveOrders(arr);
+}
+function orderWants(od){
+  return [od.needs&&od.needs.target, od.needs&&od.needs.budget, od.needs&&od.needs.deadline]
+    .filter(Boolean).map(function(w){ return "<span>"+esc(w)+"</span>"; }).join('');
+}
+/* Header pill — only rendered when >=1 order exists (keeps a clean first run). */
+function renderOrdersEntry(){
+  var el=document.getElementById('orders-entry'); if(!el) return;
+  var n=loadOrders().length;
+  el.innerHTML = n ? "<button class='ordersbtn js-orders'>&#128230; My orders <span class='cnt'>"+n+"</span></button>" : '';
+}
+function openOrders(){ renderOrders(); go('orders'); }
+function renderOrders(){
+  var el=document.getElementById('orders-list'); if(!el) return;
+  var orders=loadOrders().slice().sort(function(a,b){ return b.n-a.n; }); // newest first
+  if(!orders.length){ el.innerHTML="<div class='empty'>No orders yet. Award a lab's offer and it will show up here.</div>"; return; }
+  el.innerHTML=orders.map(function(od){
+    var pctLives=Math.round((od.awarded_survival||0)*100);
+    var wants=orderWants(od);
+    return "<div class='order'>"+
+      "<div class='or-top'><div class='or-h'>"+esc(od.plant_name)+"</div>"+
+        "<div class='or-price'>$"+Number(od.price)+"<small>shipped</small></div></div>"+
+      "<div class='or-lab'>Won by <b>"+esc(od.seller_handle)+"</b></div>"+
+      "<div class='or-surv'><span class='or-gauge' style='--pct:"+pctLives+"'></span> "+
+        "<b>"+pctLives+"%</b> odds it lives — the survival forecast you picked</div>"+
+      (wants?"<div class='or-want'>"+wants+"</div>":"")+
+      "<button class='or-why js-order-why' data-order-n='"+esc(od.n)+"'>Why you picked it &#9656;</button>"+
+    "</div>";
+  }).join('');
+}
+function openOrderDetail(n){
+  var od=loadOrders().filter(function(x){ return String(x.n)===String(n); })[0];
+  if(!od) return;
+  showAwardSheet({
+    handle:od.seller_handle, plant_name:od.plant_name, price:od.price,
+    stage_label:od.stage_label, eta_days:od.eta_days, why:od.why||[], override:od.override||null
+  }, 'orders');
+}
+/* Lab side: the winning lab sees which requests its offers WON, derived from the
+   same persisted orders (order.seller_id === acting lab). Self-contained from the
+   order record so it survives a reload even though session requests do not. */
+function renderLabWon(){
+  var sect=document.getElementById('labwon-sect'), el=document.getElementById('labwon-list');
+  if(!sect || !el || !LAB) return;
+  var wins=loadOrders().filter(function(od){ return od.seller_id===LAB.sellerId; })
+                       .sort(function(a,b){ return b.n-a.n; });
+  if(!wins.length){ sect.style.display='none'; el.innerHTML=''; return; }
+  sect.style.display='';
+  el.innerHTML=wins.map(function(od){
+    var wants=orderWants(od);
+    return "<div class='labwon'>"+
+      "<div class='lw-top'><div class='lw-h'>"+esc(od.plant_name)+"</div><div class='lw-won'>&#10003; Won</div></div>"+
+      (wants?"<div class='lw-want'><span style='background:none;border:none;color:var(--sub);padding:0'>buyer asked:</span>"+wants+"</div>":"")+
+      "<div class='lw-price'>Winning price <b>$"+Number(od.price)+" shipped</b></div>"+
+    "</div>";
+  }).join('');
+}
+
+/* ============================================================
+   PMF INSTRUMENT — per-session award metrics (localStorage only, no backend).
+   Purpose: prove the apparatus (survival forecast, verified badges, trade-off
+   ribbons, skill selector) actually CHANGES BEHAVIOR — buyers pick the offer
+   most likely to LIVE + a trusted (ledger-verified) lab, not the cheapest cup.
+   OBSERVE ONLY: recordAward() runs after the award decision is made; it does
+   NOT touch ranking, scoring, or the award flow's behavior. One award appends
+   one compact record to plantpeers_award_metrics_v1. Monotonic counter is a
+   simple incrementing index (tally length + 1) — no Date.now() dependency.
+
+   Each field is a hypothesis about PMF:
+   - cheapest  → H1: the apparatus makes buyers pick a NON-cheapest offer.
+                 If most awards are cheapest, the "survival > price" thesis isn't
+                 landing and we're just a price board.
+   - verified  → H2: verified-lab badges pull awards toward ledger-grounded labs
+                 (confidence tier verified/thin) over unverified self-reporters.
+   - is_top    → H3: the BEST-ODDS ranking is trusted — buyers follow the #1 pick.
+   - surv_gap / price_vs_cheapest → H4: when a buyer OVERRIDES the rec, what did
+                 they trade? (survival points given up vs dollars saved) — tells us
+                 whether overrides are rational bargain-hunting or the rec is wrong.
+   - skill     → H5: behavior segments by TC experience (beginners should lean on
+                 the forecast/verified labs harder than pros).
+   ============================================================ */
+var METRICS_KEY = 'plantpeers_award_metrics_v1';
+function loadMetrics(){
+  try { var raw = localStorage.getItem(METRICS_KEY); return raw ? JSON.parse(raw) : []; }
+  catch(e){ return []; }   // private mode / disabled storage: degrade to no-op
+}
+function recordAward(o, top, cheapestTotal){
+  var chosenTotal = o.price + o.shipping;
+  var rec = {
+    n: 0,                                             // monotonic counter, set below
+    offer_id: o.id,
+    plant_id: o.plant_id,
+    skill: skill,                                     // buyer TC experience at award
+    cheapest: chosenTotal === cheapestTotal,          // chosen IS a lowest-total offer?
+    verified: o.confidence !== 'unverified',          // ledger tier verified|thin vs unverified
+    is_top: o.id === top.id,                          // chosen == #1 BEST-ODDS pick?
+    surv_gap: Math.round((top._s.pAtLeastOne - o._s.pAtLeastOne) * 1000) / 1000, // top - chosen survival
+    price_vs_cheapest: chosenTotal - cheapestTotal    // $ paid above the cheapest cup
+  };
+  var arr = loadMetrics();
+  rec.n = arr.length + 1;
+  arr.push(rec);
+  try { localStorage.setItem(METRICS_KEY, JSON.stringify(arr)); } catch(e){}
+  return rec;
+}
+/* Unobtrusive summary line, blank until the first award. */
+function renderMetrics(){
+  var el = document.getElementById('metrics-foot');
+  if(!el) return;
+  var m = loadMetrics();
+  if(!m.length){ el.innerHTML=''; return; }
+  var total = m.length;
+  var notCheapest = m.filter(function(r){ return !r.cheapest; }).length;
+  var verifiedN   = m.filter(function(r){ return r.verified; }).length;
+  var followed    = m.filter(function(r){ return r.is_top; }).length;
+  el.innerHTML = "buyers choosing survival over price: <b style='color:#7fd39a'>"+notCheapest+"/"+total+
+    "</b> ("+pct(notCheapest/total)+") · verified labs: <b style='color:#7fd39a'>"+pct(verifiedN/total)+
+    "</b> · followed rec: <b style='color:#7fd39a'>"+pct(followed/total)+"</b>";
+}
+
+/* ============================================================
+   LAB MODE (L7) — the SELL side. Promoted from experiments/lab_offer_spike.html.
+   SINGLE SOURCE OF TRUTH: this module does NOT re-implement the model. Every
+   ranking number it shows is computed by the SAME functions the buyer side uses
+   — enrich(), survival(), labTrust(), score(), recompute(), betaMean(),
+   confidenceTier() defined above — so buyer-side and lab-side rankings can never
+   diverge. The only lab-specific glue is: build a raw offer object from the form,
+   run it through the shared enrich() (carrying replacement_override so the
+   guarantee TOGGLE drives the very field survival() reads), and rank it with the
+   shared recompute(). The two decisive trust inputs (contamination, deflask) come
+   ONLY from seller.ledger via enrich()->betaMean() and have NO form field.
+   ============================================================ */
+var ROLE_KEY = 'plantpeers_role_v1';
+var LAB = null; // { sellerId, seller, request, plant, form, prevRank }
+
+function loadRole(){ try{ var r=localStorage.getItem(ROLE_KEY); return r?JSON.parse(r):null; }catch(e){ return null; } }
+function saveRole(o){ try{ localStorage.setItem(ROLE_KEY, JSON.stringify(o)); }catch(e){} }
+function currentRole(){ var r=loadRole(); return (r&&r.role)||'buyer'; }
+
+function updateRoleBtn(){
+  var b=document.getElementById('rolebtn'); if(!b) return;
+  var r=loadRole();
+  b.innerHTML = (r && r.sellerId && sellerById[r.sellerId])
+    ? "Lab console · "+esc(sellerById[r.sellerId].handle)+" ▸"
+    : "I'm a lab ▸";
+}
+
+/* Header toggle: buyer -> lab console (jump straight in if a lab was already
+   chosen, otherwise show the picker). */
+function toggleRole(){
+  var r=loadRole();
+  if(r && r.sellerId && sellerById[r.sellerId]){ enterLab(r.sellerId); return; }
+  saveRole({role:'lab'});
+  updateRoleBtn();
+  renderLabPicker();
+  go('labpicker');
+}
+function exitLab(){ saveRole({role:'buyer'}); updateRoleBtn(); go('catalog'); }
+
+function enterLab(sellerId){
+  var s=sellerById[sellerId]; if(!s) return;
+  saveRole({role:'lab', sellerId:sellerId});
+  LAB={ sellerId:sellerId, seller:s };
+  updateRoleBtn();
+  renderLabRequests();
+  go('labrequests');
+}
+
+/* ---------- lab picker ---------- */
+function renderLabPicker(){
+  var el=document.getElementById('labpicker-list');
+  el.innerHTML=DB.sellers.map(function(s){
+    // reuse enrich() purely to surface this lab's ledger-derived numbers
+    var o=enrich({ seller_id:s.id, plant_id:'_', stage:'invitro', plantlets_per_cup:1, price:0, shipping:0 });
+    var tier = o.confidence==='unverified' ? 'unverified' : (o.confidence==='thin'?'thin ledger':'verified');
+    return "<button class='labpick' data-seller-id='"+esc(s.id)+"'>"+
+      "<div class='av' style='background-image:url("+avSVG(s.avatar_hue)+")'></div>"+
+      "<div class='lp-body'><div class='lp-h'>"+esc(s.handle)+"</div>"+
+      "<div class='lp-m'>"+esc(s.location)+" · ★ "+Number(s.rating)+" · "+Number(s.sales_count)+" sales</div>"+
+      "<div class='lp-led'>ledger: "+pct(o.contam)+" contamination · "+(Number(o.shipments)||0)+" shipments · <b>"+esc(tier)+"</b></div></div>"+
+      "<div class='lp-go'>▸</div></button>";
+  }).join('');
+}
+
+/* ---------- open-requests list ---------- */
+function openRequestsList(){
+  return (DB.requests||[]).filter(function(r){ return r.status==='open'; });
+}
+function skillWord(sk){ return SKILL_LABEL[sk] || sk; }
+
+function renderLabRequests(){
+  var s=LAB.seller;
+  var o=enrich({ seller_id:LAB.sellerId, plant_id:'_', stage:'invitro', plantlets_per_cup:1, price:0, shipping:0 });
+  document.getElementById('lab-who').innerHTML =
+    "Acting as <b style='color:#eaf3ec'>"+esc(s.handle)+"</b> · verified ledger: "+pct(o.contam)+" contamination, "+pct(o.contam_deflask)+" deflask";
+  renderLabWon(); // surface any requests this lab already won (from persisted orders)
+  var reqs=openRequestsList();
+  var el=document.getElementById('labreq-list');
+  if(!reqs.length){ el.innerHTML="<div class='empty'>No open buyer requests right now. Check back soon.</div>"; return; }
+  el.innerHTML=reqs.map(function(r){
+    var p=DB.plants.filter(function(x){return x.id===r.plant_id;})[0]||{};
+    var n=r.notes||{};
+    var pool=DB.offers.filter(function(x){return x.plant_id===r.plant_id;});
+    var wants=[n.target, n.skill?('buyer: '+skillWord(n.skill)):'', n.budget, n.deadline]
+      .filter(Boolean).map(function(w){return "<span>"+esc(w)+"</span>";}).join('');
+    return "<button class='labreq' data-request-id='"+esc(r.id)+"'>"+
+      "<div class='lr-h'>"+esc(p.common_name||r.plant_id)+"</div>"+
+      "<div class='lr-l'>"+esc(p.latin_name||'')+" · tissue-culture plantlets</div>"+
+      "<div class='lr-want'>"+wants+"</div>"+
+      (n.note?"<div class='lr-note'>“"+esc(n.note)+"”</div>":"")+
+      "<div class='lr-pool'><span class='dot'></span> "+pool.length+" lab"+(pool.length===1?'':'s')+" already bidding · tap to build your offer</div>"+
+      "</button>";
+  }).join('');
+}
+
+/* ---------- offer builder ---------- */
+function openLabOffer(reqId){
+  var r=openRequestsList().filter(function(x){return x.id===reqId;})[0];
+  if(!r) return;
+  LAB.request=r;
+  LAB.plant=DB.plants.filter(function(p){return p.id===r.plant_id;})[0] || { id:r.plant_id, common_name:r.plant_id, latin_name:'', size_class:'' };
+  // project rank against the BUYER's stated skill (same global the buyer model uses)
+  skill=(r.notes && r.notes.skill) || 'some';
+  LAB.form={ stage:'invitro', plantlets:5, price:34, shipping:8, replace:false, pheno:90, acclim:true };
+  LAB.prevRank=null;
+  var sub=document.getElementById('lab-submit'); if(sub) sub.style.display=''; // restore after a prior submit hid it
+
+  var p=LAB.plant, n=r.notes||{};
+  var wants=[n.target, n.budget, n.deadline].filter(Boolean).map(function(w){return "<b>"+esc(w)+"</b>";}).join('');
+  document.getElementById('lab-req-summary').innerHTML=
+    "<div class='topbar req' style='position:static;border-bottom:none'>"+
+      "<h1>"+esc(p.common_name)+" <span style='font-weight:400;color:var(--sub)'>— "+esc(p.size_class||'TC')+"</span></h1>"+
+      "<div class='latin'>"+esc(p.latin_name)+" · buyer is "+esc(skillWord(skill))+"</div>"+
+      "<div class='want'><span style='color:#9db4a5'>Buyer asked for:</span>"+wants+"</div></div>";
+
+  renderLabLedger();
+  buildLabForm();
+  renderLabOffer();
+  go('laboffer');
+}
+
+/* LOCKED verified-ledger header — READ-ONLY, no input path to these two numbers. */
+function renderLabLedger(){
+  var s=LAB.seller;
+  var o=enrich({ seller_id:LAB.sellerId, plant_id:'_', stage:'invitro', plantlets_per_cup:1, price:0, shipping:0 });
+  var ccls=o.contam<=0.03?'good':(o.contam<=0.10?'mid':'bad');
+  var dcls=o.contam_deflask>=0.85?'good':(o.contam_deflask>=0.70?'mid':'bad');
+  var unv = o.confidence==='unverified';
+  var thin = o.confidence==='thin';
+  var badgeC = unv  ? "<span class='l-badge thin'>only "+(o.shipments||0)+" outcomes · unverified</span>"
+             : thin ? "<span class='l-badge thin'>limited history · "+o.shipments+" outcomes</span>"
+                    : "<span class='l-badge'>✓ verified by "+o.shipments+" outcomes</span>";
+  var badgeD = unv  ? "<span class='l-badge thin'>only "+(o.checkins||0)+" check-ins · unverified</span>"
+             : thin ? "<span class='l-badge thin'>limited history · "+o.checkins+" check-ins</span>"
+                    : "<span class='l-badge'>✓ verified by "+o.checkins+" check-ins</span>";
+  document.getElementById('lab-ledger').innerHTML=
+    "<div class='l-ledger'>"+
+      "<div class='who'>"+
+        "<div class='av' style='width:34px;height:34px;background-image:url("+avSVG(s.avatar_hue)+")'></div>"+
+        "<div><div class='h'>"+esc(s.handle)+"</div><div class='m'>"+esc(s.location)+" · "+Number(s.sales_count)+" sales · ★ "+Number(s.rating)+"</div></div>"+
+        "<div class='lock'>🔒 VERIFIED LEDGER</div>"+
+      "</div>"+
+      "<div class='l-ledstats'>"+
+        "<div class='l-ledstat'><span class='padlock'>🔒</span><div class='k'>Your contamination rate</div>"+
+          "<div class='v "+ccls+"'>"+pct(o.contam)+"</div>"+badgeC+"</div>"+
+        "<div class='l-ledstat'><span class='padlock'>🔒</span><div class='k'>Your deflask success</div>"+
+          "<div class='v "+dcls+"'>"+pct(o.contam_deflask)+"</div>"+badgeD+"</div>"+
+      "</div>"+
+      "<div class='note'>Computed from your witnessed outcome ledger — <b>not a number you type</b>. "+
+        "There is no field for these on this form: the only way up the board is a genuinely safer offer.</div>"+
+    "</div>";
+}
+
+function buildLabForm(){
+  var f=LAB.form;
+  var stageBtn=function(v,t,sub){ return "<button data-v='"+v+"'"+(f.stage===v?" class='on'":"")+">"+t+"<small>"+sub+"</small></button>"; };
+  document.getElementById('lab-form').innerHTML=
+    "<div class='l-field'><div class='name'>Stage you'll ship <span class='hint'>later = risk you retire for the buyer</span></div>"+
+      "<div class='segs' id='lab-seg-stage'>"+
+        stageBtn('invitro','In-vitro cup','buyer deflasks')+
+        stageBtn('deflasked','Deflasked &amp; rooted','you did the hard part')+
+        stageBtn('acclimated','Acclimated','growing in soil')+
+      "</div></div>"+
+    "<div class='l-field'><div class='name'>Plantlets per cup</div>"+
+      "<div class='l-stepper'><button id='lab-pl-minus'>−</button>"+
+        "<div class='val'><span id='lab-pl-val'>"+f.plantlets+"</span> <small>plantlets</small></div>"+
+        "<button id='lab-pl-plus'>+</button></div></div>"+
+    "<div class='l-field'><div class='name'>Your price <span class='hint'>1 lever of 20% — watch it barely move rank</span></div>"+
+      "<div class='l-range'><input type='range' id='lab-price' min='6' max='120' step='1' value='"+f.price+"'>"+
+        "<div class='rv'>$<span id='lab-price-val'>"+f.price+"</span> <small>+ $<span id='lab-ship-val'>"+f.shipping+"</span> shipping = $<span id='lab-total-val'>"+(f.price+f.shipping)+"</span> shipped</small></div></div></div>"+
+    "<div class='l-field'><div class='name'>Shipping</div>"+
+      "<div class='l-range'><input type='range' id='lab-ship' min='0' max='25' step='1' value='"+f.shipping+"'>"+
+        "<div class='rv'>$<span id='lab-ship-val2'>"+f.shipping+"</span> <small>shipping cost</small></div></div></div>"+
+    "<div class='l-field'><div class='l-toggle"+(f.replace?" on":"")+"' id='lab-tg-replace'>"+
+        "<div class='sw'></div><div><div class='t'>Replacement guarantee</div>"+
+        "<div class='d'>Free replacement if a cup arrives contaminated — drives the field the model reads</div></div>"+
+        "<div class='free'>$0 UPFRONT</div></div></div>"+
+    /* display-only specs that the model does NOT score (flagged, like the buyer side) */
+    "<div class='l-field l-minor'><div class='name'>Variegation stability <span class='hint'>buyer-facing spec — does NOT move rank</span></div>"+
+      "<div class='l-range'><input type='range' id='lab-pheno' min='40' max='98' step='1' value='"+f.pheno+"'>"+
+        "<div class='rv'><span id='lab-pheno-val'>"+f.pheno+"</span>% <small>stable phenotype</small></div></div></div>"+
+    "<div class='l-field l-minor'><div class='l-toggle"+(f.acclim?" on":"")+"' id='lab-tg-acclim'>"+
+        "<div class='sw'></div><div><div class='t'>Include acclimation guide</div>"+
+        "<div class='d'>Buyer-facing spec — does NOT move rank</div></div></div></div>";
+
+  // wire controls (fresh listeners each build; innerHTML above dropped any old ones)
+  var seg=document.getElementById('lab-seg-stage');
+  seg.addEventListener('click', function(e){
+    var b=e.target.closest('button'); if(!b) return;
+    Array.prototype.forEach.call(seg.children, function(c){ c.classList.remove('on'); });
+    b.classList.add('on'); f.stage=b.getAttribute('data-v');
+    if(f.stage==='acclimated'){ f.plantlets=1; setLabPl(1); }
+    else if(f.stage==='deflasked' && f.plantlets>3){ f.plantlets=3; setLabPl(3); }
+    renderLabOffer();
+  });
+  document.getElementById('lab-pl-minus').addEventListener('click', function(){ f.plantlets=Math.max(1,f.plantlets-1); setLabPl(f.plantlets); renderLabOffer(); });
+  document.getElementById('lab-pl-plus').addEventListener('click', function(){ f.plantlets=Math.min(8,f.plantlets+1); setLabPl(f.plantlets); renderLabOffer(); });
+  var price=document.getElementById('lab-price');
+  price.addEventListener('input', function(){ f.price=+price.value;
+    document.getElementById('lab-price-val').textContent=f.price;
+    document.getElementById('lab-total-val').textContent=f.price+f.shipping; renderLabOffer(); });
+  var ship=document.getElementById('lab-ship');
+  ship.addEventListener('input', function(){ f.shipping=+ship.value;
+    document.getElementById('lab-ship-val').textContent=f.shipping;
+    document.getElementById('lab-ship-val2').textContent=f.shipping;
+    document.getElementById('lab-total-val').textContent=f.price+f.shipping; renderLabOffer(); });
+  document.getElementById('lab-tg-replace').addEventListener('click', function(){
+    this.classList.toggle('on'); f.replace=this.classList.contains('on'); renderLabOffer(); });
+  // display-only controls: update the label but never call renderLabOffer (no model effect)
+  document.getElementById('lab-tg-acclim').addEventListener('click', function(){
+    this.classList.toggle('on'); f.acclim=this.classList.contains('on'); });
+  var pheno=document.getElementById('lab-pheno');
+  pheno.addEventListener('input', function(){ f.pheno=+pheno.value; document.getElementById('lab-pheno-val').textContent=f.pheno; });
+}
+function setLabPl(n){ var el=document.getElementById('lab-pl-val'); if(el) el.textContent=n; }
+
+/* Build the raw offer object from the form, exactly the shape data/offers.json
+   uses, carrying the guarantee toggle as an explicit per-offer override. */
+function labRawOffer(f, id){
+  var medium = f.stage==='invitro' ? 'Agar gel' : (f.stage==='deflasked' ? 'Rooted in sphagnum' : 'Potted, hardened off');
+  return {
+    id:(id||'lab-draft'), plant_id:LAB.request.plant_id, seller_id:LAB.sellerId,
+    photo_hue:'#5fb87e', stage:f.stage, plantlets_per_cup:f.plantlets,
+    price:f.price, shipping:f.shipping, eta_days:5, late:false,
+    replacement_override:f.replace, // form toggle -> the field survival()/labTrust() read (via shared enrich)
+    specs:{ phenotype_stability:f.pheno, medium:medium, plantlet_size:'—', acclimation_support:f.acclim },
+    message:'Built in the lab console.'
+  };
+}
+function buildLabOffer(f){ var o=enrich(labRawOffer(f)); o._me=true; return o; }
+
+/* competitors = every current offer on this plant EXCEPT this lab's own
+   (you're replacing your bid, not competing with yourself).
+   #7 seam: `late` offers are held back from the buyer's INITIAL compare view for
+   the "new offer arrived" beat, so the projection ranks against the SAME set the
+   buyer is looking at right now — late offers excluded on BOTH sides. When a late
+   offer lands, the buyer re-ranks live; the projection never claims a rank the
+   buyer isn't currently seeing. */
+function labCompetitorPool(){
+  return DB.offers.filter(function(o){
+    return o.plant_id===LAB.request.plant_id && o.seller_id!==LAB.sellerId && !o.late;
+  }).map(enrich);
+}
+/* #7: freeze the projection to the REQUEST's own stated skill — never a live
+   global toggle the buyer could flip elsewhere. This is the exact skill the
+   buyer's rank for this request is computed at, so the two agree. */
+function labFrozenSkill(){
+  return (LAB.request && LAB.request.notes && LAB.request.notes.skill) || 'some';
+}
+/* #7 consistency: the projection must also fold in the SAME buyer needs (target/
+   budget/deadline) the buyer's compare view ranks with, or lab-side and buyer-side
+   rankings would diverge. Parsed from the request's own notes via the shared model. */
+function labNeeds(){
+  return PPModel.parseNeeds(LAB.request && LAB.request.notes);
+}
+/* THE projected rank — uses the shared recompute() at the frozen request skill AND
+   needs, so it is the identical computation the buyer's compare view runs for the
+   same (frozen) skill + needs over the same (late-excluded) pool. */
+function projectLabRank(f){
+  var me=buildLabOffer(f);
+  var all=labCompetitorPool().concat([me]);
+  recompute(all, labFrozenSkill(), labNeeds()); // shared model, frozen skill+needs: sorts + #1-slot rule
+  return { all:all, me:me, rank:all.indexOf(me)+1, total:all.length };
+}
+
+function renderLabOffer(){
+  var r=projectLabRank(LAB.form);
+  var s=r.me._s;
+  var pctv=Math.round(s.pAtLeastOne*100);
+  var g=document.getElementById('lab-gauge');
+  var col=s.pAtLeastOne>=0.90?'var(--leaf2)':(s.pAtLeastOne>=0.78?'var(--gold)':'var(--warn)');
+  g.style.setProperty('--pct',pctv); g.style.setProperty('--col',col);
+  document.getElementById('lab-gauge-pct').textContent=pctv+'%';
+  document.getElementById('lab-rank-n').textContent='#'+r.rank;
+  document.getElementById('lab-rank-tot').textContent=r.total;
+  document.getElementById('lab-p-surv').textContent=pctv+'%';
+  document.getElementById('lab-p-trust').textContent=r.me._lt;
+  document.getElementById('lab-p-cpl').textContent=Math.round(s.costPerLive);
+  document.getElementById('lab-p-score').textContent=Math.round(r.me._score);
+  var rm=document.getElementById('lab-rankmove');
+  if(LAB.prevRank===null){ rm.className='l-rankmove flat'; rm.textContent='live rank vs '+(r.total-1)+' competing labs'; }
+  else if(r.rank<LAB.prevRank){ rm.className='l-rankmove up'; rm.textContent='▲ up '+(LAB.prevRank-r.rank)+' — that move worked'; }
+  else if(r.rank>LAB.prevRank){ rm.className='l-rankmove down'; rm.textContent='▼ down '+(r.rank-LAB.prevRank); }
+  else { rm.className='l-rankmove flat'; rm.textContent='no rank change'; }
+  LAB.prevRank=r.rank;
+  document.getElementById('lab-board').innerHTML=r.all.map(function(o,i){
+    var name=o._me ? "You · "+STAGE_LABEL[o.stage] : esc(o.handle)+" · "+STAGE_LABEL[o.stage];
+    return "<div class='l-brow"+(o._me?' me':'')+"'><span class='n'>"+(i+1)+"</span>"+
+      "<span class='who'>"+name+"</span><span class='sc'>"+Math.round(o._score)+"</span></div>";
+  }).join('');
+  renderLabCoach(r);
+}
+
+/* COACH — for each candidate move, clone the form, apply it, re-rank via the
+   shared model, and report the rank delta. Proves survival/guarantee moves beat
+   price moves. */
+function labMoveCandidates(f){
+  var moves=[];
+  if(!f.replace){
+    moves.push({ t:'Add a replacement guarantee',
+      d:'Cuts effective contamination loss ~85% and lifts trust — credible because your ledger is clean.',
+      apply:function(s){ s.replace=true; } });
+  }
+  if(f.stage==='invitro'){
+    moves.push({ t:'Ship deflasked instead of in-vitro',
+      d:'You retire the deflasking step beginners lose plants on — per-plantlet survival jumps.',
+      apply:function(s){ s.stage='deflasked'; if(s.plantlets>3) s.plantlets=3; } });
+  } else if(f.stage==='deflasked'){
+    moves.push({ t:'Ship acclimated (already in soil)',
+      d:'Near-zero establishment risk for the buyer.',
+      apply:function(s){ s.stage='acclimated'; s.plantlets=1; } });
+  }
+  moves.push({ t:'Cut your price by $15',
+    d:'Price is only 20% of the score, on cost-per-surviving-plant. Watch it barely move.',
+    apply:function(s){ s.price=Math.max(6,s.price-15); } });
+  return moves;
+}
+function renderLabCoach(cur){
+  var scored=labMoveCandidates(LAB.form).map(function(m){
+    var s2={}; for(var k in LAB.form) s2[k]=LAB.form[k];
+    m.apply(s2);
+    var r2=projectLabRank(s2);
+    return { m:m, newRank:r2.rank, gain:cur.rank-r2.rank, scoreGain:r2.me._score-cur.me._score };
+  });
+  scored.sort(function(a,b){ return (b.gain-a.gain) || (b.scoreGain-a.scoreGain); });
+  var el=document.getElementById('lab-coach');
+  var head = cur.rank===1
+    ? "<div class='done'>🏆 You're projected <b>#1 of "+cur.total+"</b> — a genuinely safe offer, not the cheapest cup. That's how you win here.</div>"
+    : "";
+  el.innerHTML = head + scored.map(function(x,i){ return labCoachRow(x, i===0 && x.gain>0 && cur.rank!==1); }).join('');
+}
+function labCoachRow(x, best){
+  var up=x.gain>0;
+  var deltaTxt = up ? ('+'+x.gain) : (x.gain<0?String(x.gain):'0');
+  var deltaSub = up ? 'RANKS' : (x.gain<0?'RANKS':'NO MOVE');
+  var tail = up ? " · → #"+x.newRank+", score +"+x.scoreGain.toFixed(1)
+                : " · score "+(x.scoreGain>=0?'+':'')+x.scoreGain.toFixed(1);
+  return "<div class='cmove"+(best?' best':'')+"'>"+
+    "<div class='delta "+(up?'up':'flat')+"'>"+deltaTxt+"<small>"+deltaSub+"</small></div>"+
+    "<div class='body'><div class='t'>"+esc(x.m.t)+"</div>"+
+    "<div class='d'>"+x.m.d+tail+"</div></div></div>";
+}
+
+/* ---------- submit: enrich exactly like the buyer side, append to the pool,
+   re-rank, and surface it via the existing "new offer just arrived" beat. ---- */
+function submitLabOffer(){
+  if(!LAB || !LAB.request) return;
+  var raw=labRawOffer(LAB.form, 'lab-'+Date.now());
+  // One offer per request from a given lab: this bid REPLACES any current offer
+  // this seller has on this plant (a re-submit, or a standing seed offer). This
+  // matches the projection, whose competitor pool already excludes the acting
+  // lab's own offers. In-memory only — data/offers.json is never written.
+  DB.offers=DB.offers.filter(function(o){
+    return !(o.plant_id===raw.plant_id && o.seller_id===LAB.sellerId);
+  });
+  DB.offers.push(raw);
+  deliverOfferLive(raw);           // if the buyer has this compare open, drop it in live
+  showLabSubmitted(raw);
+}
+/* If a buyer currently has this plant's compare view open, inject the new offer
+   with the same _new beat + toast the buyer already uses for late offers. */
+function deliverOfferLive(raw){
+  if(!currentRequest || !currentRequest.plant || currentRequest.plant.id!==raw.plant_id) return;
+  var o=enrich(raw); o._new=true;
+  // drop the lab's prior offer from the live pool too (mirrors DB.offers dedupe)
+  currentRequest.offers=currentRequest.offers.filter(function(x){ return x.seller_id!==raw.seller_id; });
+  currentRequest.offers.push(o);
+  if(document.getElementById('view-compare').classList.contains('active')){
+    renderFeed();
+    var live=document.getElementById('live');
+    if(live) live.innerHTML="<span class='dot'></span> New offer from "+esc(o.handle)+" just arrived · re-ranked by survival odds";
+    toast("🧫 New offer from "+esc(o.handle)+" — offers re-ranked");
+  }
+}
+function showLabSubmitted(raw){
+  var r=projectLabRank(LAB.form); // final rank of the just-submitted offer
+  var el=document.getElementById('lab-coach');
+  el.innerHTML=
+    "<div class='done'>✅ Offer submitted — you entered the ranking at <b>#"+r.rank+" of "+r.total+"</b>. "+
+    "The buyer now sees it in their compare view, re-ranked by survival odds.</div>"+
+    "<button class='cta js-view-as-buyer' style='margin:12px 0 0;width:100%' data-request-id='"+esc(LAB.request.id)+"'>See it in the buyer's compare view ▸</button>"+
+    "<button class='cta' style='margin:9px 0 0;width:100%;background:var(--card2);color:var(--leaf2);border:1px solid var(--line)' onclick=\"renderLabRequests();go('labrequests')\">Back to open requests</button>";
+  var sub=document.getElementById('lab-submit'); if(sub) sub.style.display='none';
+}
+/* Switch to the buyer role and open the compare view for this request so the
+   newly submitted offer is visible in the buyer pool. */
+function viewRequestAsBuyer(reqId){
+  var r=(DB.requests||[]).filter(function(x){return x.id===reqId;})[0];
+  if(!r) return;
+  var plant=DB.plants.filter(function(p){return p.id===r.plant_id;})[0];
+  if(!plant) return;
+  skill=(r.notes && r.notes.skill) || 'some';
+  currentPlant=plant;
+  buildRequestOffers(r, plant); // pulls DB.offers for this plant -> includes the just-pushed offer
+  saveRole({role:'buyer'}); updateRoleBtn();
+  renderCompare(false);         // don't schedule the late beat again
+  go('compare');
+}
+
+/* ---------- event delegation (L13b XSS hardening) ----------
+   Ids/filters are never inlined into onclick="fn('...')" HTML-as-code anymore.
+   Each list renders a data-* attribute (quote-escaped via esc) and behavior is
+   attached here by reading el.dataset.*, so the raw value can never be parsed as
+   markup or script. Listeners bind once to the (static) container nodes; they keep
+   working across re-renders that only replace the containers' innerHTML. */
+function wireDelegation(){
+  var on=function(id, sel, fn){
+    var host=document.getElementById(id); if(!host) return;
+    host.addEventListener('click', function(e){
+      var t=e.target.closest? e.target.closest(sel) : null; if(!t || !host.contains(t)) return;
+      fn(t);
+    });
+  };
+  on('filters', '.chip', function(t){ setFilter(t.dataset.filter); });
+  on('catalog', '.pcard', function(t){ openPlant(t.dataset.plantId); });
+  on('feed', '.pickbtn', function(t){ award(t.dataset.offerId); });
+  on('orders-entry', '.js-orders', function(){ openOrders(); });
+  on('orders-list', '.js-order-why', function(t){ openOrderDetail(t.dataset.orderN); });
+  on('labpicker-list', '.labpick', function(t){ enterLab(t.dataset.sellerId); });
+  on('labreq-list', '.labreq', function(t){ openLabOffer(t.dataset.requestId); });
+  on('lab-coach', '.js-view-as-buyer', function(t){ viewRequestAsBuyer(t.dataset.requestId); });
+}
+
+/* ---------- boot ---------- */
+wireDelegation();
+loadData().then(function(errs){
+  if(errs.length){
+    document.getElementById('dataerr').innerHTML=
+      "<div class='banner'>Heads up: couldn't load "+errs.join(', ')+".json — running with whatever loaded. Try serving via <b>python -m http.server</b> from the plantpeers/ folder.</div>";
+  }
+  renderFilters();
+  renderCatalog();
+  renderMetrics();
+  renderOrdersEntry();
+  updateRoleBtn();
+  document.getElementById('q').addEventListener('input', renderCatalog);
+  // restore a persisted lab session (role/lab kept in localStorage)
+  var role=loadRole();
+  if(role && role.role==='lab'){
+    if(role.sellerId && sellerById[role.sellerId]) enterLab(role.sellerId);
+    else { renderLabPicker(); go('labpicker'); }
+  }
+}).catch(function(){
+  document.getElementById('dataerr').innerHTML="<div class='banner'>Failed to load data. Serve this folder with <b>python -m http.server</b> and reload.</div>";
+});
+</script>
+</body>
+</html>
