@@ -192,6 +192,7 @@
   <h1>🌊 Coastal Land & 🏙 BKK Penthouses</h1>
   <div class="stats" id="stats"></div>
   <span class="chip" id="slChip" style="display:none;background:#2a3340;color:#ffd166;border-color:#ffd166;cursor:pointer" title="Open shortlist">★ 0</span>
+  <span class="chip" id="wlChip" style="display:none;background:#2a3340;color:#4fa3ff;border-color:#4fa3ff;cursor:pointer" title="Open watchlist (cool but pricey — waiting for a drop)">👁 0</span>
   <span class="chip" id="regChip" style="display:none;cursor:pointer" title="Open regulatory watch">📜 Regulatory <span id="regCount">0</span></span>
 </header>
 
@@ -322,6 +323,17 @@
   </div>
 </div>
 
+<!-- Watchlist viewer -->
+<div class="modal-bg" id="watchlistBg">
+  <div class="modal" style="max-width:1100px;width:95%;max-height:90vh;overflow:auto">
+    <h3 style="display:flex;align-items:center;gap:8px">👁 Watchlist <span style="font-weight:400;font-size:13px;color:var(--txt-dim)">— cool but too pricey; alerts on drops</span>
+      <span style="color:var(--txt-dim);font-weight:400;font-size:13px" id="watchlistCount"></span>
+      <button class="close" id="watchlistClose" style="margin-left:auto">×</button>
+    </h3>
+    <div id="watchlistBody"></div>
+  </div>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script>
@@ -343,6 +355,7 @@
   const COLORS = {Thailand:'#ff6b6b','New Zealand':'#7ce38b','British Columbia':'#4fa3ff',Canada:'#ff8fb1',Malaysia:'#ffd166',Japan:'#c084fc',Turkey:'#e76f51',USA:'#a78bfa',Romania:'#56b886',Poland:'#f7c948',Chile:'#ef4444',Portugal:'#22d3ee'};
   const ALL_COUNTRIES = ['Thailand','New Zealand','British Columbia','Canada','Malaysia','Japan','Turkey','USA','Romania','Poland','Chile','Portugal'];
   const LS_KEY = 'archives_v1';
+  const WL_KEY = 'watchlist_v1';
 
   // ---- archives (localStorage) ----
   function loadArchives(){
@@ -351,6 +364,41 @@
   }
   function saveArchives(a){ localStorage.setItem(LS_KEY, JSON.stringify(a)); }
   let archives = loadArchives();
+
+  // ---- watchlist (localStorage) — "cool but too expensive, revisit later" ----
+  function loadWatch(){
+    try { return JSON.parse(localStorage.getItem(WL_KEY) || '{}'); }
+    catch(e){ return {}; }
+  }
+  function saveWatch(w){ localStorage.setItem(WL_KEY, JSON.stringify(w)); }
+  let watchlist = loadWatch();
+  function isWatched(u){ return !!watchlist[u]; }
+  function toggleWatch(r){
+    if (watchlist[r.u]) {
+      delete watchlist[r.u];
+    } else {
+      watchlist[r.u] = {
+        added: new Date().toISOString().slice(0,10),
+        seed_usd: r.usd,
+        cf: r.cf, rg: r.rg, ac: r.ac, name: r.name,
+      };
+    }
+    saveWatch(watchlist);
+    updateWatchChip();
+  }
+  function updateWatchChip(){
+    const wc = document.getElementById('wlChip');
+    if (!wc) return;
+    const n = Object.keys(watchlist).length;
+    // Highlight if any watched listing has current price below seed_usd
+    let drops = 0;
+    for (const u in watchlist) {
+      const row = DATA.find(r=>r.u===u);
+      if (row && watchlist[u].seed_usd && row.usd < watchlist[u].seed_usd) drops++;
+    }
+    wc.style.display = n ? '' : 'none';
+    wc.innerHTML = `👁 ${n}${drops?` <span style="color:#ff8080">↓${drops}</span>`:''}`;
+  }
 
   const state = {
     countries: new Set(ALL_COUNTRIES),
@@ -704,6 +752,7 @@
           ? `<button class="btn" id="detailUnarch">↺ Restore from archive</button>`
           : `<button class="btn" id="detailArch">✕ Archive (give reason)</button>`}
         <button class="btn" id="detailPromote" style="${shortlist[r.u]?'border-color:#ffd166;color:#ffd166':''}">★ ${shortlist[r.u]?'Shortlisted (edit)':'Promote'}</button>
+        <button class="btn" id="detailWatch" style="${isWatched(r.u)?'border-color:#4fa3ff;color:#4fa3ff':''}" title="Add to watchlist — cool but too pricey; alert on drops">👁 ${isWatched(r.u)?'Watching':'Watch price'}</button>
         ${shortlist[r.u]?`<button class="btn" id="detailFindSimilar">Find similar →</button>`:''}
         <a class="btn primary" href="${r.u}" target="_blank" rel="noopener">Open listing →</a>
       </div>`;
@@ -712,6 +761,7 @@
     const ub=document.getElementById('detailUnarch'); if(ub) ub.onclick=()=>{ delete archives[r.u]; saveArchives(archives); detailBg.classList.remove('show'); render(); };
     const pb=document.getElementById('detailPromote'); if(pb) pb.onclick=()=>{ detailBg.classList.remove('show'); openPromote(r.u); };
     const fs=document.getElementById('detailFindSimilar'); if(fs) fs.onclick=()=>{ detailBg.classList.remove('show'); openShortlistView(); };
+    const wb=document.getElementById('detailWatch'); if(wb) wb.onclick=()=>{ toggleWatch(r); detailBg.classList.remove('show'); openDetail(r.u); };
     detailBg.classList.add('show');
     if(r.lat){
       setTimeout(()=>{
@@ -941,6 +991,59 @@
   shortlistBg.onclick=(e)=>{ if(e.target===shortlistBg) shortlistBg.classList.remove('show'); };
   document.getElementById('slChip').onclick=()=>openShortlistView();
   refreshShortlistChip();
+
+  // ---- watchlist modal ----
+  const watchlistBg = document.getElementById('watchlistBg');
+  function openWatchlistView(){
+    const body = document.getElementById('watchlistBody');
+    const count = document.getElementById('watchlistCount');
+    const entries = Object.entries(watchlist).map(([u, meta]) => {
+      const row = DATA.find(r=>r.u===u);
+      const cur = row ? row.usd : null;
+      const seed = meta.seed_usd || null;
+      const drop = (seed && cur && cur < seed) ? Math.round((seed - cur)/seed*100) : 0;
+      return { u, meta, row, cur, seed, drop };
+    });
+    // Sort: biggest drop first, then most recently added
+    entries.sort((a,b) => (b.drop - a.drop) || (b.meta.added||'').localeCompare(a.meta.added||''));
+    count.textContent = `— ${entries.length} watched`;
+    if (!entries.length) {
+      body.innerHTML = `<p style="color:var(--txt-dim);padding:20px;text-align:center">Nothing watched yet. Open any listing's popover and click 👁 Watch price to add it here.</p>`;
+      watchlistBg.classList.add('show');
+      return;
+    }
+    body.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="border-bottom:1px solid var(--border);text-align:left">
+        <th style="padding:6px">added</th><th>country</th><th>region</th><th>ac</th>
+        <th>seed $</th><th>now $</th><th>change</th><th>name</th><th></th>
+      </tr></thead><tbody>
+      ${entries.map(({u, meta, row, cur, seed, drop})=>{
+        const gone = !row;
+        const changePct = (seed && cur) ? ((cur-seed)/seed*100).toFixed(1) : null;
+        const color = drop>=10?'#7ce38b':drop>=5?'#9fd96d':drop>0?'#ffd166':gone?'#ff8080':'var(--txt-dim)';
+        const changeTxt = gone ? '⛔ delisted' : (changePct===null?'':(cur<seed?`↓${(-changePct)}%`:cur>seed?`↑${changePct}%`:'—'));
+        return `<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:6px;color:var(--txt-dim);font-size:11px">${meta.added||''}</td>
+          <td>${meta.cf||''}</td><td>${meta.rg||''}</td>
+          <td>${meta.ac||''}</td>
+          <td>$${(seed||0).toLocaleString()}</td>
+          <td>${gone?'—':'$'+(cur||0).toLocaleString()}</td>
+          <td style="color:${color};font-weight:600">${changeTxt}</td>
+          <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${meta.name||''}</td>
+          <td><a href="${u}" target="_blank" style="color:#4fa3ff">↗</a>
+              <button class="btn" style="padding:2px 6px;font-size:11px;margin-left:4px" data-unwatch="${encodeURIComponent(u)}">✕</button></td>
+        </tr>`;
+      }).join('')}
+      </tbody></table>`;
+    body.querySelectorAll('[data-unwatch]').forEach(el=>{
+      el.onclick=(e)=>{ e.stopPropagation(); delete watchlist[decodeURIComponent(el.dataset.unwatch)]; saveWatch(watchlist); updateWatchChip(); openWatchlistView(); };
+    });
+    watchlistBg.classList.add('show');
+  }
+  document.getElementById('watchlistClose').onclick=()=>watchlistBg.classList.remove('show');
+  watchlistBg.onclick=(e)=>{ if(e.target===watchlistBg) watchlistBg.classList.remove('show'); };
+  document.getElementById('wlChip').onclick=()=>openWatchlistView();
+  updateWatchChip();
 
   // ---- regulatory watch ----
   // Loaded once into window.__reg so the detail popover can surface
