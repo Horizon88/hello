@@ -63,6 +63,20 @@
     "price": 165, "shipping": 14, "eta_days": 4, "late": false,
     "message": "Established Thai already in soil, verified speckling. Zero deflask risk."
   },
+  {
+    "id": "o-tc-4", "plant_id": "monstera-thai-constellation-tc", "seller_id": "rootzone_labs",
+    "photo_hue": "#6fbf7e", "stage": "deflasked", "plantlets_per_cup": 2,
+    "specs": { "phenotype_stability": 93, "medium": "Rooted in sphagnum", "plantlet_size": "6–8 cm rooted", "acclimation_support": true },
+    "price": 115, "shipping": 11, "eta_days": 3, "late": false,
+    "message": "Rooted Thai pair, heavy stable speckling. Establishment guaranteed, contam-replace covered."
+  },
+  {
+    "id": "o-tc-5", "plant_id": "monstera-thai-constellation-tc", "seller_id": "bulk_bloom",
+    "photo_hue": "#8fae5c", "stage": "invitro", "plantlets_per_cup": 4,
+    "specs": { "phenotype_stability": 58, "medium": "Agar gel", "plantlet_size": "2–3 cm plantlets", "acclimation_support": false },
+    "price": 60, "shipping": 10, "eta_days": 8, "late": false,
+    "message": "Bulk Thai flask, 4 plantlets for $60. Variegation varies — claims reviewed case-by-case."
+  },
 
   {
     "id": "o-ac-1", "plant_id": "anthurium-clarinervium-tc", "seller_id": "leaflab_pnw",
@@ -84,6 +98,20 @@
     "specs": { "phenotype_stability": 94, "medium": "Rooted in sphagnum", "plantlet_size": "5–6 cm rooted", "acclimation_support": true },
     "price": 58, "shipping": 9, "eta_days": 3, "late": false,
     "message": "Deflasked trio, strong white venation. Replaced free if contaminated."
+  },
+  {
+    "id": "o-ac-4", "plant_id": "anthurium-clarinervium-tc", "seller_id": "meristem_co",
+    "photo_hue": "#3f7d63", "stage": "acclimated", "plantlets_per_cup": 1,
+    "specs": { "phenotype_stability": 95, "medium": "Potted, hardened off", "plantlet_size": "1 established plant", "acclimation_support": true },
+    "price": 66, "shipping": 10, "eta_days": 3, "late": false,
+    "message": "One hardened-off clarinervium already past the fussy stage. Zero deflask risk."
+  },
+  {
+    "id": "o-ac-5", "plant_id": "anthurium-clarinervium-tc", "seller_id": "windowsill_flasks",
+    "photo_hue": "#8fae5c", "stage": "invitro", "plantlets_per_cup": 5,
+    "specs": { "phenotype_stability": 68, "medium": "Agar gel", "plantlet_size": "2–3 cm plantlets", "acclimation_support": false },
+    "price": 24, "shipping": 9, "eta_days": 8, "late": false,
+    "message": "Brand-new lab, first clarinervium batch. 5 plantlets cheap — no track record yet, no replacement."
   },
 
   {
@@ -128,6 +156,13 @@
     "specs": { "phenotype_stability": 90, "medium": "Rooted in sphagnum", "plantlet_size": "5–6 cm rooted", "acclimation_support": true },
     "price": 88, "shipping": 10, "eta_days": 4, "late": false,
     "message": "Rooted variegated pair, sterile-lab certified. Contam-replace covered."
+  },
+  {
+    "id": "o-af-4", "plant_id": "alocasia-frydek-variegata-tc", "seller_id": "meristem_co",
+    "photo_hue": "#4f9d70", "stage": "deflasked", "plantlets_per_cup": 2,
+    "specs": { "phenotype_stability": 91, "medium": "Rooted in sphagnum", "plantlet_size": "5–7 cm rooted", "acclimation_support": true },
+    "price": 92, "shipping": 10, "eta_days": 3, "late": false,
+    "message": "Rooted Frydek variegata pair from a sterile lab, ships fast. Contam-replace covered."
   },
 
   {
@@ -201,5 +236,181 @@
     "specs": { "phenotype_stability": 95, "medium": "Potted, hardened off", "plantlet_size": "1 established plant", "acclimation_support": true },
     "price": 128, "shipping": 11, "eta_days": 4, "late": true,
     "message": "One established half-moon plant in soil. Zero deflask risk."
+  },
+  {
+    "id": "o-pp-5", "plant_id": "philo-pink-princess-tc", "seller_id": "rootzone_labs",
+    "photo_hue": "#cf93b6", "stage": "acclimated", "plantlets_per_cup": 1,
+    "specs": { "phenotype_stability": 96, "medium": "Potted, hardened off", "plantlet_size": "1 established plant", "acclimation_support": true },
+    "price": 135, "shipping": 11, "eta_days": 3, "late": false,
+    "message": "Established, well-marbled PPP in soil — reverting stock culled. Establishment guaranteed."
+  },
+
+  {
+    "id": "o-wk-1", "plant_id": "philo-white-knight-tc", "seller_id": "fernandflora",
+    "photo_hue": "#7fae6c", "stage": "deflasked", "plantlets_per_cup": 3,
+    "specs": { "phenotype_stability": 90, "medium": "Rooted in sphagnum", "plantlet_size": "5–7 cm rooted", "acclimation_support": true },
+    "price": 62, "shipping": 10, "eta_days": 4, "late": false,
+    "message": "Deflasked White Knight trio, bold stable white blocks. Contam-replace covered."
+  },
+  {
+    "id": "o-wk-2", "plant_id": "philo-white-knight-tc", "seller_id": "bulk_bloom",
+    "photo_hue": "#8fae5c", "stage": "invitro", "plantlets_per_cup": 5,
+    "specs": { "phenotype_stability": 52, "medium": "Agar gel", "plantlet_size": "2–3 cm plantlets", "acclimation_support": false },
+    "price": 28, "shipping": 10, "eta_days": 8, "late": false,
+    "message": "5 White Knight plantlets for $28 — variegation may revert. Claims reviewed case-by-case."
+  },
+  {
+    "id": "o-wk-3", "plant_id": "philo-white-knight-tc", "seller_id": "rootzone_labs",
+    "photo_hue": "#7fae6c", "stage": "acclimated", "plantlets_per_cup": 1,
+    "specs": { "phenotype_stability": 95, "medium": "Potted, hardened off", "plantlet_size": "1 established plant", "acclimation_support": true },
+    "price": 78, "shipping": 11, "eta_days": 3, "late": false,
+    "message": "One established White Knight in soil, splash locked in. Establishment guaranteed."
+  },
+  {
+    "id": "o-wk-4", "plant_id": "philo-white-knight-tc", "seller_id": "canopy_cultures",
+    "photo_hue": "#7fae6c", "stage": "invitro", "plantlets_per_cup": 4,
+    "specs": { "phenotype_stability": 80, "medium": "Agar gel", "plantlet_size": "3–4 cm plantlets", "acclimation_support": true },
+    "price": 34, "shipping": 9, "eta_days": 7, "late": false,
+    "message": "Small-batch White Knight cup, 4 plantlets, deflask guide. Contam-replace covered."
+  },
+
+  {
+    "id": "o-rt-1", "plant_id": "rhaphidophora-tetrasperma-variegata-tc", "seller_id": "greenthumbco",
+    "photo_hue": "#7fc06a", "stage": "deflasked", "plantlets_per_cup": 4,
+    "specs": { "phenotype_stability": 88, "medium": "Rooted in sphagnum", "plantlet_size": "5–6 cm rooted", "acclimation_support": true },
+    "price": 40, "shipping": 9, "eta_days": 3, "late": false,
+    "message": "Deflasked variegated mini-monstera quartet, cream splash showing. Replaced free if contaminated."
+  },
+  {
+    "id": "o-rt-2", "plant_id": "rhaphidophora-tetrasperma-variegata-tc", "seller_id": "budgetjungle",
+    "photo_hue": "#8fae5c", "stage": "invitro", "plantlets_per_cup": 6,
+    "specs": { "phenotype_stability": 58, "medium": "Agar gel", "plantlet_size": "2–3 cm plantlets", "acclimation_support": false },
+    "price": 20, "shipping": 9, "eta_days": 7, "late": false,
+    "message": "6 variegated mini-monstera plantlets for $20 — splash varies. All sales final."
+  },
+  {
+    "id": "o-rt-3", "plant_id": "rhaphidophora-tetrasperma-variegata-tc", "seller_id": "potandsoil",
+    "photo_hue": "#7fc06a", "stage": "acclimated", "plantlets_per_cup": 1,
+    "specs": { "phenotype_stability": 93, "medium": "Potted, hardened off", "plantlet_size": "1 established plant", "acclimation_support": true },
+    "price": 48, "shipping": 8, "eta_days": 4, "late": false,
+    "message": "One established variegated mini-monstera in soil. Establishment guaranteed."
+  },
+  {
+    "id": "o-rt-4", "plant_id": "rhaphidophora-tetrasperma-variegata-tc", "seller_id": "windowsill_flasks",
+    "photo_hue": "#8fae5c", "stage": "invitro", "plantlets_per_cup": 5,
+    "specs": { "phenotype_stability": 60, "medium": "Agar gel", "plantlet_size": "2–3 cm plantlets", "acclimation_support": false },
+    "price": 18, "shipping": 9, "eta_days": 8, "late": false,
+    "message": "Cheapest cup here, 5 plantlets — brand-new lab, no track record yet, no replacement."
+  },
+
+  {
+    "id": "o-ds-1", "plant_id": "alocasia-dragon-scale-tc", "seller_id": "thefernery",
+    "photo_hue": "#4f8d6a", "stage": "deflasked", "plantlets_per_cup": 2,
+    "specs": { "phenotype_stability": 90, "medium": "Rooted in sphagnum", "plantlet_size": "5–6 cm rooted", "acclimation_support": true },
+    "price": 70, "shipping": 10, "eta_days": 4, "late": false,
+    "message": "Rooted Dragon Scale pair past the sulking stage. Sterile-lab certified, contam-replace covered."
+  },
+  {
+    "id": "o-ds-2", "plant_id": "alocasia-dragon-scale-tc", "seller_id": "sprout_supply",
+    "photo_hue": "#8fae5c", "stage": "invitro", "plantlets_per_cup": 3,
+    "specs": { "phenotype_stability": 55, "medium": "Agar gel", "plantlet_size": "2–3 cm plantlets", "acclimation_support": false },
+    "price": 38, "shipping": 11, "eta_days": 9, "late": false,
+    "message": "3 Dragon Scale plantlets cheap — jewel alocasia hate deflasking. No replacement."
+  },
+  {
+    "id": "o-ds-3", "plant_id": "alocasia-dragon-scale-tc", "seller_id": "rootzone_labs",
+    "photo_hue": "#4f8d6a", "stage": "acclimated", "plantlets_per_cup": 1,
+    "specs": { "phenotype_stability": 95, "medium": "Potted, hardened off", "plantlet_size": "1 established plant", "acclimation_support": true },
+    "price": 88, "shipping": 11, "eta_days": 3, "late": false,
+    "message": "One hardened-off Dragon Scale in soil, scales fully embossed. Establishment guaranteed."
+  },
+
+  {
+    "id": "o-wa-1", "plant_id": "anthurium-warocqueanum-tc", "seller_id": "rootzone_labs",
+    "photo_hue": "#2f6b4a", "stage": "deflasked", "plantlets_per_cup": 2,
+    "specs": { "phenotype_stability": 92, "medium": "Rooted in sphagnum", "plantlet_size": "6–9 cm rooted", "acclimation_support": true },
+    "price": 140, "shipping": 12, "eta_days": 4, "late": false,
+    "message": "Rooted Queen anthurium pair, long velvet leaves establishing. Contam-replace covered."
+  },
+  {
+    "id": "o-wa-2", "plant_id": "anthurium-warocqueanum-tc", "seller_id": "bulk_bloom",
+    "photo_hue": "#8fae5c", "stage": "invitro", "plantlets_per_cup": 4,
+    "specs": { "phenotype_stability": 60, "medium": "Agar gel", "plantlet_size": "2–3 cm plantlets", "acclimation_support": false },
+    "price": 75, "shipping": 11, "eta_days": 9, "late": false,
+    "message": "4 Queen anthurium plantlets cheap — humidity-hungry, hard from flask. Claims reviewed case-by-case."
+  },
+  {
+    "id": "o-wa-3", "plant_id": "anthurium-warocqueanum-tc", "seller_id": "meristem_co",
+    "photo_hue": "#2f6b4a", "stage": "acclimated", "plantlets_per_cup": 1,
+    "specs": { "phenotype_stability": 95, "medium": "Potted, hardened off", "plantlet_size": "1 established plant", "acclimation_support": true },
+    "price": 190, "shipping": 12, "eta_days": 3, "late": false,
+    "message": "One established Queen anthurium already growing velvet leaves. Zero deflask risk."
+  },
+
+  {
+    "id": "o-ob-1", "plant_id": "monstera-obliqua-peru-tc", "seller_id": "fernandflora",
+    "photo_hue": "#5fa86b", "stage": "deflasked", "plantlets_per_cup": 3,
+    "specs": { "phenotype_stability": 90, "medium": "Rooted in sphagnum", "plantlet_size": "4–6 cm rooted", "acclimation_support": true },
+    "price": 45, "shipping": 9, "eta_days": 4, "late": false,
+    "message": "Deflasked obliqua trio, fenestrations already opening. Replaced free if contaminated."
+  },
+  {
+    "id": "o-ob-2", "plant_id": "monstera-obliqua-peru-tc", "seller_id": "budgetjungle",
+    "photo_hue": "#8fae5c", "stage": "invitro", "plantlets_per_cup": 6,
+    "specs": { "phenotype_stability": 62, "medium": "Agar gel", "plantlet_size": "2–3 cm plantlets", "acclimation_support": false },
+    "price": 22, "shipping": 9, "eta_days": 8, "late": false,
+    "message": "6 obliqua plantlets for $22 — paper-thin runners, tricky to establish. All sales final."
+  },
+
+  {
+    "id": "o-ss-1", "plant_id": "philo-spiritus-sancti-tc", "seller_id": "rootzone_labs",
+    "photo_hue": "#4a8c5a", "stage": "acclimated", "plantlets_per_cup": 1,
+    "specs": { "phenotype_stability": 96, "medium": "Potted, hardened off", "plantlet_size": "1 established plant", "acclimation_support": true },
+    "price": 320, "shipping": 14, "eta_days": 5, "late": false,
+    "message": "One established Spiritus Sancti in soil — the safe way into the holy grail. Establishment guaranteed."
+  },
+  {
+    "id": "o-ss-2", "plant_id": "philo-spiritus-sancti-tc", "seller_id": "meristem_co",
+    "photo_hue": "#4a8c5a", "stage": "deflasked", "plantlets_per_cup": 1,
+    "specs": { "phenotype_stability": 93, "medium": "Rooted in sphagnum", "plantlet_size": "5–7 cm rooted", "acclimation_support": true },
+    "price": 260, "shipping": 12, "eta_days": 4, "late": false,
+    "message": "One rooted Spiritus Sancti, past the deflask stage. Sterile lab, contam-replace covered."
+  },
+
+  {
+    "id": "o-ho-1", "plant_id": "hoya-carnosa-compacta-tc", "seller_id": "leaflab_pnw",
+    "photo_hue": "#6fae7c", "stage": "deflasked", "plantlets_per_cup": 4,
+    "specs": { "phenotype_stability": 90, "medium": "Rooted in sphagnum", "plantlet_size": "4–6 cm rooted", "acclimation_support": true },
+    "price": 28, "shipping": 8, "eta_days": 5, "late": false,
+    "message": "Deflasked Hindu rope quartet, curled leaves already forming. Contam-replace covered."
+  },
+  {
+    "id": "o-ho-2", "plant_id": "hoya-carnosa-compacta-tc", "seller_id": "budgetjungle",
+    "photo_hue": "#8fae5c", "stage": "invitro", "plantlets_per_cup": 8,
+    "specs": { "phenotype_stability": 70, "medium": "Agar gel", "plantlet_size": "1–2 cm plantlets", "acclimation_support": false },
+    "price": 12, "shipping": 8, "eta_days": 8, "late": false,
+    "message": "8 hoya plantlets for $12 — slow to establish but nearly indestructible. All sales final."
+  },
+  {
+    "id": "o-ho-3", "plant_id": "hoya-carnosa-compacta-tc", "seller_id": "potandsoil",
+    "photo_hue": "#6fae7c", "stage": "acclimated", "plantlets_per_cup": 2,
+    "specs": { "phenotype_stability": 93, "medium": "Potted, hardened off", "plantlet_size": "2 established plants", "acclimation_support": true },
+    "price": 30, "shipping": 8, "eta_days": 4, "late": false,
+    "message": "Two established Hindu rope plants in soil, past the slow establishment stage. Establishment guaranteed."
+  },
+
+  {
+    "id": "o-np-1", "plant_id": "nepenthes-ampullaria-tc", "seller_id": "greenthumbco",
+    "photo_hue": "#7a9c4a", "stage": "deflasked", "plantlets_per_cup": 3,
+    "specs": { "phenotype_stability": 90, "medium": "Deflasked compot", "plantlet_size": "3–5 cm seedlings", "acclimation_support": true },
+    "price": 34, "shipping": 9, "eta_days": 3, "late": false,
+    "message": "Deflasked ampullaria compot from a sterile cleanroom, tiny pitchers forming. Replaced free if contaminated."
+  },
+  {
+    "id": "o-np-2", "plant_id": "nepenthes-ampullaria-tc", "seller_id": "canopy_cultures",
+    "photo_hue": "#8fae5c", "stage": "invitro", "plantlets_per_cup": 5,
+    "specs": { "phenotype_stability": 72, "medium": "Carnivore flask agar", "plantlet_size": "2–3 cm seedlings", "acclimation_support": false },
+    "price": 22, "shipping": 9, "eta_days": 7, "late": false,
+    "message": "5 pitcher seedlings in flask — want high humidity + pure water out of the cup. Small-batch lab, contam-replace covered."
   }
 ]

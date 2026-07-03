@@ -6,5 +6,21 @@
     "notes": { "target": "2–3 live plants", "skill": "some", "budget": "under $70 shipped", "deadline": "by next week" },
     "status": "open",
     "created": "2026-07-01"
+  },
+  {
+    "id": "req-seed-2",
+    "plant_id": "monstera-thai-constellation-tc",
+    "buyer_id": "you",
+    "notes": { "target": "1 established plant", "skill": "beg", "budget": "under $180 shipped", "deadline": "no rush" },
+    "status": "open",
+    "created": "2026-07-02"
+  },
+  {
+    "id": "req-seed-3",
+    "plant_id": "philo-white-knight-tc",
+    "buyer_id": "you",
+    "notes": { "target": "3–4 plantlets", "skill": "some", "budget": "under $60 shipped", "deadline": "2 weeks" },
+    "status": "open",
+    "created": "2026-07-02"
   }
 ]
