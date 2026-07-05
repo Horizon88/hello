@@ -568,5 +568,347 @@
     "lat": 40.3222,
     "lon": -7.6167,
     "region": "PT"
+  },
+  {
+    "name": "Niseko Annupuri",
+    "lat": 42.842,
+    "lon": 140.689,
+    "region": "JP"
+  },
+  {
+    "name": "Niseko Hanazono",
+    "lat": 42.8912,
+    "lon": 140.6844,
+    "region": "JP"
+  },
+  {
+    "name": "Niseko Grand Hirafu",
+    "lat": 42.8642,
+    "lon": 140.7025,
+    "region": "JP"
+  },
+  {
+    "name": "Kiroro",
+    "lat": 43.0655,
+    "lon": 140.9394,
+    "region": "JP"
+  },
+  {
+    "name": "Sahoro",
+    "lat": 43.1478,
+    "lon": 142.9814,
+    "region": "JP"
+  },
+  {
+    "name": "Kamui Ski Links",
+    "lat": 43.6839,
+    "lon": 142.5069,
+    "region": "JP"
+  },
+  {
+    "name": "Asahidake",
+    "lat": 43.6631,
+    "lon": 142.8347,
+    "region": "JP"
+  },
+  {
+    "name": "Teine Sapporo",
+    "lat": 43.0783,
+    "lon": 141.2372,
+    "region": "JP"
+  },
+  {
+    "name": "Kokusai Sapporo",
+    "lat": 42.9464,
+    "lon": 141.0781,
+    "region": "JP"
+  },
+  {
+    "name": "Sapporo Bankei",
+    "lat": 43.0342,
+    "lon": 141.2953,
+    "region": "JP"
+  },
+  {
+    "name": "Aomori Spring",
+    "lat": 40.5411,
+    "lon": 140.5686,
+    "region": "JP"
+  },
+  {
+    "name": "Hakkoda",
+    "lat": 40.6478,
+    "lon": 140.8814,
+    "region": "JP"
+  },
+  {
+    "name": "Appi Kogen",
+    "lat": 40.0619,
+    "lon": 140.9917,
+    "region": "JP"
+  },
+  {
+    "name": "Geto Kogen",
+    "lat": 39.4536,
+    "lon": 140.9497,
+    "region": "JP"
+  },
+  {
+    "name": "Amihari Onsen",
+    "lat": 39.6725,
+    "lon": 141.0069,
+    "region": "JP"
+  },
+  {
+    "name": "Zao Onsen",
+    "lat": 38.1583,
+    "lon": 140.3961,
+    "region": "JP"
+  },
+  {
+    "name": "Gassan",
+    "lat": 38.5478,
+    "lon": 140.0281,
+    "region": "JP"
+  },
+  {
+    "name": "Alts Bandai",
+    "lat": 37.6225,
+    "lon": 140.0842,
+    "region": "JP"
+  },
+  {
+    "name": "Grandeco",
+    "lat": 37.6467,
+    "lon": 140.0333,
+    "region": "JP"
+  },
+  {
+    "name": "Adatara",
+    "lat": 37.6194,
+    "lon": 140.3033,
+    "region": "JP"
+  },
+  {
+    "name": "Naeba",
+    "lat": 36.7869,
+    "lon": 138.7856,
+    "region": "JP"
+  },
+  {
+    "name": "Kagura",
+    "lat": 36.8033,
+    "lon": 138.7492,
+    "region": "JP"
+  },
+  {
+    "name": "GALA Yuzawa",
+    "lat": 36.9358,
+    "lon": 138.8003,
+    "region": "JP"
+  },
+  {
+    "name": "Ishiuchi Maruyama",
+    "lat": 36.955,
+    "lon": 138.8333,
+    "region": "JP"
+  },
+  {
+    "name": "Iwappara",
+    "lat": 36.9236,
+    "lon": 138.7942,
+    "region": "JP"
+  },
+  {
+    "name": "Myoko Suginohara",
+    "lat": 36.9319,
+    "lon": 138.1611,
+    "region": "JP"
+  },
+  {
+    "name": "Myoko Akakura",
+    "lat": 36.9422,
+    "lon": 138.1794,
+    "region": "JP"
+  },
+  {
+    "name": "Lotte Arai",
+    "lat": 36.95,
+    "lon": 138.2833,
+    "region": "JP"
+  },
+  {
+    "name": "Seki Onsen",
+    "lat": 36.95,
+    "lon": 138.2,
+    "region": "JP"
+  },
+  {
+    "name": "Madarao Kogen",
+    "lat": 36.7833,
+    "lon": 138.3167,
+    "region": "JP"
+  },
+  {
+    "name": "Tangram Ski Circus",
+    "lat": 36.8,
+    "lon": 138.3167,
+    "region": "JP"
+  },
+  {
+    "name": "Hakuba Happo-one",
+    "lat": 36.6944,
+    "lon": 137.8317,
+    "region": "JP"
+  },
+  {
+    "name": "Hakuba Iwatake",
+    "lat": 36.7011,
+    "lon": 137.8506,
+    "region": "JP"
+  },
+  {
+    "name": "Hakuba Goryu 47",
+    "lat": 36.66,
+    "lon": 137.8442,
+    "region": "JP"
+  },
+  {
+    "name": "Hakuba Norikura",
+    "lat": 36.7808,
+    "lon": 137.7933,
+    "region": "JP"
+  },
+  {
+    "name": "Hakuba Cortina",
+    "lat": 36.8014,
+    "lon": 137.7822,
+    "region": "JP"
+  },
+  {
+    "name": "Hakuba Sanosaka",
+    "lat": 36.5822,
+    "lon": 137.8461,
+    "region": "JP"
+  },
+  {
+    "name": "Hakuba Kashimayari",
+    "lat": 36.6019,
+    "lon": 137.7972,
+    "region": "JP"
+  },
+  {
+    "name": "Shiga Kogen",
+    "lat": 36.715,
+    "lon": 138.4933,
+    "region": "JP"
+  },
+  {
+    "name": "Karuizawa",
+    "lat": 36.3661,
+    "lon": 138.63,
+    "region": "JP"
+  },
+  {
+    "name": "Sugadaira",
+    "lat": 36.5464,
+    "lon": 138.3389,
+    "region": "JP"
+  },
+  {
+    "name": "Norikura Kogen",
+    "lat": 36.13,
+    "lon": 137.65,
+    "region": "JP"
+  },
+  {
+    "name": "Kiso-Fukushima",
+    "lat": 35.8567,
+    "lon": 137.6767,
+    "region": "JP"
+  },
+  {
+    "name": "Ontake 2240",
+    "lat": 35.9061,
+    "lon": 137.4589,
+    "region": "JP"
+  },
+  {
+    "name": "Kusatsu Kokusai",
+    "lat": 36.6297,
+    "lon": 138.585,
+    "region": "JP"
+  },
+  {
+    "name": "Manza Onsen",
+    "lat": 36.5217,
+    "lon": 138.5019,
+    "region": "JP"
+  },
+  {
+    "name": "Tanigawadake Tenjindaira",
+    "lat": 36.8342,
+    "lon": 138.9375,
+    "region": "JP"
+  },
+  {
+    "name": "Marunuma Kogen",
+    "lat": 36.8917,
+    "lon": 139.24,
+    "region": "JP"
+  },
+  {
+    "name": "Nikko Yumoto",
+    "lat": 36.7828,
+    "lon": 139.4111,
+    "region": "JP"
+  },
+  {
+    "name": "Hunter Mountain Shiobara",
+    "lat": 36.9358,
+    "lon": 139.7808,
+    "region": "JP"
+  },
+  {
+    "name": "Fujiten Snow Resort",
+    "lat": 35.4342,
+    "lon": 138.7472,
+    "region": "JP"
+  },
+  {
+    "name": "Yeti",
+    "lat": 35.3392,
+    "lon": 138.7728,
+    "region": "JP"
+  },
+  {
+    "name": "Biwako Valley",
+    "lat": 35.1758,
+    "lon": 135.8967,
+    "region": "JP"
+  },
+  {
+    "name": "Hakodateyama",
+    "lat": 35.3583,
+    "lon": 136.035,
+    "region": "JP"
+  },
+  {
+    "name": "Daisen",
+    "lat": 35.3717,
+    "lon": 133.5578,
+    "region": "JP"
+  },
+  {
+    "name": "Ishizuchi",
+    "lat": 33.7739,
+    "lon": 133.1358,
+    "region": "JP"
+  },
+  {
+    "name": "Kuju",
+    "lat": 33.1033,
+    "lon": 131.2417,
+    "region": "JP"
   }
 ]
