@@ -42,3 +42,5 @@ Stop heavy multi-agent rounds unless clearly high-value; re-verify + re-arm othe
 - Recovered from a container restart (17:06Z) — repo intact, toolchain ok. Heartbeat re-armed.
 - Standalone build + Artifact: SHIPPED (02d7fb4). scripts/build_standalone.py inlines model.js+data -> dist/plantpeers.standalone.html + .artifact.html (works file://, no server). Published Artifact: https://claude.ai/code/artifact/5368d6c7-de43-4f79-90b7-70721f074088 (redeploy same file_path to update same URL).
 - L15 = richer seed data (fuller catalog + more labs/offers) so the live demo feels complete, then REBUILD standalone + REDEPLOY artifact (same URL).
+- L15 richer seed data: SHIPPED (c8865e6). 16 plants / 13 labs / 57 offers / 22 reviews / 3 requests; validator GREEN, FB golden + anti-gaming intact; standalone rebuilt (168KB). Builder.
+- ARTIFACT REDEPLOY BLOCKED: same-URL redeploy of the richer build failed 3x ("permission stream closed") in non-interactive continuation. The live Artifact (5368d6c7...) still shows the OLD 8-plant data. TODO: redeploy dist/plantpeers.artifact.html to the same URL on the next INTERACTIVE turn. Updated standalone sent to user directly meanwhile.
