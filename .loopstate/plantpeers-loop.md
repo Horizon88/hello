@@ -44,3 +44,11 @@ Stop heavy multi-agent rounds unless clearly high-value; re-verify + re-arm othe
 - L15 = richer seed data (fuller catalog + more labs/offers) so the live demo feels complete, then REBUILD standalone + REDEPLOY artifact (same URL).
 - L15 richer seed data: SHIPPED (c8865e6). 16 plants / 13 labs / 57 offers / 22 reviews / 3 requests; validator GREEN, FB golden + anti-gaming intact; standalone rebuilt (168KB). Builder.
 - ARTIFACT REDEPLOY BLOCKED: same-URL redeploy of the richer build failed 3x ("permission stream closed") in non-interactive continuation. The live Artifact (5368d6c7...) still shows the OLD 8-plant data. TODO: redeploy dist/plantpeers.artifact.html to the same URL on the next INTERACTIVE turn. Updated standalone sent to user directly meanwhile.
+- L16 accessibility: SHIPPED (37ca752). Keyboard-operable cards, focus-visible, ARIA labels, reduced-motion, AA contrast; look/ranking unchanged; standalone rebuilt (172KB). Builder.
+- L17 README: SHIPPED. plantpeers/README.md — product, model, anti-gaming, architecture, run/build/test, quality bars, outcome-spine. (Written directly.)
+
+## BUILD COMPREHENSIVELY COMPLETE (after L17). Backlog exhausted of clearly-high-value no-backend work.
+Winding down heavy multi-agent rounds -> heartbeat. Open/parked:
+- Artifact redeploy of the richer build -> same URL (blocked this session; retry when Artifact permission works).
+- BLOCKED ON USER: outcome spine (#1) — backend + product policy. This is the next real arc.
+Remaining are marginal polish only; do NOT manufacture busywork. Re-verify + hold; stop at 09:10Z deadline.
