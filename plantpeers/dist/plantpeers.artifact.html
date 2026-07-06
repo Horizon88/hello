@@ -387,19 +387,36 @@
   .labwon .lw-want span{font-size:11px;background:var(--pill);border:1px solid #2f4636;color:var(--ink);padding:3px 8px;border-radius:999px}
   .labwon .lw-price{font-size:12px;color:var(--sub);margin-top:8px}
   .labwon .lw-price b{color:var(--leaf2)}
+
+  /* ============================================================
+     ACCESSIBILITY (L16) — behavior/look-preserving a11y layer.
+     Keyboard focus is only ever shown to keyboard users (:focus-visible),
+     so sighted mouse UX is byte-for-byte unchanged. Motion is disabled
+     under prefers-reduced-motion. .vh hides text visually but keeps it
+     for assistive tech.
+     ============================================================ */
+  :focus-visible{outline:2px solid var(--leaf2);outline-offset:2px}
+  .pcard:focus-visible,.card:focus-visible,.labpick:focus-visible,.labreq:focus-visible{outline-offset:-2px}
+  .l-toggle:focus-visible{outline-offset:2px}
+  .vh{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;
+    overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+  }
 </style>
 <!-- ========== 1. CATALOG ========== -->
 <section id="view-catalog" class="view active">
   <div class="topbar">
-    <button class="rolebtn" id="rolebtn" onclick="toggleRole()">I&#39;m a lab &#9656;</button>
-    <div class="brand"><span class="mark">&#129514;</span> plantpeers</div>
+    <button class="rolebtn" id="rolebtn" onclick="toggleRole()" aria-label="Switch to lab console">I&#39;m a lab &#9656;</button>
+    <div class="brand"><span class="mark" aria-hidden="true">&#129514;</span> plantpeers</div>
+    <h1 class="vh">PlantPeers &mdash; buy tissue-culture plants; labs compete on survival odds</h1>
     <div class="tagline">Buy rare plants as tissue culture. Labs compete on the odds it lives.</div>
     <!-- My orders entry point — filled by renderOrdersEntry() only when >=1 order exists -->
     <div id="orders-entry"></div>
   </div>
   <div id="dataerr"></div>
-  <div class="search"><input id="q" type="search" placeholder="Search TC varieties by name…" autocomplete="off"></div>
-  <div class="chips" id="filters"></div>
+  <div class="search" role="search"><input id="q" type="search" aria-label="Search tissue-culture varieties by name" placeholder="Search TC varieties by name…" autocomplete="off"></div>
+  <nav class="chips" id="filters" aria-label="Filter varieties by care level"></nav>
   <div class="grid" id="catalog"></div>
   <div class="foot">MVP prototype · mock data, no backend · buyer picks the offer most likely to become a living plant, not the cheapest cup.</div>
   <!-- PMF instrument: per-session award tally (see metrics module). Blank until first award. -->
@@ -414,32 +431,32 @@
   </div>
   <div id="req-detail"></div>
   <div class="form" id="req-form">
-    <div class="flabel">How many do you want to end up with?</div>
-    <div class="opts" data-group="target">
-      <button class="opt" data-v="just 1 live plant">Just 1</button>
-      <button class="opt on" data-v="2–3 live plants">2–3</button>
-      <button class="opt" data-v="a few (4+) live plants">A few (4+)</button>
-      <button class="opt" data-v="as many as possible">As many as possible</button>
+    <div class="flabel" id="lbl-target">How many do you want to end up with?</div>
+    <div class="opts" data-group="target" role="group" aria-labelledby="lbl-target">
+      <button class="opt" data-v="just 1 live plant" aria-pressed="false">Just 1</button>
+      <button class="opt on" data-v="2–3 live plants" aria-pressed="true">2–3</button>
+      <button class="opt" data-v="a few (4+) live plants" aria-pressed="false">A few (4+)</button>
+      <button class="opt" data-v="as many as possible" aria-pressed="false">As many as possible</button>
     </div>
-    <div class="flabel">Your tissue-culture experience</div>
-    <div class="opts" data-group="skill">
-      <button class="opt" data-v="beg">Beginner<small>never deflasked</small></button>
-      <button class="opt on" data-v="some">Some experience<small>a few cups</small></button>
-      <button class="opt" data-v="pro">Pro<small>own flow hood</small></button>
+    <div class="flabel" id="lbl-skill">Your tissue-culture experience</div>
+    <div class="opts" data-group="skill" role="group" aria-labelledby="lbl-skill">
+      <button class="opt" data-v="beg" aria-pressed="false">Beginner<small>never deflasked</small></button>
+      <button class="opt on" data-v="some" aria-pressed="true">Some experience<small>a few cups</small></button>
+      <button class="opt" data-v="pro" aria-pressed="false">Pro<small>own flow hood</small></button>
     </div>
-    <div class="flabel">Budget hint</div>
-    <div class="opts" data-group="budget">
-      <button class="opt" data-v="under $40 shipped">Under $40</button>
-      <button class="opt on" data-v="under $70 shipped">Under $70</button>
-      <button class="opt" data-v="under $120 shipped">Under $120</button>
-      <button class="opt" data-v="best odds regardless of price">Best odds, any price</button>
+    <div class="flabel" id="lbl-budget">Budget hint</div>
+    <div class="opts" data-group="budget" role="group" aria-labelledby="lbl-budget">
+      <button class="opt" data-v="under $40 shipped" aria-pressed="false">Under $40</button>
+      <button class="opt on" data-v="under $70 shipped" aria-pressed="true">Under $70</button>
+      <button class="opt" data-v="under $120 shipped" aria-pressed="false">Under $120</button>
+      <button class="opt" data-v="best odds regardless of price" aria-pressed="false">Best odds, any price</button>
     </div>
-    <div class="flabel">Deadline</div>
-    <div class="opts" data-group="deadline">
-      <button class="opt" data-v="no rush">No rush</button>
-      <button class="opt on" data-v="by next week">By next week</button>
-      <button class="opt" data-v="within 2 weeks">Within 2 weeks</button>
-      <button class="opt" data-v="ASAP">ASAP</button>
+    <div class="flabel" id="lbl-deadline">Deadline</div>
+    <div class="opts" data-group="deadline" role="group" aria-labelledby="lbl-deadline">
+      <button class="opt" data-v="no rush" aria-pressed="false">No rush</button>
+      <button class="opt on" data-v="by next week" aria-pressed="true">By next week</button>
+      <button class="opt" data-v="within 2 weeks" aria-pressed="false">Within 2 weeks</button>
+      <button class="opt" data-v="ASAP" aria-pressed="false">ASAP</button>
     </div>
     <div class="flabel">Anything else? (optional)</div>
     <textarea id="req-note" placeholder="e.g. must be stable variegation, prefer already-deflasked, no agar cups, humidity-controlled shipping…"></textarea>
@@ -454,17 +471,17 @@
 
   <!-- skill selector — modulates deflask odds; re-ranks the whole set live -->
   <div class="skill">
-    <div class="lbl">Your tissue-culture experience <span class="q">affects your deflask odds &#8595;</span></div>
-    <div class="segs" id="segs">
-      <button data-skill="beg" onclick="setSkill('beg')">Beginner<small>never deflasked</small></button>
-      <button data-skill="some" onclick="setSkill('some')">Some<small>a few cups</small></button>
-      <button data-skill="pro" onclick="setSkill('pro')">Pro<small>own flow hood</small></button>
+    <div class="lbl" id="segs-lbl">Your tissue-culture experience <span class="q">affects your deflask odds &#8595;</span></div>
+    <div class="segs" id="segs" role="group" aria-labelledby="segs-lbl">
+      <button data-skill="beg" onclick="setSkill('beg')" aria-pressed="false" aria-label="Beginner, never deflasked">Beginner<small>never deflasked</small></button>
+      <button data-skill="some" onclick="setSkill('some')" aria-pressed="false" aria-label="Some experience, a few cups">Some<small>a few cups</small></button>
+      <button data-skill="pro" onclick="setSkill('pro')" aria-pressed="false" aria-label="Pro, own flow hood">Pro<small>own flow hood</small></button>
     </div>
   </div>
 
-  <div class="toolbar">
-    <button id="tabValue" class="on" onclick="setMode('value')">Best odds</button>
-    <button id="tabSpecs" onclick="setMode('specs')">Compare specs</button>
+  <div class="toolbar" role="group" aria-label="Sort offers">
+    <button id="tabValue" class="on" onclick="setMode('value')" aria-pressed="true">Best odds</button>
+    <button id="tabSpecs" onclick="setMode('specs')" aria-pressed="false">Compare specs</button>
   </div>
   <div class="sectlbl"><span class="rule"></span> Most likely to become a living plant <span class="rule"></span></div>
   <div id="feed"></div>
@@ -1072,7 +1089,7 @@ var activeFilter='All';
 function renderFilters(){
   var levels=['All'].concat(uniq(DB.plants.map(function(p){return p.care_level;})));
   document.getElementById('filters').innerHTML=levels.map(function(l){
-    return "<button class='chip"+(l===activeFilter?' on':'')+"' data-filter='"+esc(l)+"'>"+esc(l)+(l==='All'?'':' to deflask')+"</button>";
+    return "<button class='chip"+(l===activeFilter?' on':'')+"' data-filter='"+esc(l)+"' aria-pressed='"+(l===activeFilter)+"'>"+esc(l)+(l==='All'?'':' to deflask')+"</button>";
   }).join('');
 }
 function setFilter(l){ activeFilter=l; renderFilters(); renderCatalog(); }
@@ -1100,8 +1117,9 @@ function renderCatalog(){
   if(!list.length){ el.innerHTML="<div class='empty' style='grid-column:1/3'>No varieties match “"+esc(q)+"”.</div>"; return; }
   el.innerHTML=list.map(function(p){
     var img=heroImg(p);
-    return "<div class='pcard' data-plant-id='"+esc(p.id)+"'>"+
-      "<div class='ph' style='background-image:url("+img+")'></div>"+
+    return "<div class='pcard' role='button' tabindex='0' data-plant-id='"+esc(p.id)+"'"+
+      " aria-label='Request "+esc(p.common_name)+", "+esc(p.latin_name)+"'>"+
+      "<div class='ph' style='background-image:url("+img+")' aria-hidden='true'></div>"+
       "<div class='pb'><div class='cn'>"+esc(p.common_name)+"</div>"+
       "<div class='ln'>"+esc(p.latin_name)+"</div>"+
       "<div class='tags'><span class='ptag'>"+esc(p.size_class)+"</span><span class='ptag'>"+esc(p.care_level)+" deflask</span></div>"+
@@ -1131,8 +1149,8 @@ document.addEventListener('click', function(e){
   var b=e.target.closest? e.target.closest('.form .opt') : null;
   if(!b) return;
   var group=b.parentElement;
-  Array.prototype.forEach.call(group.children, function(c){ c.classList.remove('on'); });
-  b.classList.add('on');
+  Array.prototype.forEach.call(group.children, function(c){ c.classList.remove('on'); c.setAttribute('aria-pressed','false'); });
+  b.classList.add('on'); b.setAttribute('aria-pressed','true');
 });
 function pickedVal(group){
   var g=document.querySelector('.opts[data-group="'+group+'"] .opt.on');
@@ -1191,8 +1209,9 @@ function enrich(raw){
    ============================================================ */
 function setMode(m){
   MODE=m;
-  document.getElementById('tabValue').classList.toggle('on',m==='value');
-  document.getElementById('tabSpecs').classList.toggle('on',m==='specs');
+  var tv=document.getElementById('tabValue'), ts=document.getElementById('tabSpecs');
+  tv.classList.toggle('on',m==='value'); tv.setAttribute('aria-pressed', String(m==='value'));
+  ts.classList.toggle('on',m==='specs'); ts.setAttribute('aria-pressed', String(m==='specs'));
   renderFeed();
 }
 function setSkill(s){
@@ -1202,7 +1221,8 @@ function setSkill(s){
 }
 function syncSkillSegs(){
   Array.prototype.forEach.call(document.querySelectorAll('#segs button'),function(b){
-    b.classList.toggle('on', b.getAttribute('data-skill')===skill);
+    var on=b.getAttribute('data-skill')===skill;
+    b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on));
   });
 }
 
@@ -1228,7 +1248,7 @@ function forecastBlock(o){
   var col = c===''? 'var(--leaf2)' : (c==='mid'?'var(--gold)':'var(--warn)');
   var expTxt = s.expLive>=1 ? s.expLive.toFixed(1)+' live plants' : 'less than 1 live plant';
   return "<div class='forecast "+c+"'>"+
-    "<div class='gauge' style='--pct:"+p+";--col:"+col+"'><b>"+p+"%</b></div>"+
+    "<div class='gauge' role='img' aria-label='Survival odds "+p+" percent' style='--pct:"+p+";--col:"+col+"'><b>"+p+"%</b></div>"+
     "<div class='txt'><b>Odds you end up with a living plant</b><br>"+
     "≈ <span class='lv'>"+expTxt+"</span> expected from "+o.plantlets+" plantlet"+(o.plantlets>1?'s':'')+
     " · ~$"+Math.round(s.costPerLive)+" per surviving plant</div></div>"+
@@ -1342,13 +1362,13 @@ function card(o, isPick, top){
       "<div class='badges'>"+o.badges.map(function(b){var g=(b.indexOf('guarantee')>-1||b.indexOf('Contam')>-1||b.indexOf('certified')>-1);return "<span class='badge "+(g?'guar':'')+"'>"+esc(b)+"</span>";}).join('')+"</div>"+
       labScorecard(o)+
       "<div class='value'><div class='top'><span>Overall rank score</span><b>"+Math.round(o._score)+"/100</b></div>"+
-        "<div class='bar'><span class='q' style='width:"+qW+"%'></span><span class='t' style='width:"+tW+"%'></span><span class='p' style='width:"+pW+"%'></span></div>"+
+        "<div class='bar' role='img' aria-label='Score breakdown out of 100: survival "+qW+", lab trust "+tW+", value per plant "+pW+"'><span class='q' style='width:"+qW+"%'></span><span class='t' style='width:"+tW+"%'></span><span class='p' style='width:"+pW+"%'></span></div>"+
         "<div class='legend'><span><i style='background:var(--leaf2)'></i>Survival odds</span><span><i style='background:var(--leaf)'></i>Lab trust</span><span><i style='background:var(--gold)'></i>Value/plant</span></div></div>"+
       riskBlock(o)+
       "<div class='tradeoff "+(t.good?'good':'')+"'>"+(t.good?'✔':'⚖')+"<div>"+t.html+"</div></div>"+
       (showSpecs?"<div class='specs'>"+specRows.map(function(r){return "<div><span class='k'>"+r[0]+"</span> <span style='color:var(--ink);text-align:right'>"+esc(r[1])+"</span></div>";}).join('')+"</div>":"")+
       (o.review?"<div class='reviewq'>“"+esc(o.review.text)+"” <b>— "+esc(o.review.buyer_handle)+"</b></div>":"")+
-      "<button class='pickbtn' data-offer-id='"+esc(o.id)+"'>"+(isPick?'Award this lab ✓':'Pick '+esc(o.handle))+"</button>"+
+      "<button class='pickbtn' data-offer-id='"+esc(o.id)+"' aria-label='"+(isPick?'Award this sale to '+esc(o.handle):'Pick '+esc(o.handle))+"'>"+(isPick?'Award this lab ✓':'Pick '+esc(o.handle))+"</button>"+
     "</div></div>";
 }
 
@@ -1515,7 +1535,7 @@ function orderWants(od){
 function renderOrdersEntry(){
   var el=document.getElementById('orders-entry'); if(!el) return;
   var n=loadOrders().length;
-  el.innerHTML = n ? "<button class='ordersbtn js-orders'>&#128230; My orders <span class='cnt'>"+n+"</span></button>" : '';
+  el.innerHTML = n ? "<button class='ordersbtn js-orders' aria-label='My orders, "+n+" awarded'><span aria-hidden='true'>&#128230;</span> My orders <span class='cnt'>"+n+"</span></button>" : '';
 }
 function openOrders(){ renderOrders(); go('orders'); }
 function renderOrders(){
@@ -1648,9 +1668,9 @@ function currentRole(){ var r=loadRole(); return (r&&r.role)||'buyer'; }
 function updateRoleBtn(){
   var b=document.getElementById('rolebtn'); if(!b) return;
   var r=loadRole();
-  b.innerHTML = (r && r.sellerId && sellerById[r.sellerId])
-    ? "Lab console · "+esc(sellerById[r.sellerId].handle)+" ▸"
-    : "I'm a lab ▸";
+  var inLab = r && r.sellerId && sellerById[r.sellerId];
+  b.innerHTML = inLab ? "Lab console · "+esc(sellerById[r.sellerId].handle)+" ▸" : "I'm a lab ▸";
+  b.setAttribute('aria-label', inLab ? "Open lab console as "+sellerById[r.sellerId].handle : "Switch to lab console");
 }
 
 /* Header toggle: buyer -> lab console (jump straight in if a lab was already
@@ -1781,10 +1801,10 @@ function renderLabLedger(){
 
 function buildLabForm(){
   var f=LAB.form;
-  var stageBtn=function(v,t,sub){ return "<button data-v='"+v+"'"+(f.stage===v?" class='on'":"")+">"+t+"<small>"+sub+"</small></button>"; };
+  var stageBtn=function(v,t,sub){ return "<button data-v='"+v+"'"+(f.stage===v?" class='on'":"")+" aria-pressed='"+(f.stage===v)+"' aria-label='"+esc(t+', '+sub)+"'>"+t+"<small>"+sub+"</small></button>"; };
   document.getElementById('lab-form').innerHTML=
-    "<div class='l-field'><div class='name'>Stage you'll ship <span class='hint'>later = risk you retire for the buyer</span></div>"+
-      "<div class='segs' id='lab-seg-stage'>"+
+    "<div class='l-field'><div class='name' id='lab-stage-lbl'>Stage you'll ship <span class='hint'>later = risk you retire for the buyer</span></div>"+
+      "<div class='segs' id='lab-seg-stage' role='group' aria-labelledby='lab-stage-lbl'>"+
         stageBtn('invitro','In-vitro cup','buyer deflasks')+
         stageBtn('deflasked','Deflasked &amp; rooted','you did the hard part')+
         stageBtn('acclimated','Acclimated','growing in soil')+
@@ -1799,24 +1819,24 @@ function buildLabForm(){
     "<div class='l-field'><div class='name'>Shipping</div>"+
       "<div class='l-range'><input type='range' id='lab-ship' min='0' max='25' step='1' value='"+f.shipping+"'>"+
         "<div class='rv'>$<span id='lab-ship-val2'>"+f.shipping+"</span> <small>shipping cost</small></div></div></div>"+
-    "<div class='l-field'><div class='l-toggle"+(f.replace?" on":"")+"' id='lab-tg-replace'>"+
-        "<div class='sw'></div><div><div class='t'>Replacement guarantee</div>"+
+    "<div class='l-field'><div class='l-toggle"+(f.replace?" on":"")+"' id='lab-tg-replace' role='switch' tabindex='0' aria-checked='"+f.replace+"' aria-label='Replacement guarantee: free replacement if a cup arrives contaminated'>"+
+        "<div class='sw' aria-hidden='true'></div><div><div class='t'>Replacement guarantee</div>"+
         "<div class='d'>Free replacement if a cup arrives contaminated — drives the field the model reads</div></div>"+
         "<div class='free'>$0 UPFRONT</div></div></div>"+
     /* display-only specs that the model does NOT score (flagged, like the buyer side) */
     "<div class='l-field l-minor'><div class='name'>Variegation stability <span class='hint'>buyer-facing spec — does NOT move rank</span></div>"+
       "<div class='l-range'><input type='range' id='lab-pheno' min='40' max='98' step='1' value='"+f.pheno+"'>"+
         "<div class='rv'><span id='lab-pheno-val'>"+f.pheno+"</span>% <small>stable phenotype</small></div></div></div>"+
-    "<div class='l-field l-minor'><div class='l-toggle"+(f.acclim?" on":"")+"' id='lab-tg-acclim'>"+
-        "<div class='sw'></div><div><div class='t'>Include acclimation guide</div>"+
+    "<div class='l-field l-minor'><div class='l-toggle"+(f.acclim?" on":"")+"' id='lab-tg-acclim' role='switch' tabindex='0' aria-checked='"+f.acclim+"' aria-label='Include acclimation guide'>"+
+        "<div class='sw' aria-hidden='true'></div><div><div class='t'>Include acclimation guide</div>"+
         "<div class='d'>Buyer-facing spec — does NOT move rank</div></div></div></div>";
 
   // wire controls (fresh listeners each build; innerHTML above dropped any old ones)
   var seg=document.getElementById('lab-seg-stage');
   seg.addEventListener('click', function(e){
     var b=e.target.closest('button'); if(!b) return;
-    Array.prototype.forEach.call(seg.children, function(c){ c.classList.remove('on'); });
-    b.classList.add('on'); f.stage=b.getAttribute('data-v');
+    Array.prototype.forEach.call(seg.children, function(c){ c.classList.remove('on'); c.setAttribute('aria-pressed','false'); });
+    b.classList.add('on'); b.setAttribute('aria-pressed','true'); f.stage=b.getAttribute('data-v');
     if(f.stage==='acclimated'){ f.plantlets=1; setLabPl(1); }
     else if(f.stage==='deflasked' && f.plantlets>3){ f.plantlets=3; setLabPl(3); }
     renderLabOffer();
@@ -1832,11 +1852,19 @@ function buildLabForm(){
     document.getElementById('lab-ship-val').textContent=f.shipping;
     document.getElementById('lab-ship-val2').textContent=f.shipping;
     document.getElementById('lab-total-val').textContent=f.price+f.shipping; renderLabOffer(); });
-  document.getElementById('lab-tg-replace').addEventListener('click', function(){
-    this.classList.toggle('on'); f.replace=this.classList.contains('on'); renderLabOffer(); });
-  // display-only controls: update the label but never call renderLabOffer (no model effect)
-  document.getElementById('lab-tg-acclim').addEventListener('click', function(){
-    this.classList.toggle('on'); f.acclim=this.classList.contains('on'); });
+  // role=switch toggles: not native controls, so wire click + Enter/Space and keep aria-checked in sync.
+  var wireSwitch=function(id, onToggle){
+    var sw=document.getElementById(id); if(!sw) return;
+    var flip=function(){ sw.classList.toggle('on'); var on=sw.classList.contains('on');
+      sw.setAttribute('aria-checked', String(on)); onToggle(on); };
+    sw.addEventListener('click', flip);
+    sw.addEventListener('keydown', function(e){
+      if(e.key==='Enter' || e.key===' ' || e.key==='Spacebar'){ e.preventDefault(); flip(); }
+    });
+  };
+  wireSwitch('lab-tg-replace', function(on){ f.replace=on; renderLabOffer(); });
+  // display-only control: update state but never call renderLabOffer (no model effect)
+  wireSwitch('lab-tg-acclim', function(on){ f.acclim=on; });
   var pheno=document.getElementById('lab-pheno');
   pheno.addEventListener('input', function(){ f.pheno=+pheno.value; document.getElementById('lab-pheno-val').textContent=f.pheno; });
 }
@@ -2036,6 +2064,15 @@ function wireDelegation(){
     var host=document.getElementById(id); if(!host) return;
     host.addEventListener('click', function(e){
       var t=e.target.closest? e.target.closest(sel) : null; if(!t || !host.contains(t)) return;
+      fn(t);
+    });
+    // Keyboard: activate role=button/role=switch elements on Enter/Space. Native
+    // <button>/<a> already fire click on those keys, so skip them to avoid double-firing.
+    host.addEventListener('keydown', function(e){
+      if(e.key!=='Enter' && e.key!==' ' && e.key!=='Spacebar') return;
+      var t=e.target.closest? e.target.closest(sel) : null; if(!t || !host.contains(t)) return;
+      if(t.tagName==='BUTTON' || t.tagName==='A') return;
+      e.preventDefault();
       fn(t);
     });
   };
