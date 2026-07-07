@@ -22,7 +22,9 @@ LISTINGS = "/home/user/hello/docs/listings.json"
 
 VIEWPOINTS = [
     # (name, lat, lng, country_filter)  — country_filter None = apply to any listing
-    ("Samet Nangshe",  8.3628, 98.5122, "Thailand"),
+    ("Samet Nangshe",   8.3628, 98.5122, "Thailand"),
+    ("Ao Nang",         8.0333, 98.8250, "Thailand"),  # Ao Nang viewpoint + beach
+    ("Railay",          8.0114, 98.8402, "Thailand"),  # limestone peninsula, west coast
 ]
 
 def hav(a, b, c, d):
