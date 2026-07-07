@@ -20,8 +20,9 @@ rows = []
 for r in raw:
     ac = r.get("acres") or 0
     sqft = r.get("sqft") or 0
-    # If no acres, try to synthesize: assume 0.25 ac lot for homes
-    if not ac and r.get("type") in ("home", "single family home", "villa", "condo"):
+    # If no acres, assume 0.25 ac lot for any Pacific listing (they're all
+    # coastal parcels; realtor.com just doesn't always report land size).
+    if not ac:
         ac = 0.25
     if ac < 0.05:
         continue
