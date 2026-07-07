@@ -82,7 +82,9 @@ for r in listings:
     if not bonus: continue
     r["r"] = round((r.get("r") or 0) + bonus, 1)
     rb = r.get("rb","") or ""
-    r["rb"] = rb + ("+" if rb and not rb.endswith("+") else "") + "vp:" + matches[0][0].replace(" ","_") + "+" + str(bonus) + "+" + "+".join(tags)
+    # Only emit detail tags (vp≤Xkm+N); summary lives in r["viewpoints"] for
+    # display. This keeps the client-side weight parser from double-counting.
+    r["rb"] = rb + ("+" if rb and not rb.endswith("+") else "") + "+".join(tags)
     r["viewpoints"] = [{"name": n, "km": d} for n, d in matches]
     n_applied += 1
 

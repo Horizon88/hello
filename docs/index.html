@@ -222,6 +222,9 @@
   <div class="control"><label><input type="checkbox" id="npaOnly"> 🏦 NPA/bank-disposal only</label></div>
   <div class="control"><label><input type="checkbox" id="bigOnly"> 🌲 Big plots (≥25 ac)</label></div>
   <div class="control"><label><input type="checkbox" id="staleOnly"> ⏳ Stale/dropped only</label></div>
+  <div class="control"><label><input type="checkbox" id="starredOnly"> ★ Starred only</label></div>
+  <div class="control"><label><input type="checkbox" id="watchedOnly"> 👁 Watched only</label></div>
+  <button class="btn" id="openWeights" title="Adjust rating weights">⚖ Weights</button>
   <div class="control"><label>Sort</label><select id="sort"><option value="r">rating</option><option value="upa">$/acre</option><option value="upm">$/m²</option><option value="ac">acres</option><option value="usd">price USD</option><option value="days_on_market">days listed</option><option value="total_drop_pct">price drop %</option><option value="distress">🔥 distress</option></select></div>
   <button class="btn" id="toggleInsights">Insights ▸</button>
 </div>
@@ -323,6 +326,21 @@
   </div>
 </div>
 
+<!-- Weights flyout -->
+<div class="modal-bg" id="weightsBg">
+  <div class="modal" style="max-width:520px;width:95%;max-height:90vh;overflow:auto">
+    <h3 style="display:flex;align-items:center;gap:8px">⚖ Rating weights
+      <button class="close" id="weightsClose" style="margin-left:auto">×</button>
+    </h3>
+    <p style="color:var(--txt-dim);font-size:12px;margin-top:0">Multipliers applied to each score component. 1.0 = default. Set to 0 to ignore, higher to over-weight. Saves to browser. Rating re-computes live.</p>
+    <div id="weightsBody" style="display:grid;grid-template-columns:1fr auto auto;gap:8px 12px;align-items:center;margin-top:16px"></div>
+    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+      <button class="btn" id="weightsReset">Reset to defaults</button>
+      <button class="btn primary" id="weightsApply">Apply</button>
+    </div>
+  </div>
+</div>
+
 <!-- Watchlist viewer -->
 <div class="modal-bg" id="watchlistBg">
   <div class="modal" style="max-width:1100px;width:95%;max-height:90vh;overflow:auto">
@@ -402,7 +420,7 @@
 
   const state = {
     countries: new Set(ALL_COUNTRIES),
-    type: 'all', distressedOnly: false, verifiedOnly: false, terraceOnly: false, foreignerOK: false, distressOnly: false, npaOnly: false, bigOnly: false, staleOnly: false,
+    type: 'all', distressedOnly: false, verifiedOnly: false, terraceOnly: false, foreignerOK: false, distressOnly: false, npaOnly: false, bigOnly: false, staleOnly: false, starredOnly: false, watchedOnly: false,
     minR: 0, maxU: 10000, maxUsd: null, minA: null, maxA: null, minAQuick: '', view: '', ski: '',
     sortKey: 'r', sortAsc: false, showArchived: false
   };
@@ -442,6 +460,8 @@
   document.getElementById('npaOnly').onchange=e=>{state.npaOnly=e.target.checked;render();};
   document.getElementById('bigOnly').onchange=e=>{state.bigOnly=e.target.checked;render();};
   document.getElementById('staleOnly').onchange=e=>{state.staleOnly=e.target.checked;render();};
+  document.getElementById('starredOnly').onchange=e=>{state.starredOnly=e.target.checked;render();};
+  document.getElementById('watchedOnly').onchange=e=>{state.watchedOnly=e.target.checked;render();};
   document.getElementById('type').onchange=e=>{state.type=e.target.value;render();};
   document.getElementById('distressedOnly').onchange=e=>{state.distressedOnly=e.target.checked;render();};
   document.getElementById('verifiedOnly').onchange=e=>{state.verifiedOnly=e.target.checked;render();};
@@ -501,6 +521,8 @@
       if(state.npaOnly && !r.npa) return false;
       if(state.bigOnly && (r.ac||0) < 25) return false;
       if(state.staleOnly && !((r.days_on_market||0) >= 90 || (r.total_drop_pct||0) >= 5)) return false;
+      if(state.starredOnly && !shortlist[r.u]) return false;
+      if(state.watchedOnly && !isWatched(r.u)) return false;
       if(!state.showArchived && archives[r.u]) return false;
       return true;
     });
@@ -1045,6 +1067,118 @@
   watchlistBg.onclick=(e)=>{ if(e.target===watchlistBg) watchlistBg.classList.remove('show'); };
   document.getElementById('wlChip').onclick=()=>openWatchlistView();
   updateWatchChip();
+
+  // ---- weights: parse rb tags into components; user re-multiplies each ----
+  const WEIGHT_KEY = 'weights_v1';
+  const DEFAULT_WEIGHTS = {
+    acc: 1, size: 1, val: 1, ski: 1, coast: 1, vp: 1, distress: 1, foreign: 1, terrace: 1,
+  };
+  const WEIGHT_LABELS = {
+    acc: '🎯 Base accuracy',
+    size: '📐 Size (acres tier)',
+    val: '💰 Value ($/m² vs regional median)',
+    ski: '⛷ Ski proximity',
+    coast: '🌊 Coast proximity',
+    vp: '👁 Iconic viewpoints',
+    distress: '🔥 Distress (forced-sale, NPA, age, drops)',
+    foreign: '🛂 Foreign-friction penalty',
+    terrace: '🏔 Terrance zones (JP/BC)',
+  };
+  function loadWeights(){
+    try { return {...DEFAULT_WEIGHTS, ...JSON.parse(localStorage.getItem(WEIGHT_KEY) || '{}')}; }
+    catch(e){ return {...DEFAULT_WEIGHTS}; }
+  }
+  function saveWeights(w){ localStorage.setItem(WEIGHT_KEY, JSON.stringify(w)); }
+  let weights = loadWeights();
+
+  // Parse rb: rb is one glued string like "src:manual+acc+16+size+14+val-3+vp≤1km+25".
+  // Match (name)([+-]digits) pairs across the whole string, then bucket into
+  // categories. vp: prefix is a legacy summary tag (viewpoint_bonus.py used to
+  // emit it) — skip it to avoid double-counting the vp bonus.
+  // Name may contain letters, digits, and separators (≤, colon, underscore, dot, hyphen).
+  // The trailing "+N" or "-N" is the delta.
+  const TAG_PAT = /([a-zA-Z][a-zA-Z0-9:_≤≥><.-]*?)([+-])(\d+(?:\.\d+)?)(?=\+|$)/g;
+  function categorize(name){
+    if(name === 'acc') return 'acc';
+    if(name === 'val') return 'val';
+    if(name === 'beachfront' || name.startsWith('coast')) return 'coast';
+    if(name.startsWith('size')) return 'size';
+    if(name.startsWith('ski') || name === 'rope-tow' || name === 'sled') return 'ski';
+    if(name.startsWith('vp:')) return null;               // summary — skip
+    if(name.startsWith('vp')) return 'vp';                // detail vp≤Nkm
+    if(name.startsWith('foreign')) return 'foreign';
+    if(name.startsWith('grade') || name === 'forced-sale' || name === 'npa' ||
+       name.startsWith('on-market') || name.startsWith('price dropped')) return 'distress';
+    if(name.startsWith('terrace')) return 'terrace';
+    return null;
+  }
+  function parseRb(rb){
+    if(!rb) return {};
+    const comps = {};
+    TAG_PAT.lastIndex = 0;
+    let m;
+    while((m = TAG_PAT.exec(rb)) !== null){
+      const cat = categorize(m[1]);
+      if(!cat) continue;
+      const delta = (m[2] === '-' ? -1 : 1) * parseFloat(m[3]);
+      comps[cat] = (comps[cat] || 0) + delta;
+    }
+    return comps;
+  }
+  // Precompute on all rows
+  for(const r of DATA){
+    r._comps = parseRb(r.rb);
+    r._r_base = r.r;   // remember original
+  }
+  function applyWeights(){
+    for(const r of DATA){
+      let total = 0;
+      for(const [cat, delta] of Object.entries(r._comps || {})){
+        total += (weights[cat] ?? 1) * delta;
+      }
+      r.r = Math.round(total * 10) / 10;
+    }
+  }
+  // Initial pass (all weights = 1 so this matches original)
+  applyWeights();
+
+  // Flyout
+  const weightsBg = document.getElementById('weightsBg');
+  function renderWeightsUI(){
+    const body = document.getElementById('weightsBody');
+    body.innerHTML = Object.keys(WEIGHT_LABELS).map(cat => `
+      <div style="font-size:13px">${WEIGHT_LABELS[cat]}</div>
+      <input type="range" data-w="${cat}" min="0" max="3" step="0.1" value="${weights[cat]}" style="width:120px">
+      <input type="number" data-wn="${cat}" min="0" max="10" step="0.1" value="${weights[cat]}" style="width:60px;background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:3px 6px;border-radius:4px">
+    `).join('');
+    body.querySelectorAll('[data-w]').forEach(el=>{
+      el.oninput=()=>{
+        weights[el.dataset.w] = parseFloat(el.value) || 0;
+        body.querySelector(`[data-wn="${el.dataset.w}"]`).value = weights[el.dataset.w];
+      };
+    });
+    body.querySelectorAll('[data-wn]').forEach(el=>{
+      el.oninput=()=>{
+        weights[el.dataset.wn] = parseFloat(el.value) || 0;
+        const s = body.querySelector(`[data-w="${el.dataset.wn}"]`);
+        if(s) s.value = weights[el.dataset.wn];
+      };
+    });
+  }
+  document.getElementById('openWeights').onclick=()=>{ renderWeightsUI(); weightsBg.classList.add('show'); };
+  document.getElementById('weightsClose').onclick=()=>weightsBg.classList.remove('show');
+  weightsBg.onclick=(e)=>{ if(e.target===weightsBg) weightsBg.classList.remove('show'); };
+  document.getElementById('weightsReset').onclick=()=>{
+    weights = {...DEFAULT_WEIGHTS};
+    saveWeights(weights);
+    renderWeightsUI();
+    applyWeights(); render();
+  };
+  document.getElementById('weightsApply').onclick=()=>{
+    saveWeights(weights);
+    applyWeights(); render();
+    weightsBg.classList.remove('show');
+  };
 
   // ---- regulatory watch ----
   // Loaded once into window.__reg so the detail popover can surface
