@@ -1130,22 +1130,20 @@
     r._comps = parseRb(r.rb);
     r._r_base = r.r;   // remember original
   }
+  // Fixed-scale normalization anchor. The p99 raw score at default weights
+  // is ~106 and the current top is 134, so 130 is the tightest anchor that
+  // still lets the current champion land right at 100 without wobbling as
+  // weight sliders move. If a listing beats this bar it's capped at 100;
+  // negatives clamp to 0. Stability > perfectly-fitting-the-top.
+  const SCORE_ANCHOR = 130;
   function applyWeights(){
-    // First pass: compute raw weighted score
-    let maxRaw = 1;
     for(const r of DATA){
       let total = 0;
       for(const [cat, delta] of Object.entries(r._comps || {})){
         total += (weights[cat] ?? 1) * delta;
       }
       r._rawR = total;
-      if(total > maxRaw) maxRaw = total;
-    }
-    // Normalize to 0..100: max observed raw → 100; clamp bottom at 0
-    // A raw < 0 (heavy foreign-friction, tiny lot, bad value) → 0
-    const scale = 100 / maxRaw;
-    for(const r of DATA){
-      const norm = Math.max(0, r._rawR * scale);
+      const norm = Math.max(0, Math.min(100, total * (100 / SCORE_ANCHOR)));
       r.r = Math.round(norm * 10) / 10;
     }
   }
