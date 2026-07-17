@@ -1076,14 +1076,19 @@
   const WEIGHT_KEY = 'weights_v1';
   const DEFAULT_WEIGHTS = {
     acc: 1, size: 1, val: 1, ski: 1, coast: 1, vp: 1, distress: 1, foreign: 1, terrace: 1,
+    view: 1, dualview: 1, steal: 1, chanote: 1,
   };
   const WEIGHT_LABELS = {
     acc: '🎯 Base accuracy',
     size: '📐 Size (acres tier)',
     val: '💰 Value ($/m² vs regional median)',
+    steal: '🥇 Steal (ratio <0.15× median, real lot)',
+    view: '👀 View (sea_visible / mountain)',
+    dualview: '🌅 Dual view (sea + mountain)',
     ski: '⛷ Ski proximity',
     coast: '🌊 Coast proximity',
     vp: '👁 Iconic viewpoints',
+    chanote: '📜 Title strength (Chanote / freehold)',
     distress: '🔥 Distress (forced-sale, NPA, age, drops)',
     foreign: '🛂 Foreign-friction penalty',
     terrace: '🏔 Terrance zones (JP/BC)',
@@ -1105,6 +1110,10 @@
   function categorize(name){
     if(name === 'acc') return 'acc';
     if(name === 'val') return 'val';
+    if(name === 'steal') return 'steal';
+    if(name === 'view') return 'view';
+    if(name === 'dualview') return 'dualview';
+    if(name === 'chanote') return 'chanote';
     if(name === 'beachfront' || name.startsWith('coast')) return 'coast';
     if(name.startsWith('size')) return 'size';
     if(name.startsWith('ski') || name === 'rope-tow' || name === 'sled') return 'ski';
@@ -1139,7 +1148,7 @@
   // still lets the current champion land right at 100 without wobbling as
   // weight sliders move. If a listing beats this bar it's capped at 100;
   // negatives clamp to 0. Stability > perfectly-fitting-the-top.
-  const SCORE_ANCHOR = 130;
+  const SCORE_ANCHOR = 150;
   function applyWeights(){
     for(const r of DATA){
       let total = 0;
