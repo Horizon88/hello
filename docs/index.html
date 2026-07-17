@@ -432,12 +432,33 @@
     const n=DATA.filter(r=>r.cf===c).length;
     const chip=document.createElement('span');
     chip.className='chip on'; chip.dataset.cs=c.slice(0,2);
+    chip.dataset.cf=c;
     chip.innerHTML=`<span class="dot" style="background:${COLORS[c]}"></span>${c} ${n}`;
-    chip.onclick=()=>{
-      if(state.countries.has(c)){state.countries.delete(c);chip.classList.remove('on');}
-      else{state.countries.add(c);chip.classList.add('on');}
+    chip.onclick=(e)=>{
+      // Shift-click = toggle just this chip (add/remove from current set).
+      // Plain click = isolate: show only this country. Click same chip
+      // again = show all again.
+      if(e.shiftKey){
+        if(state.countries.has(c)){state.countries.delete(c); chip.classList.remove('on');}
+        else{state.countries.add(c); chip.classList.add('on');}
+      } else {
+        const isolated = state.countries.size === 1 && state.countries.has(c);
+        state.countries.clear();
+        if(isolated){
+          // second click → restore all-on
+          ALL_COUNTRIES.forEach(cc => state.countries.add(cc));
+        } else {
+          state.countries.add(c);
+        }
+        // Sync chip visuals
+        document.querySelectorAll('#stats .chip[data-cf]').forEach(ch => {
+          if(state.countries.has(ch.dataset.cf)) ch.classList.add('on');
+          else ch.classList.remove('on');
+        });
+      }
       render();
     };
+    chip.title = 'Click to isolate this country · Shift-click to toggle (multi-select)';
     stats.appendChild(chip);
   });
 
