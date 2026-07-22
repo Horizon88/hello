@@ -368,6 +368,16 @@
         <label style="font-size:13px;color:var(--txt-dim)">Planned lot size (rai, optional)</label>
         <input type="number" id="plotCheckRai" placeholder="23" style="width:80px;background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:4px 8px;border-radius:4px">
         <button class="btn primary" id="plotCheckRun">Analyze →</button>
+        <span style="flex:1"></span>
+        <button class="btn" id="plotCheckBatchToggle" style="font-size:12px">📋 Batch (multiple deeds)</button>
+      </div>
+      <div id="plotCheckBatch" style="display:none;margin-top:10px">
+        <label style="font-size:13px;color:var(--txt-dim);display:block;margin-bottom:4px">Paste one deed per line — <code>deed#, lat, lng, rai, ask_thb, notes</code> (any missing fields OK):</label>
+        <textarea id="plotCheckBatchInput" rows="8" placeholder="12345, 8.1064, 98.7952, 23, 138000000, Khao Thong FB
+67890, 8.1030, 98.8020, 5, 25000000, Ao Thalane villa lot
+23456, 7.9600, 98.3700, 10, 40000000, Kata south beach" style="width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:8px 10px;border-radius:6px;font-family:monospace;font-size:12px;line-height:1.4"></textarea>
+        <button class="btn primary" id="plotCheckBatchRun" style="margin-top:8px">Analyze all →</button>
+        <button class="btn" id="plotCheckBatchExport" style="margin-top:8px" title="Copy the comparison table as TSV — paste into Google Sheets">📋 Copy as TSV</button>
       </div>
     </div>
     <div id="plotCheckBody"></div>
@@ -1280,6 +1290,159 @@
     runPlotCheck(c[0], c[1], rai);
   };
   document.getElementById('plotCheckInput').onkeydown = (e) => { if(e.key==='Enter') document.getElementById('plotCheckRun').click(); };
+
+  // ---- Batch mode: paste multiple deeds, get ranked comparison ----
+  document.getElementById('plotCheckBatchToggle').onclick = () => {
+    const el = document.getElementById('plotCheckBatch');
+    el.style.display = el.style.display === 'none' ? '' : 'none';
+  };
+  function analyzeOnePlot(lat, lng, rai){
+    // Returns a report object we can put in a comparison row
+    const hits = window.__forestHits ? window.__forestHits(lat, lng) : [];
+    let nearestParkKm = Infinity, nearestPark = null;
+    if(window.__thForests && window.__thForests.byBBox){
+      for(const b of window.__thForests.byBBox){
+        const cLat=(b.minLat+b.maxLat)/2, cLng=(b.minLng+b.maxLng)/2;
+        const d = haversine(lat, lng, cLat, cLng);
+        if(d < nearestParkKm){ nearestParkKm = d; nearestPark = b.feature.properties; }
+      }
+    }
+    const near = DATA.filter(r => r.cf==='Thailand' && r.lat && haversine(lat,lng,r.lat,r.lon)<30);
+    near.sort((a,b)=>haversine(lat,lng,a.lat,a.lon)-haversine(lat,lng,b.lat,b.lon));
+    const nearestListing = near[0];
+    const coastKm = nearestListing && nearestListing.coast_km != null
+      ? nearestListing.coast_km + haversine(lat,lng,nearestListing.lat,nearestListing.lon)*0.3 : null;
+    const VP = [['Samet Nangshe',8.3628,98.5122],['Ao Nang',8.0333,98.8250],['Railay',8.0114,98.8402]];
+    const vpMin = Math.min(...VP.map(([,la,lo])=>haversine(lat,lng,la,lo)));
+    const comps = near.filter(r=>r.upm && haversine(lat,lng,r.lat,r.lon)<20);
+    const medUpm = comps.length >= 3 ? comps.map(r=>r.upm).sort((a,b)=>a-b)[Math.floor(comps.length/2)] : null;
+    const sqm = rai ? rai*1600 : null;
+    const ac = rai ? rai*0.3954 : null;
+    const eiaFlags = [];
+    if(coastKm != null && coastKm <= 1) eiaFlags.push('coast');
+    if(rai && rai >= 100) eiaFlags.push('subdiv');
+    if(ac && ac >= 15) eiaFlags.push('hotel');
+    if(vpMin < 15) eiaFlags.push('karst');
+    let fairUsd = null, bulkUsd = null;
+    if(rai && sqm && medUpm){
+      fairUsd = Math.round(sqm * medUpm);
+      const disc = rai>=20?0.55:rai>=10?0.72:0.9;
+      bulkUsd = Math.round(fairUsd * disc);
+    }
+    return {
+      lat, lng, rai,
+      inPark: hits.length > 0,
+      parkName: hits.length ? (hits[0].name_en || hits[0].name) : null,
+      nearestParkKm: nearestParkKm.toFixed(1),
+      coastKm: coastKm != null ? coastKm.toFixed(1) : null,
+      vpMinKm: vpMin.toFixed(1),
+      medUpm,
+      fairUsd,
+      bulkUsd,
+      eiaFlags,
+      compCount: comps.length,
+    };
+  }
+  window.__lastBatchRows = null;
+  document.getElementById('plotCheckBatchRun').onclick = () => {
+    const text = document.getElementById('plotCheckBatchInput').value;
+    const rows = [];
+    for(const line of text.split('\n')){
+      const s = line.trim();
+      if(!s || s.startsWith('#')) continue;
+      const parts = s.split(/[,;\t]/).map(x=>x.trim());
+      if(parts.length < 3) continue;
+      // Expected: deed#, lat, lng, rai, ask_thb, notes
+      const deed = parts[0];
+      const lat = parseFloat(parts[1]);
+      const lng = parseFloat(parts[2]);
+      const rai = parseFloat(parts[3]) || null;
+      const ask = parseFloat((parts[4]||'').replace(/[^\d.-]/g,'')) || null;
+      const notes = parts.slice(5).join(', ');
+      if(!(lat > 5 && lat < 21 && lng > 96 && lng < 106)){
+        rows.push({deed, err: `invalid Thai coord ${lat},${lng}`});
+        continue;
+      }
+      const r = analyzeOnePlot(lat, lng, rai);
+      r.deed = deed; r.ask = ask; r.notes = notes;
+      // simple grade: red if in park, green if buildable-priced-fair, yellow otherwise
+      if(r.inPark){ r.grade = 'F'; r.gradeColor = '#ff5050'; r.gradeLabel = 'Park — STOP'; }
+      else if(ask && r.bulkUsd && ask <= r.bulkUsd * 36 * 1.1){ r.grade = 'A'; r.gradeColor = '#7ce38b'; r.gradeLabel = 'Fair-priced'; }
+      else if(ask && r.bulkUsd && ask > r.bulkUsd * 36 * 1.5){ r.grade = 'C'; r.gradeColor = '#ff8080'; r.gradeLabel = 'Over-priced 1.5×+'; }
+      else { r.grade = 'B'; r.gradeColor = '#ffd166'; r.gradeLabel = 'Review'; }
+      rows.push(r);
+    }
+    window.__lastBatchRows = rows;
+    const body = document.getElementById('plotCheckBody');
+    if(!rows.length){ body.innerHTML = '<div class="detail-flag" style="background:#3a1a1a;color:#ff9090;border-color:#7a2030">No valid rows parsed. Format: <code>deed#, lat, lng, rai, ask_thb, notes</code> — one per line.</div>'; return; }
+    // sort by grade (A → F) then ask
+    const gradeOrder = {A:0,B:1,C:2,F:3};
+    rows.sort((a,b)=>{
+      if(a.err && !b.err) return 1;
+      if(!a.err && b.err) return -1;
+      const g = (gradeOrder[a.grade]||99) - (gradeOrder[b.grade]||99);
+      if(g) return g;
+      return (a.ask||9e15) - (b.ask||9e15);
+    });
+    body.innerHTML = `
+      <div style="font-size:12px;color:var(--txt-dim);margin-bottom:8px">${rows.length} parcels analyzed · sorted by grade → ask ascending</div>
+      <div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse">
+        <thead><tr style="border-bottom:1px solid var(--border);color:var(--txt-dim)">
+          <th style="text-align:left;padding:4px">grade</th>
+          <th style="text-align:left">deed</th>
+          <th style="text-align:right">rai</th>
+          <th style="text-align:right">ask ฿</th>
+          <th style="text-align:right">fair ฿ (bulk)</th>
+          <th style="text-align:right">Δ</th>
+          <th style="text-align:right">coast km</th>
+          <th style="text-align:right">nearest park km</th>
+          <th style="text-align:left">EIA flags</th>
+          <th style="text-align:left">notes</th>
+        </tr></thead>
+        <tbody>${rows.map(r=>{
+          if(r.err) return `<tr style="border-bottom:1px solid var(--border);color:#ff8080"><td colspan="10" style="padding:4px">${r.deed}: ${r.err}</td></tr>`;
+          const askTHB = r.ask ? r.ask.toLocaleString() : '—';
+          const bulkTHB = r.bulkUsd ? Math.round(r.bulkUsd*36).toLocaleString() : '—';
+          const delta = (r.ask && r.bulkUsd) ? Math.round(((r.ask-r.bulkUsd*36)/(r.bulkUsd*36))*100) : null;
+          const deltaTxt = delta==null ? '—' : (delta>0?'+':'')+delta+'%';
+          const deltaColor = delta==null?'var(--txt-dim)':delta<=-10?'#7ce38b':delta<=10?'#ffd166':'#ff8080';
+          return `<tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:4px"><span style="background:${r.gradeColor}22;color:${r.gradeColor};padding:2px 6px;border-radius:4px;font-weight:600">${r.grade}</span> ${r.gradeLabel}</td>
+            <td style="max-width:100px;overflow:hidden;text-overflow:ellipsis">${r.deed}</td>
+            <td style="text-align:right">${r.rai||''}</td>
+            <td style="text-align:right">${askTHB}</td>
+            <td style="text-align:right">${bulkTHB}</td>
+            <td style="text-align:right;color:${deltaColor};font-weight:600">${deltaTxt}</td>
+            <td style="text-align:right">${r.coastKm||'—'}</td>
+            <td style="text-align:right">${r.inPark?'<b style="color:#ff5050">INSIDE '+r.parkName+'</b>':r.nearestParkKm}</td>
+            <td style="font-size:11px">${r.eiaFlags.length?r.eiaFlags.join(', '):'—'}</td>
+            <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px">${r.notes}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>
+      <div style="font-size:11px;color:var(--txt-dim);margin-top:8px">
+        Grades: <b style="color:#7ce38b">A</b> fair-priced ≤ 1.1× my bulk estimate · <b style="color:#ffd166">B</b> review · <b style="color:#ff8080">C</b> over-priced 1.5×+ · <b style="color:#ff5050">F</b> inside a protected polygon → do not buy.
+        EIA flags: coast=within 1km shore · subdiv=≥100 rai · hotel=≥15 ac hotel-scale · karst=near iconic karst viewpoint.
+      </div>
+    `;
+  };
+  document.getElementById('plotCheckBatchExport').onclick = () => {
+    const rows = window.__lastBatchRows;
+    if(!rows || !rows.length){ alert('Run a batch first.'); return; }
+    const header = ['grade','deed','lat','lng','rai','ask_thb','fair_thb_bulk','delta_pct','coast_km','nearest_park_km','in_park','park_name','eia_flags','notes'];
+    const lines = [header.join('\t')];
+    for(const r of rows){
+      if(r.err){ lines.push([r.deed, '', '', '', '', '', '', '', '', '', '', '', r.err].join('\t')); continue; }
+      const delta = (r.ask && r.bulkUsd) ? Math.round(((r.ask-r.bulkUsd*36)/(r.bulkUsd*36))*100) : '';
+      lines.push([r.grade, r.deed, r.lat, r.lng, r.rai||'', r.ask||'', r.bulkUsd?Math.round(r.bulkUsd*36):'', delta, r.coastKm||'', r.inPark?'0':r.nearestParkKm, r.inPark?'YES':'no', r.parkName||'', r.eiaFlags.join(';'), r.notes].join('\t'));
+    }
+    navigator.clipboard.writeText(lines.join('\n')).then(()=>{
+      const b = document.getElementById('plotCheckBatchExport');
+      const orig = b.textContent;
+      b.textContent = '✓ Copied — paste in Google Sheets';
+      setTimeout(()=>{ b.textContent = orig; }, 2500);
+    });
+  };
 
   // ---- weights: parse rb tags into components; user re-multiplies each ----
   const WEIGHT_KEY = 'weights_v1';
