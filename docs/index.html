@@ -193,6 +193,7 @@
   <div class="stats" id="stats"></div>
   <span class="chip" id="slChip" style="display:none;background:#2a3340;color:#ffd166;border-color:#ffd166;cursor:pointer" title="Open shortlist">★ 0</span>
   <span class="chip" id="wlChip" style="display:none;background:#2a3340;color:#4fa3ff;border-color:#4fa3ff;cursor:pointer" title="Open watchlist (cool but pricey — waiting for a drop)">👁 0</span>
+  <span class="chip" id="plotCheckChip" style="background:#1a3a2a;color:#7ce38b;border-color:#7ce38b;cursor:pointer" title="Paste any Thai coord (from DOL, Google Maps, a listing) — get forest / EIA / value report">🇹🇭 Check plot</span>
   <span class="chip" id="regChip" style="display:none;cursor:pointer" title="Open regulatory watch">📜 Regulatory <span id="regCount">0</span></span>
 </header>
 
@@ -339,6 +340,26 @@
       <button class="btn" id="weightsReset">Reset to defaults</button>
       <button class="btn primary" id="weightsApply">Apply</button>
     </div>
+  </div>
+</div>
+
+<!-- 🇹🇭 Plot Check tool -->
+<div class="modal-bg" id="plotCheckBg">
+  <div class="modal" style="max-width:820px;width:95%;max-height:92vh;overflow:auto">
+    <h3 style="display:flex;align-items:center;gap:8px">🇹🇭 Check a Thai plot
+      <span style="font-weight:400;font-size:12px;color:var(--txt-dim)">— paste any coord or a Google Maps URL from DOL / listing</span>
+      <button class="close" id="plotCheckClose" style="margin-left:auto">×</button>
+    </h3>
+    <div style="margin:14px 0">
+      <label style="font-size:13px;color:var(--txt-dim);display:block;margin-bottom:4px">Coord (lat, lng) or Google Maps URL</label>
+      <input type="text" id="plotCheckInput" placeholder="8.1064, 98.7952  ·  or  https://maps.google.com/?q=8.1064,98.7952" style="width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:8px 10px;border-radius:6px;font-size:14px">
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+        <label style="font-size:13px;color:var(--txt-dim)">Planned lot size (rai, optional)</label>
+        <input type="number" id="plotCheckRai" placeholder="23" style="width:80px;background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:4px 8px;border-radius:4px">
+        <button class="btn primary" id="plotCheckRun">Analyze →</button>
+      </div>
+    </div>
+    <div id="plotCheckBody"></div>
   </div>
 </div>
 
@@ -1097,6 +1118,141 @@
   watchlistBg.onclick=(e)=>{ if(e.target===watchlistBg) watchlistBg.classList.remove('show'); };
   document.getElementById('wlChip').onclick=()=>openWatchlistView();
   updateWatchChip();
+
+  // ---- 🇹🇭 Plot Check tool: paste coord → get forest / EIA / comp report ----
+  const plotCheckBg = document.getElementById('plotCheckBg');
+  function parseCoordInput(s){
+    if(!s) return null;
+    s = s.trim();
+    // Google Maps URL: ?q=LAT,LNG  or  /@LAT,LNG,zoom
+    let m = s.match(/[?&]q=(-?\d+\.\d+)[, ]+(-?\d+\.\d+)/) || s.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if(m) return [parseFloat(m[1]), parseFloat(m[2])];
+    // Plain "lat, lng" or "lat lng"
+    m = s.match(/(-?\d+\.\d+)[\s,]+(-?\d+\.\d+)/);
+    if(m) return [parseFloat(m[1]), parseFloat(m[2])];
+    return null;
+  }
+  function haversine(a, b, c, d){
+    const R = 6371, dl = (c-a)*Math.PI/180, dlo = (d-b)*Math.PI/180;
+    const h = Math.sin(dl/2)**2 + Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dlo/2)**2;
+    return 2*R*Math.asin(Math.sqrt(h));
+  }
+  function runPlotCheck(lat, lng, rai){
+    const body = document.getElementById('plotCheckBody');
+    // Basic bounds check
+    if(!(lat > 5 && lat < 21 && lng > 96 && lng < 106)){
+      body.innerHTML = `<div class="detail-flag" style="background:#3a1a1a;color:#ff9090;border-color:#7a2030">Coord ${lat}, ${lng} isn't inside Thailand. This tool is Thai-only.</div>`;
+      return;
+    }
+    const ac = rai ? rai * 0.3954 : null;
+    const sqm = rai ? rai * 1600 : null;
+    // 1. Forest / protected-area check
+    const hits = window.__forestHits ? window.__forestHits(lat, lng) : [];
+    // 2. Distance to nearest protected area
+    let nearestPark = null, nearestParkKm = Infinity;
+    if(window.__thForests && window.__thForests.byBBox){
+      for(const b of window.__thForests.byBBox){
+        const cLat = (b.minLat+b.maxLat)/2, cLng = (b.minLng+b.maxLng)/2;
+        const d = haversine(lat, lng, cLat, cLng);
+        if(d < nearestParkKm){ nearestParkKm = d; nearestPark = b.feature.properties; }
+      }
+    }
+    // 3. Nearest coast / ski / viewpoint from existing anchors — approximate via nearest listing
+    const nearListings = DATA.filter(r => r.cf==='Thailand' && r.lat && haversine(lat, lng, r.lat, r.lon) < 30);
+    nearListings.sort((a,b)=>haversine(lat,lng,a.lat,a.lon)-haversine(lat,lng,b.lat,b.lon));
+    const nearestListing = nearListings[0];
+    const coastKm = nearestListing && nearestListing.coast_km != null
+      ? nearestListing.coast_km + haversine(lat, lng, nearestListing.lat, nearestListing.lon) * 0.3  // rough offset
+      : null;
+    // 4. Viewpoint distances
+    const VP = [['Samet Nangshe',8.3628,98.5122],['Ao Nang',8.0333,98.8250],['Railay',8.0114,98.8402]];
+    const vpDist = VP.map(([n,la,lo]) => ({name:n, km: haversine(lat, lng, la, lo).toFixed(1)}));
+    // 5. Regional comps (within 20 km) — median $/m², $/rai
+    let comps = nearListings.filter(r => r.upm && haversine(lat,lng,r.lat,r.lon) < 20);
+    let medUpm = null, medUpr = null;
+    if(comps.length >= 3){
+      const ups = comps.map(r=>r.upm).sort((a,b)=>a-b);
+      medUpm = ups[Math.floor(ups.length/2)];
+      medUpr = Math.round(medUpm * 1600);   // $/rai
+    }
+    // 6. EIA risk rules
+    const eiaFlags = [];
+    if(coastKm != null && coastKm <= 1) eiaFlags.push('within ~1 km of shore — buildings > 4 storeys need EIA regardless of size');
+    if(rai && rai >= 100) eiaFlags.push(`${rai} rai (≥100) — land subdivision triggers EIA (MoNRE 2019)`);
+    if(rai && rai >= 80 && rai < 100) eiaFlags.push(`${rai} rai — near the 100-rai land-subdivision EIA threshold`);
+    if(ac && ac >= 15) eiaFlags.push(`build-out ≥ 80 rooms is EIA-required at ${ac.toFixed(1)} ac boutique-hotel scale`);
+    if(vpDist.some(v => parseFloat(v.km) < 15)) eiaFlags.push('near karst formations — slopes > 35% require EEA (Enhanced) via ONEP');
+    // 7. Fair-price estimate if rai given
+    let priceEst = '';
+    if(rai && sqm && medUpm){
+      const est = Math.round(sqm * medUpm);
+      const bulkDiscount = rai >= 20 ? 0.55 : rai >= 10 ? 0.72 : 0.9;
+      const bulk = Math.round(est * bulkDiscount);
+      priceEst = `<div style="background:#1a2a3a;border:1px solid #4fa3ff;color:#4fa3ff;padding:10px;border-radius:6px;margin-top:12px">
+        <div style="font-weight:600">💰 Fair-value estimate</div>
+        <div style="font-size:13px;line-height:1.6;margin-top:4px">
+          At local median $${medUpm}/m² × ${sqm.toLocaleString()} m² = <b>$${est.toLocaleString()}</b>
+          <span style="color:var(--txt-dim)">(฿${Math.round(est*36).toLocaleString()})</span><br>
+          With ${Math.round((1-bulkDiscount)*100)}% bulk-parcel discount (${rai}+ rai): <b>~$${bulk.toLocaleString()}</b>
+          <span style="color:var(--txt-dim)">(฿${Math.round(bulk*36).toLocaleString()})</span>
+        </div>
+      </div>`;
+    }
+    // Render
+    body.innerHTML = `
+      <div style="background:#0f1720;padding:10px;border-radius:6px;font-size:12px;color:var(--txt-dim);margin-bottom:14px">
+        📍 Analyzing <b style="color:var(--txt)">${lat.toFixed(5)}, ${lng.toFixed(5)}</b>${rai?` · ${rai} rai (${ac.toFixed(1)} ac / ${sqm.toLocaleString()} m²)`:''}
+        · <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" style="color:#4fa3ff">Open in Google Maps ↗</a>
+        · <a href="https://landsmaps.dol.go.th/?lat=${lat}&lng=${lng}" target="_blank" style="color:#4fa3ff">Open in DOL Landsmaps ↗</a>
+      </div>
+      ${hits.length ? `<div class="detail-flag" style="background:#3a1a1a;color:#ff8080;border-color:#a03030;padding:10px;border-radius:6px;margin-bottom:10px">🚫 <b>Sits INSIDE a protected area</b> — <b>${hits.map(x=>x.name_en||x.name).join(', ')}</b>. National park / wildlife sanctuary / non-hunting area land cannot be privately owned; any sale is likely null under Thai law. STOP.</div>` : `<div style="background:#1a3a1a;color:#7ce38b;border:1px solid #2d5f3a;padding:10px;border-radius:6px;margin-bottom:10px">✓ Not inside any of the 224 mapped DNP protected polygons. Nearest is <b>${nearestPark?nearestPark.name_en||nearestPark.name:'unknown'}</b> · ${nearestParkKm.toFixed(1)} km away. <span style="color:var(--txt-dim);font-size:11px">(RFD national-reserved-forest boundaries not in overlay — see satellite basemap for tree cover.)</span></div>`}
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div style="background:var(--panel2);padding:10px;border-radius:6px;font-size:12px">
+          <div style="color:var(--txt-dim)">🌊 approx coast distance</div>
+          <div style="font-size:15px;font-weight:600;margin-top:2px">${coastKm != null ? coastKm.toFixed(1)+' km' : '—'}</div>
+        </div>
+        <div style="background:var(--panel2);padding:10px;border-radius:6px;font-size:12px">
+          <div style="color:var(--txt-dim)">👁 Iconic viewpoints</div>
+          <div style="font-size:13px;margin-top:2px">${vpDist.map(v=>`${v.name} ${v.km}km`).join(' · ')}</div>
+        </div>
+      </div>
+
+      ${eiaFlags.length ? `<div style="background:#2a2515;color:#ffd166;border:1px solid #7a5020;padding:10px;border-radius:6px;margin-bottom:10px">
+        ⚠ <b>EIA / regulatory flags</b>
+        <ul style="margin:6px 0 0 18px;padding:0;font-size:13px;line-height:1.5">${eiaFlags.map(f=>`<li>${f}</li>`).join('')}</ul>
+        <div style="font-size:11px;color:var(--txt-dim);margin-top:6px">Verify before offering: zoning inquiry to Provincial Town-Planning Office (~฿2k, 1-2 wk) + topographic survey for slope % (~฿30-60k).</div>
+      </div>`:''}
+
+      ${priceEst}
+
+      ${comps.length ? `<div style="margin-top:14px">
+        <div style="font-size:13px;color:var(--txt-dim);margin-bottom:6px">🏘 Nearest ${Math.min(6,comps.length)} listings within 20 km (as comps):</div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse">
+          <thead><tr style="border-bottom:1px solid var(--border);color:var(--txt-dim)"><th style="text-align:left;padding:4px">km</th><th style="text-align:right">ac</th><th style="text-align:right">$/m²</th><th style="text-align:right">$</th><th style="text-align:left;padding-left:8px">name</th></tr></thead>
+          <tbody>${comps.slice(0,6).map(r=>`<tr style="border-bottom:1px solid var(--border)"><td style="padding:4px">${haversine(lat,lng,r.lat,r.lon).toFixed(1)}</td><td style="text-align:right">${r.ac||''}</td><td style="text-align:right">$${r.upm||'?'}</td><td style="text-align:right">$${(r.usd||0).toLocaleString()}</td><td style="padding-left:8px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><a href="${r.u}" target="_blank" style="color:#4fa3ff">${(r.name||r.rg||'').slice(0,60)}</a></td></tr>`).join('')}</tbody>
+        </table>
+      </div>` : ''}
+    `;
+  }
+  document.getElementById('plotCheckChip').onclick = () => {
+    document.getElementById('plotCheckBody').innerHTML = '';
+    plotCheckBg.classList.add('show');
+    setTimeout(()=>document.getElementById('plotCheckInput').focus(), 50);
+  };
+  document.getElementById('plotCheckClose').onclick = () => plotCheckBg.classList.remove('show');
+  plotCheckBg.onclick = (e) => { if(e.target===plotCheckBg) plotCheckBg.classList.remove('show'); };
+  document.getElementById('plotCheckRun').onclick = () => {
+    const s = document.getElementById('plotCheckInput').value;
+    const c = parseCoordInput(s);
+    const rai = parseFloat(document.getElementById('plotCheckRai').value) || null;
+    if(!c){
+      document.getElementById('plotCheckBody').innerHTML = `<div class="detail-flag" style="background:#3a1a1a;color:#ff9090;border-color:#7a2030">Couldn't parse "${s}". Try "8.1064, 98.7952" or a Google Maps URL with ?q= or @lat,lng.</div>`;
+      return;
+    }
+    runPlotCheck(c[0], c[1], rai);
+  };
+  document.getElementById('plotCheckInput').onkeydown = (e) => { if(e.key==='Enter') document.getElementById('plotCheckRun').click(); };
 
   // ---- weights: parse rb tags into components; user re-multiplies each ----
   const WEIGHT_KEY = 'weights_v1';
