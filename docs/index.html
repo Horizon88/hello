@@ -351,8 +351,19 @@
       <button class="close" id="plotCheckClose" style="margin-left:auto">×</button>
     </h3>
     <div style="margin:14px 0">
-      <label style="font-size:13px;color:var(--txt-dim);display:block;margin-bottom:4px">Coord (lat, lng) or Google Maps URL</label>
+      <label style="font-size:13px;color:var(--txt-dim);display:block;margin-bottom:4px">Coord (lat, lng) or Google Maps / DOL URL</label>
       <input type="text" id="plotCheckInput" placeholder="8.1064, 98.7952  ·  or  https://maps.google.com/?q=8.1064,98.7952" style="width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:8px 10px;border-radius:6px;font-size:14px">
+      <details style="font-size:11px;color:var(--txt-dim);margin-top:6px">
+        <summary style="cursor:pointer">📌 How to grab a coord from DOL Landsmaps (dolwebservice)</summary>
+        <div style="padding:8px 4px;line-height:1.55">
+          1. Sign in to <a href="https://landsmaps.dol.go.th/" target="_blank" style="color:#4fa3ff">landsmaps.dol.go.th</a> with your Thai ID<br>
+          2. Search the plot by chanote number (โฉนดเลขที่) or navigate on the map to the parcel<br>
+          3. Once the parcel is highlighted, click any point inside its polygon — DOL shows lat/lng in the info panel at bottom-left<br>
+          4. Copy that coord and paste here<br>
+          <br>
+          Or paste the parcel's chanote details directly from the DOL sidebar — coord will be in the panel.
+        </div>
+      </details>
       <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
         <label style="font-size:13px;color:var(--txt-dim)">Planned lot size (rai, optional)</label>
         <input type="number" id="plotCheckRai" placeholder="23" style="width:80px;background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:4px 8px;border-radius:4px">
@@ -1240,6 +1251,22 @@
     plotCheckBg.classList.add('show');
     setTimeout(()=>document.getElementById('plotCheckInput').focus(), 50);
   };
+  // URL param support: ?coord=lat,lng&rai=N   auto-opens Plot Check with that plot.
+  // Bookmarklet snippet — drag to your bookmarks bar; while on DOL Landsmaps or
+  // Google Maps it grabs the current center coord and pops it into the app:
+  //   javascript:(()=>{const u=location.href;const m=u.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)||u.match(/[?&](?:q|coord|ll|center)=(-?\d+\.\d+)[, ]+(-?\d+\.\d+)/);if(!m)return alert('No coord in URL. Zoom to the plot first.');open('https://YOUR_APP_URL/?coord='+m[1]+','+m[2]);})();
+  const urlParams = new URLSearchParams(location.search);
+  const paramCoord = urlParams.get('coord');
+  if(paramCoord){
+    const c = parseCoordInput(paramCoord);
+    if(c){
+      const rai = parseFloat(urlParams.get('rai')) || null;
+      document.getElementById('plotCheckInput').value = paramCoord;
+      if(rai) document.getElementById('plotCheckRai').value = rai;
+      plotCheckBg.classList.add('show');
+      runPlotCheck(c[0], c[1], rai);
+    }
+  }
   document.getElementById('plotCheckClose').onclick = () => plotCheckBg.classList.remove('show');
   plotCheckBg.onclick = (e) => { if(e.target===plotCheckBg) plotCheckBg.classList.remove('show'); };
   document.getElementById('plotCheckRun').onclick = () => {
