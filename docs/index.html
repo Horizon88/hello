@@ -194,6 +194,7 @@
   <span class="chip" id="slChip" style="display:none;background:#2a3340;color:#ffd166;border-color:#ffd166;cursor:pointer" title="Open shortlist">★ 0</span>
   <span class="chip" id="wlChip" style="display:none;background:#2a3340;color:#4fa3ff;border-color:#4fa3ff;cursor:pointer" title="Open watchlist (cool but pricey — waiting for a drop)">👁 0</span>
   <span class="chip" id="plotCheckChip" style="background:#1a3a2a;color:#7ce38b;border-color:#7ce38b;cursor:pointer" title="Paste any Thai coord (from DOL, Google Maps, a listing) — get forest / EIA / value report">🇹🇭 Check plot</span>
+  <span class="chip" id="deedLogChip" style="background:#3a2a1a;color:#ffd166;border-color:#ffd166;cursor:pointer" title="Your persistent deed evaluation workspace">📒 Deed Log <span id="deedLogCount">0</span></span>
   <span class="chip" id="regChip" style="display:none;cursor:pointer" title="Open regulatory watch">📜 Regulatory <span id="regCount">0</span></span>
 </header>
 
@@ -343,6 +344,39 @@
   </div>
 </div>
 
+<!-- 📒 Deed Log workspace -->
+<div class="modal-bg" id="deedLogBg">
+  <div class="modal" style="max-width:1200px;width:96%;max-height:92vh;overflow:auto">
+    <h3 style="display:flex;align-items:center;gap:8px">📒 Deed Log
+      <span style="font-weight:400;font-size:12px;color:var(--txt-dim)">— your persistent Thai-deed evaluation workspace (saved to browser)</span>
+      <button class="close" id="deedLogClose" style="margin-left:auto">×</button>
+    </h3>
+    <div style="margin:10px 0;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn primary" id="deedLogAdd">+ Add deed</button>
+      <button class="btn" id="deedLogImportBatch" title="Save all rows from your last batch Plot Check into the log">← Import batch results</button>
+      <button class="btn" id="deedLogExport" title="Copy the whole log as TSV">📋 Export TSV</button>
+      <button class="btn" id="deedLogClear" style="background:#3a1a1a;color:#ff8080;border-color:#7a2030">Clear all</button>
+    </div>
+    <div id="deedLogBody"></div>
+  </div>
+</div>
+
+<!-- 🇹🇭 Zone-class lookup helper -->
+<div class="modal-bg" id="zoneLookupBg">
+  <div class="modal" style="max-width:640px;width:95%;max-height:88vh;overflow:auto">
+    <h3 style="display:flex;align-items:center;gap:8px">🗺 Thai zone-class translator
+      <button class="close" id="zoneLookupClose" style="margin-left:auto">×</button>
+    </h3>
+    <p style="color:var(--txt-dim);font-size:12px;margin-top:0">Paste the Thai zone name from a DOL info panel (or any part of it) — get instant translation + villa-buildability verdict.</p>
+    <textarea id="zoneLookupInput" rows="2" placeholder="e.g. อนุรักษ์สภาพแวดล้อมและการท่องเที่ยว" style="width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:8px 10px;border-radius:6px;font-size:14px"></textarea>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn primary" id="zoneLookupRun">Translate →</button>
+      <button class="btn" id="zoneLookupBrowse">Browse all 20+ classes</button>
+    </div>
+    <div id="zoneLookupBody" style="margin-top:14px"></div>
+  </div>
+</div>
+
 <!-- 🇹🇭 Plot Check tool -->
 <div class="modal-bg" id="plotCheckBg">
   <div class="modal" style="max-width:820px;width:95%;max-height:92vh;overflow:auto">
@@ -378,6 +412,7 @@
 23456, 7.9600, 98.3700, 10, 40000000, Kata south beach" style="width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:8px 10px;border-radius:6px;font-family:monospace;font-size:12px;line-height:1.4"></textarea>
         <button class="btn primary" id="plotCheckBatchRun" style="margin-top:8px">Analyze all →</button>
         <button class="btn" id="plotCheckBatchExport" style="margin-top:8px" title="Copy the comparison table as TSV — paste into Google Sheets">📋 Copy as TSV</button>
+        <button class="btn" id="plotCheckOpenZoneHelp" style="margin-top:8px" title="Zone-class translator — paste Thai zone name, get English + verdict">🗺 Zone translator</button>
       </div>
     </div>
     <div id="plotCheckBody"></div>
@@ -417,6 +452,7 @@
   const ALL_COUNTRIES = ['Thailand','New Zealand','British Columbia','Canada','Malaysia','Japan','Turkey','USA','Romania','Poland','Chile','Portugal','Fiji','French Polynesia','Vanuatu','New Caledonia','Samoa','Tonga','Cook Islands','Papua New Guinea','Solomon Islands','Palau','Marshall Islands','Micronesia','Kiribati','Australia'];
   const LS_KEY = 'archives_v1';
   const WL_KEY = 'watchlist_v1';
+  const DL_KEY = 'deed_log_v1';   // Thai deed evaluation workspace
 
   // ---- archives (localStorage) ----
   function loadArchives(){
@@ -1443,6 +1479,203 @@
       setTimeout(()=>{ b.textContent = orig; }, 2500);
     });
   };
+
+  // ---- 📒 Deed Log: persistent evaluation workspace ----
+  function loadDeeds(){ try { return JSON.parse(localStorage.getItem(DL_KEY) || '[]'); } catch(e){ return []; } }
+  function saveDeeds(a){ localStorage.setItem(DL_KEY, JSON.stringify(a)); refreshDeedCount(); }
+  let deeds = loadDeeds();
+  function refreshDeedCount(){
+    const n = deeds.length;
+    document.getElementById('deedLogCount').textContent = n;
+  }
+  refreshDeedCount();
+  const STATUSES = [
+    ['evaluating','⏳ evaluating','#9aa3b2'],
+    ['contacted', '📞 contacted', '#4fa3ff'],
+    ['negotiating','💬 negotiating','#ffd166'],
+    ['agreed',    '🤝 agreed',    '#7ce38b'],
+    ['closed',    '✅ closed',    '#22c55e'],
+    ['passed',    '❌ passed',    '#ff8080'],
+  ];
+  const deedLogBg = document.getElementById('deedLogBg');
+  function renderDeedLog(){
+    const body = document.getElementById('deedLogBody');
+    if(!deeds.length){
+      body.innerHTML = `<p style="color:var(--txt-dim);padding:20px;text-align:center">Empty. Click <b>+ Add deed</b> to start, or run a batch in 🇹🇭 Check plot then click <b>Import batch results</b> here.</p>`;
+      return;
+    }
+    body.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse">
+      <thead><tr style="border-bottom:1px solid var(--border);color:var(--txt-dim)">
+        <th style="text-align:left;padding:6px">status</th>
+        <th style="text-align:left">deed</th>
+        <th style="text-align:left">location</th>
+        <th style="text-align:right">rai</th>
+        <th style="text-align:right">ask ฿</th>
+        <th style="text-align:left">zone</th>
+        <th style="text-align:left">owner</th>
+        <th style="text-align:left">notes</th>
+        <th></th>
+      </tr></thead>
+      <tbody>${deeds.map((d, i)=>`<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:6px">
+          <select data-di="${i}" class="deed-status" style="background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:3px 5px;border-radius:4px;font-size:11px">
+            ${STATUSES.map(([v,l,c])=>`<option value="${v}"${d.status===v?' selected':''}>${l}</option>`).join('')}
+          </select>
+        </td>
+        <td>
+          <input type="text" data-di="${i}" data-df="deed" value="${(d.deed||'').replace(/"/g,'&quot;')}" placeholder="#" style="width:80px;background:transparent;border:1px solid var(--border);color:var(--txt);padding:2px 5px;border-radius:4px">
+          ${d.lat && d.lng?`<a href="?coord=${d.lat},${d.lng}${d.rai?'&rai='+d.rai:''}" target="_blank" style="color:#7ce38b;text-decoration:none;margin-left:4px" title="Open in Plot Check">↗</a>`:''}
+        </td>
+        <td>
+          <input type="text" data-di="${i}" data-df="location" value="${(d.location||'').replace(/"/g,'&quot;')}" placeholder="tambon/name" style="width:130px;background:transparent;border:1px solid var(--border);color:var(--txt);padding:2px 5px;border-radius:4px">
+          ${d.lat && d.lng?`<div style="font-size:10px;color:var(--txt-dim);margin-top:2px">${d.lat.toFixed(4)}, ${d.lng.toFixed(4)}</div>`:''}
+        </td>
+        <td style="text-align:right"><input type="number" step="0.01" data-di="${i}" data-df="rai" value="${d.rai||''}" style="width:65px;text-align:right;background:transparent;border:1px solid var(--border);color:var(--txt);padding:2px 5px;border-radius:4px"></td>
+        <td style="text-align:right"><input type="number" data-di="${i}" data-df="ask_thb" value="${d.ask_thb||''}" style="width:110px;text-align:right;background:transparent;border:1px solid var(--border);color:var(--txt);padding:2px 5px;border-radius:4px"></td>
+        <td>
+          <input type="text" data-di="${i}" data-df="zone" value="${(d.zone||'').replace(/"/g,'&quot;')}" placeholder="Thai zone" style="width:130px;background:transparent;border:1px solid var(--border);color:var(--txt);padding:2px 5px;border-radius:4px">
+          ${d.zone?`<button class="btn" data-lookup-zone="${encodeURIComponent(d.zone)}" style="padding:1px 4px;font-size:10px;margin-left:2px" title="Translate + buildability verdict">?</button>`:''}
+        </td>
+        <td><input type="text" data-di="${i}" data-df="owner" value="${(d.owner||'').replace(/"/g,'&quot;')}" placeholder="name/phone" style="width:130px;background:transparent;border:1px solid var(--border);color:var(--txt);padding:2px 5px;border-radius:4px"></td>
+        <td><input type="text" data-di="${i}" data-df="notes" value="${(d.notes||'').replace(/"/g,'&quot;')}" placeholder="notes" style="width:160px;background:transparent;border:1px solid var(--border);color:var(--txt);padding:2px 5px;border-radius:4px"></td>
+        <td><button class="btn" data-del="${i}" style="padding:2px 6px;font-size:11px" title="delete row">✕</button></td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+    // Wire inputs
+    body.querySelectorAll('input[data-df], select.deed-status').forEach(el=>{
+      el.oninput = el.onchange = () => {
+        const i = parseInt(el.dataset.di);
+        const f = el.dataset.df || 'status';
+        deeds[i][f] = el.value;
+        saveDeeds(deeds);
+      };
+    });
+    body.querySelectorAll('[data-del]').forEach(el=>{
+      el.onclick = () => {
+        if(!confirm('Delete this deed row?')) return;
+        deeds.splice(parseInt(el.dataset.del),1);
+        saveDeeds(deeds); renderDeedLog();
+      };
+    });
+    body.querySelectorAll('[data-lookup-zone]').forEach(el=>{
+      el.onclick = () => {
+        document.getElementById('zoneLookupInput').value = decodeURIComponent(el.dataset.lookupZone);
+        document.getElementById('zoneLookupBg').classList.add('show');
+        document.getElementById('zoneLookupRun').click();
+      };
+    });
+  }
+  document.getElementById('deedLogChip').onclick = () => { renderDeedLog(); deedLogBg.classList.add('show'); };
+  document.getElementById('deedLogClose').onclick = () => deedLogBg.classList.remove('show');
+  deedLogBg.onclick = (e) => { if(e.target===deedLogBg) deedLogBg.classList.remove('show'); };
+  document.getElementById('deedLogAdd').onclick = () => {
+    deeds.unshift({ deed:'', location:'', lat:null, lng:null, rai:null, ask_thb:null, zone:'', owner:'', notes:'', status:'evaluating', added:new Date().toISOString().slice(0,10) });
+    saveDeeds(deeds); renderDeedLog();
+  };
+  document.getElementById('deedLogImportBatch').onclick = () => {
+    const rows = window.__lastBatchRows;
+    if(!rows || !rows.length){ alert('Run a batch in 🇹🇭 Check plot first.'); return; }
+    let added = 0;
+    for(const r of rows){
+      if(r.err) continue;
+      if(deeds.some(d => d.deed === r.deed)) continue;   // dedup by deed#
+      deeds.unshift({
+        deed: r.deed, location: (r.notes||'').slice(0,60), lat: r.lat, lng: r.lng,
+        rai: r.rai, ask_thb: r.ask, zone: '', owner: '',
+        notes: `imported · grade ${r.grade||'?'} · fair bulk ฿${r.bulkUsd?Math.round(r.bulkUsd*36).toLocaleString():'?'}`,
+        status: r.inPark ? 'passed' : 'evaluating',
+        added: new Date().toISOString().slice(0,10),
+      });
+      added++;
+    }
+    saveDeeds(deeds); renderDeedLog();
+    alert(`Imported ${added} new deeds from last batch.`);
+  };
+  document.getElementById('deedLogExport').onclick = () => {
+    const header = ['status','deed','location','lat','lng','rai','ask_thb','zone','owner','notes','added'];
+    const lines = [header.join('\t')];
+    for(const d of deeds){
+      lines.push(header.map(k => (d[k]??'').toString().replace(/\t|\n/g,' ')).join('\t'));
+    }
+    navigator.clipboard.writeText(lines.join('\n')).then(()=>{
+      const b = document.getElementById('deedLogExport');
+      const o = b.textContent; b.textContent = '✓ Copied';
+      setTimeout(()=>{ b.textContent = o; }, 2000);
+    });
+  };
+  document.getElementById('deedLogClear').onclick = () => {
+    if(!confirm(`Clear all ${deeds.length} deed rows? This can't be undone.`)) return;
+    deeds = []; saveDeeds(deeds); renderDeedLog();
+  };
+
+  // ---- 🗺 Zone-class translator ----
+  const ZONE_CLASSES = [
+    {th:'ที่อยู่อาศัยหนาแน่นน้อย', en:'Low-density Residential', color:'yellow', verdict:'✓', notes:'Villa OK. ≤2 storeys/12m, coverage ≤40%. Ideal for personal villa.'},
+    {th:'ที่อยู่อาศัยหนาแน่นปานกลาง', en:'Medium-density Residential', color:'orange', verdict:'✓', notes:'Villa + townhouse OK. 3-4 storeys.'},
+    {th:'ที่อยู่อาศัยหนาแน่นมาก', en:'High-density Residential', color:'pink/red', verdict:'✓', notes:'Everything + apartments (subject to Coastal Zone height cap).'},
+    {th:'อนุรักษ์เพื่อการอยู่อาศัย', en:'Residential Conservation', color:'yellow hatched', verdict:'✓', notes:'Villa with character rules (native architecture, earth tones).'},
+    {th:'พาณิชยกรรมและที่อยู่อาศัยหนาแน่นมาก', en:'Commercial + High-Density Residential', color:'pink hatched', verdict:'✓', notes:'Full commercial + residential.'},
+    {th:'อุตสาหกรรม', en:'Industrial', color:'purple', verdict:'⚠', notes:'Industrial use; residential blocked.'},
+    {th:'อุตสาหกรรมและคลังสินค้า', en:'Industrial + Warehouse', color:'purple', verdict:'⚠', notes:'Same.'},
+    {th:'คลังสินค้า', en:'Warehouse', color:'purple', verdict:'⚠', notes:'Storage/logistics.'},
+    {th:'อุตสาหกรรมเฉพาะกิจ', en:'Special-purpose Industry', color:'purple', verdict:'⚠', notes:'Regulated industry.'},
+    {th:'ชุมชน', en:'Community', color:'red', verdict:'✓', notes:'Mixed-use community. Villa OK.'},
+    {th:'รักษาคุณภาพและสิ่งแวดล้อม', en:'Environmental Quality Preservation', color:'blue-green', verdict:'⚠', notes:'Restricted, case-by-case permit.'},
+    {th:'สถาบันการศึกษา', en:'Educational Institution', color:'green', verdict:'❌', notes:'Reserved for schools/universities.'},
+    {th:'สถาบันศาสนา', en:'Religious Institution', color:'grey', verdict:'❌', notes:'Reserved for temples/mosques.'},
+    {th:'สถาบันราชการ', en:'Government / Utilities / Military', color:'blue', verdict:'❌', notes:'State use only.'},
+    {th:'พื้นที่ปฏิรูปที่ดินเพื่อเกษตรกรรม', en:'ALRO Agricultural Land Reform', color:'solid green', verdict:'⚠❌', notes:'If title is สปก. (SPK): NO foreign ownership, no company, no build. If Chanote: farmer residence only.'},
+    {th:'อนุรักษ์ป่าไม้', en:'Forest Conservation', color:'dark green + diagonal hatch', verdict:'❌', notes:'No residential building. Rezoning near-impossible.'},
+    {th:'อนุรักษ์ทรัพยากรธรรมชาติและการรักษาคุณภาพสิ่งแวดล้อม', en:'Natural Resources & Environmental Quality Conservation', color:'light-green + diagonal hatch', verdict:'❌', notes:'Wraps national parks + buffer zones. Effectively no-build.'},
+    {th:'อนุรักษ์สภาพแวดล้อมและการท่องเที่ยว', en:'Environmental & Tourism Conservation', color:'light-green + diagonal hatch', verdict:'✓⚠', notes:'Villa/resort OK with permit. ≤2 storeys/12m, coverage ≤30%, ~30m setback from MHW, native architecture, EIA if ≥10 rooms. THIS is how Sofitel/Sheraton/Phulay Bay resorts sit legally on the coast.'},
+    {th:'พื้นที่อนุรักษ์เพื่อส่งเสริมเอกลักษณ์ศิลปวัฒนธรรมไทย', en:'Thai Cultural Heritage Conservation', color:'pink hatched', verdict:'⚠', notes:'Character preservation; only permitted uses.'},
+    {th:'ที่โล่งเพื่อนันทนาการและการรักษาคุณภาพสิ่งแวดล้อม', en:'Open Space for Recreation & Environmental Preservation', color:'light-blue hatched', verdict:'❌', notes:'Parks / open space only.'},
+    {th:'ที่โล่งเพื่อการรักษาคุณภาพสิ่งแวดล้อมชายฝั่งทะเล', en:'Coastal Open Space for Environmental Preservation', color:'blue hatched', verdict:'❌', notes:'Coastal buffer — no build.'},
+    {th:'ที่โล่งเพื่อการรักษาคุณภาพสิ่งแวดล้อม การท่องเที่ยว', en:'Open Space for Environmental + Tourism', color:'hatched', verdict:'❌⚠', notes:'Tourism uses only, no residential.'},
+    {th:'ที่โล่งเพื่อนันทนาการ การเลี้ยงสัตว์ป่าและการรักษาคุณภาพสิ่งแวดล้อม', en:'Open Space for Recreation + Wildlife', color:'hatched', verdict:'❌', notes:'Wildlife-buffer open space.'},
+    {th:'ที่โล่งเพื่อการรักษาคุณภาพสิ่งแวดล้อม', en:'Open Space for Environmental Preservation', color:'hatched', verdict:'❌', notes:'Environmental open space.'},
+    {th:'สงวนไว้เพื่อนันทนาการและการรักษาคุณภาพสิ่งแวดล้อม', en:'Reserved Recreation + Environmental', color:'reserved', verdict:'❌', notes:'Reserved for future public use.'},
+    {th:'สงวนไว้เพื่อรักษาสภาพป่าชายเลน', en:'Reserved Mangrove Conservation', color:'reserved', verdict:'❌', notes:'Mangrove protection. No build.'},
+    {th:'ชนบทและเกษตรกรรม', en:'Rural & Agricultural', color:'solid green', verdict:'✓⚠', notes:'Villa buildable with permits. Farmer residence ≤150m² per rai. Small resorts often OK. This is what Phulay Bay Ritz-Carlton sits in.'},
+    {th:'อนุรักษ์ชนบทและเกษตรกรรม', en:'Rural & Agricultural Conservation', color:'green + diagonal', verdict:'⚠', notes:'Farmer residence only. Commercial villa/resort blocked.'},
+    {th:'ชนบทและปศุสัตว์', en:'Rural & Livestock', color:'green', verdict:'⚠', notes:'Livestock farming; small farmer residence OK.'},
+    {th:'เสี่ยงอุทกภัย', en:'Flood Risk', color:'', verdict:'⚠', notes:'Building allowed but requires elevated foundation + drainage.'},
+    {th:'จัดรูปที่ดินเพื่อเกษตรกรรม', en:'Agricultural Land Consolidation', color:'yellow diagonal', verdict:'⚠', notes:'Restructured farmland; agricultural use expected.'},
+    {th:'คมนาคมขนส่ง', en:'Transportation', color:'grey', verdict:'❌', notes:'Roads, rail, ports.'},
+  ];
+  const zoneLookupBg = document.getElementById('zoneLookupBg');
+  function renderZoneVerdict(matches){
+    const body = document.getElementById('zoneLookupBody');
+    if(!matches.length){
+      body.innerHTML = `<div class="detail-flag" style="background:#3a1a1a;color:#ff9090;border-color:#7a2030">No matching Krabi zone class found. Paste part of the exact Thai text from the DOL info panel — even a fragment like "อนุรักษ์" or "ที่อยู่อาศัย" should hit.</div>`;
+      return;
+    }
+    body.innerHTML = matches.map(z=>{
+      const vColor = z.verdict.startsWith('✓')?'#7ce38b':z.verdict.startsWith('❌')?'#ff5050':'#ffd166';
+      return `<div style="background:var(--panel2);border-left:4px solid ${vColor};padding:12px;border-radius:6px;margin-bottom:10px">
+        <div style="font-weight:700;font-size:15px;color:${vColor}">${z.verdict} ${z.en}</div>
+        <div style="font-size:12px;color:var(--txt-dim);margin:2px 0 6px">Thai: <b style="color:var(--txt)">${z.th}</b> · Color on map: ${z.color||'—'}</div>
+        <div style="font-size:13px;line-height:1.5">${z.notes}</div>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('zoneLookupRun').onclick = () => {
+    const s = document.getElementById('zoneLookupInput').value.trim();
+    if(!s){ renderZoneVerdict([]); return; }
+    // Fuzzy: exact prefix match wins, then substring
+    const exact = ZONE_CLASSES.filter(z => z.th.startsWith(s) || s.startsWith(z.th));
+    if(exact.length){ renderZoneVerdict(exact); return; }
+    const partial = ZONE_CLASSES.filter(z => z.th.includes(s) || s.includes(z.th) || z.en.toLowerCase().includes(s.toLowerCase()));
+    renderZoneVerdict(partial);
+  };
+  document.getElementById('zoneLookupBrowse').onclick = () => {
+    document.getElementById('zoneLookupInput').value = '';
+    renderZoneVerdict(ZONE_CLASSES);
+  };
+  document.getElementById('zoneLookupInput').onkeydown = (e) => { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); document.getElementById('zoneLookupRun').click(); } };
+  document.getElementById('zoneLookupClose').onclick = () => zoneLookupBg.classList.remove('show');
+  zoneLookupBg.onclick = (e) => { if(e.target===zoneLookupBg) zoneLookupBg.classList.remove('show'); };
+  document.getElementById('plotCheckOpenZoneHelp').onclick = () => { zoneLookupBg.classList.add('show'); document.getElementById('zoneLookupInput').focus(); };
 
   // ---- weights: parse rb tags into components; user re-multiplies each ----
   const WEIGHT_KEY = 'weights_v1';
