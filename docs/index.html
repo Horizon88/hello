@@ -195,6 +195,7 @@
   <span class="chip" id="wlChip" style="display:none;background:#2a3340;color:#4fa3ff;border-color:#4fa3ff;cursor:pointer" title="Open watchlist (cool but pricey — waiting for a drop)">👁 0</span>
   <span class="chip" id="plotCheckChip" style="background:#1a3a2a;color:#7ce38b;border-color:#7ce38b;cursor:pointer" title="Paste any Thai coord (from DOL, Google Maps, a listing) — get forest / EIA / value report">🇹🇭 Check plot</span>
   <span class="chip" id="deedLogChip" style="background:#3a2a1a;color:#ffd166;border-color:#ffd166;cursor:pointer" title="Your persistent deed evaluation workspace">📒 Deed Log <span id="deedLogCount">0</span></span>
+  <span class="chip" id="importChip" style="background:#1a2a3a;color:#4fa3ff;border-color:#4fa3ff;cursor:pointer" title="Paste text from DOL / Facebook / any listing — auto-parse into a deed row">📥 Import parcel</span>
   <span class="chip" id="regChip" style="display:none;cursor:pointer" title="Open regulatory watch">📜 Regulatory <span id="regCount">0</span></span>
 </header>
 
@@ -378,6 +379,65 @@
 </div>
 
 <!-- 🇹🇭 Plot Check tool -->
+<!-- Import from DOL / Facebook / paste -->
+<div class="modal-bg" id="importBg">
+  <div class="modal" style="max-width:820px;width:96%;max-height:92vh;overflow:auto">
+    <h3 style="display:flex;align-items:center;gap:8px">📥 Import parcel from DOL / Facebook / free-text
+      <button class="close" id="importClose" style="margin-left:auto">×</button>
+    </h3>
+    <div style="display:flex;gap:8px;margin:8px 0">
+      <button class="btn import-tab active" data-tab="dol" style="border-color:#7ce38b;color:#7ce38b">🇹🇭 DOL info panel</button>
+      <button class="btn import-tab" data-tab="fb">📘 Facebook land post</button>
+      <button class="btn import-tab" data-tab="raw">📝 Any free-text</button>
+    </div>
+
+    <div class="import-panel" data-panel="dol">
+      <p style="color:var(--txt-dim);font-size:12px">Paste the whole info-panel text from DOL Landsmaps (Ctrl+A → Ctrl+C on the sidebar after clicking a parcel). We'll extract deed #, coord, area, sub-district, valuation.</p>
+      <textarea id="importDolInput" rows="14" style="width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:8px;border-radius:6px;font-family:monospace;font-size:12px" placeholder="Title Deed Number: 38979
+Tambon Number: 2032
+Land Number: 10
+...
+Land Parcel Coordinate: 8.06732191,98.75022994
+..."></textarea>
+    </div>
+
+    <div class="import-panel" data-panel="fb" style="display:none">
+      <p style="color:var(--txt-dim);font-size:12px">Paste a Facebook / Line / classifieds land-sale post. Works with Thai or English text — extracts rai, price, coord (from map link or lat/lng in text), and contact phone.</p>
+      <textarea id="importFbInput" rows="14" style="width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:8px;border-radius:6px;font-family:monospace;font-size:12px" placeholder="🌅 ขายที่ดินวิวทะเลสุดพิเศษ – เขาทอง, กระบี่
+- ขนาดที่ดิน: 23 ไร่
+- โฉนด: ครุฑแดง
+- วิว: วิวทะเลและภูเขาพาโนรามา
+- ราคา: 6,000,000 บาท/ไร่
+- ติดต่อ: 08x-xxx-xxxx
+- Location: https://maps.google.com/?q=8.1064,98.7952"></textarea>
+    </div>
+
+    <div class="import-panel" data-panel="raw" style="display:none">
+      <p style="color:var(--txt-dim);font-size:12px">Any Thai / English land-listing text — same extraction rules but more permissive.</p>
+      <textarea id="importRawInput" rows="14" style="width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:8px;border-radius:6px;font-family:monospace;font-size:12px"></textarea>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+      <button class="btn primary" id="importParse">Parse →</button>
+      <span style="font-size:12px;color:var(--txt-dim)">Extracted fields will appear below · edit before saving</span>
+    </div>
+    <div id="importPreview" style="margin-top:14px"></div>
+
+    <details style="margin-top:20px;font-size:12px;color:var(--txt-dim)">
+      <summary style="cursor:pointer">🔖 Install the DOL / FB bookmarklet — one-click grab</summary>
+      <div style="padding:8px 4px;line-height:1.55">
+        Drag either link to your bookmarks bar. Then, while on landsmaps.dol.go.th (after clicking a parcel) or a Facebook post, click the bookmarklet — it captures the visible parcel/post text and opens this app pre-filled.
+        <div style="margin:10px 0">
+          <a id="bmDol" href="#" style="color:#7ce38b;background:#1a3a2a;padding:6px 12px;border-radius:4px;text-decoration:none;font-weight:600">🇹🇭 DOL parcel → land app</a>
+          &nbsp;&nbsp;
+          <a id="bmFb" href="#" style="color:#4fa3ff;background:#1a2a3a;padding:6px 12px;border-radius:4px;text-decoration:none;font-weight:600">📘 FB post → land app</a>
+        </div>
+        <div style="font-size:11px">Note: bookmarklets run entirely in your browser — your auth stays local. They just extract selected/visible text and pipe it here.</div>
+      </div>
+    </details>
+  </div>
+</div>
+
 <div class="modal-bg" id="plotCheckBg">
   <div class="modal" style="max-width:820px;width:95%;max-height:92vh;overflow:auto">
     <h3 style="display:flex;align-items:center;gap:8px">🇹🇭 Check a Thai plot
@@ -1676,6 +1736,180 @@
   document.getElementById('zoneLookupClose').onclick = () => zoneLookupBg.classList.remove('show');
   zoneLookupBg.onclick = (e) => { if(e.target===zoneLookupBg) zoneLookupBg.classList.remove('show'); };
   document.getElementById('plotCheckOpenZoneHelp').onclick = () => { zoneLookupBg.classList.add('show'); document.getElementById('zoneLookupInput').focus(); };
+
+  // ---- 📥 Import parcel: DOL / FB / free-text paste-parser ----
+  const importBg = document.getElementById('importBg');
+  document.getElementById('importChip').onclick = () => { importBg.classList.add('show'); };
+  document.getElementById('importClose').onclick = () => importBg.classList.remove('show');
+  importBg.onclick = (e) => { if(e.target===importBg) importBg.classList.remove('show'); };
+  document.querySelectorAll('.import-tab').forEach(tab => {
+    tab.onclick = () => {
+      document.querySelectorAll('.import-tab').forEach(t => { t.classList.remove('active'); t.style.borderColor='var(--border)'; t.style.color='var(--txt)'; });
+      tab.classList.add('active'); tab.style.borderColor='#7ce38b'; tab.style.color='#7ce38b';
+      document.querySelectorAll('.import-panel').forEach(p => p.style.display='none');
+      document.querySelector(`.import-panel[data-panel="${tab.dataset.tab}"]`).style.display='';
+    };
+  });
+
+  function parseParcelText(text){
+    // Extracts: deed#, coord (lat,lng), rai (+ngan+wah), price (THB or USD),
+    //          contact phone, sub-district, view keywords, distress hits
+    const out = {};
+    // Deed / chanote number
+    let m = text.match(/(?:title\s*deed|โฉนด(?:เลขที่|\s*number)?|deed\s*(?:no\.?|number)?)\s*[:#]?\s*(\d{3,7})/i);
+    if(m) out.deed = m[1];
+    // Coord — lat,lng plain, or Google Maps URL, or DOL format
+    m = text.match(/[?&]q=(-?\d+\.\d+)[, ]+(-?\d+\.\d+)/)
+       || text.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
+       || text.match(/(?:coordinate|coord|พิกัด|lat)[^0-9-]*(-?\d+\.\d{3,})[,\s]+(-?\d+\.\d{3,})/i)
+       || text.match(/(-?\d{1,2}\.\d{4,})[,\s]+(\d{1,3}\.\d{4,})/);
+    if(m){ out.lat = parseFloat(m[1]); out.lng = parseFloat(m[2]); }
+    // Area — rai / ngan / wah
+    const rai = (text.match(/(\d[\d.,]*)\s*(?:rai|ไร่)/i) || [])[1];
+    const ngan = (text.match(/(\d[\d.,]*)\s*(?:ngan|งาน)/i) || [])[1];
+    const wah = (text.match(/(\d[\d.,]*)\s*(?:square\s*wah|sq\.?\s*wah|ตารางวา|ตร\.ว|ตรว)/i) || [])[1];
+    if(rai || ngan || wah){
+      const r = parseFloat((rai||'0').replace(/,/g,''));
+      const n = parseFloat((ngan||'0').replace(/,/g,''));
+      const w = parseFloat((wah||'0').replace(/,/g,''));
+      out.rai = +(r + n/4 + w/400).toFixed(3);
+      out.rai_display = `${r||0}-${n||0}-${w||0}`;
+    }
+    // Sqm fallback
+    if(!out.rai){
+      m = text.match(/(\d[\d,.]*)\s*(?:sqm|SqM|m²|ตร\.ม\.|ตรม)/);
+      if(m){ const sqm = parseFloat(m[1].replace(/,/g,'')); if(sqm > 100) out.rai = +(sqm/1600).toFixed(3); }
+    }
+    // Price — THB (baht) or USD
+    m = text.match(/(?:ราคา|price)[^\d]*([\d,]+)(?:\.\d+)?\s*(?:baht|บาท|thb|฿)?[,\s]*(?:ต่อไร่|per\s*rai|\/rai|\/ไร่)?/i)
+       || text.match(/([\d,]{5,})\s*(?:baht|บาท|thb|฿)(?!\s*\/\s*[a-zก-๙])/i)
+       || text.match(/฿\s*([\d,]{5,})/)
+       || text.match(/\$\s*([\d,]{4,})/);
+    if(m){
+      let p = parseFloat(m[1].replace(/,/g,''));
+      const perRai = /ต่อไร่|per\s*rai|\/rai|\/ไร่/i.test(text.slice(m.index, m.index+80));
+      if(perRai && out.rai) p = p * out.rai;
+      if(m[0].includes('$')) p = p * 36;   // USD → THB
+      if(p >= 100000){ out.price_thb = Math.round(p); out.price_usd = Math.round(p/36); }
+    }
+    // Contact phone (Thai formats)
+    m = text.match(/\b0\d[- ]?\d{3,4}[- ]?\d{4}\b/) || text.match(/\+66[- ]?\d[- ]?\d{3,4}[- ]?\d{4}/);
+    if(m) out.contact = m[0].replace(/[- ]/g,'');
+    // Sub-district / location
+    m = text.match(/(?:sub[- ]?district|tambon|ตำบล)\s*[:.]?\s*([A-Za-zก-๙\s]{3,40})/i);
+    if(m) out.location = m[1].trim();
+    else {
+      // Try any Thai place-name marker
+      m = text.match(/(?:เขต|อำเภอ|ที่ตั้ง)\s*[:.]?\s*([A-Za-zก-๙\s]{3,60})/);
+      if(m) out.location = m[1].trim();
+    }
+    // Zone / title hints
+    if(/โฉนด|chanote|krut\s*daeng|red\s*garuda|crut\s*daeng/i.test(text)) out.title_hint = 'Chanote (โฉนด)';
+    else if(/นส\.?\s*3\s*ก|nor\s*sor\s*3\s*kor/i.test(text)) out.title_hint = 'Nor Sor 3 Kor (upgradable)';
+    else if(/สปก|spk|s\.p\.k/i.test(text)) out.title_hint = '⚠ SPK / ALRO — foreigners cannot own';
+    // View keywords
+    const views = [];
+    if(/sea\s*view|วิวทะเล|ocean\s*view/i.test(text)) views.push('sea view');
+    if(/mountain\s*view|วิวภูเขา/i.test(text)) views.push('mountain view');
+    if(/beach\s*front|beachfront|ติดทะเล|หาด/i.test(text)) views.push('beachfront');
+    if(/panoram/i.test(text)) views.push('panoramic');
+    if(views.length) out.views = views;
+    // Distress
+    const distress = [];
+    const dPats = [
+      [/urgent(?:ly)?|ด่วน/i, 'urgent'],
+      [/must\s*sell|ต้องขาย/i, 'must-sell'],
+      [/reduced|ลดราคา/i, 'reduced'],
+      [/motivated|owner\s*sale|เจ้าของขายเอง/i, 'motivated'],
+      [/below\s*market|ต่ำกว่าราคา/i, 'below-market'],
+      [/foreclosure|npa|npl|ยึด/i, 'foreclosure'],
+    ];
+    for(const [pat,tag] of dPats){ if(pat.test(text)) distress.push(tag); }
+    if(distress.length) out.distress = distress;
+    // Notes = first 200 chars trimmed
+    out.raw_first_line = text.split('\n').map(s=>s.trim()).filter(Boolean)[0] || '';
+    return out;
+  }
+  document.getElementById('importParse').onclick = () => {
+    const active = document.querySelector('.import-tab.active').dataset.tab;
+    const text = document.getElementById({dol:'importDolInput', fb:'importFbInput', raw:'importRawInput'}[active]).value;
+    if(!text.trim()){ document.getElementById('importPreview').innerHTML = '<div style="color:#ff8080">Paste some text first.</div>'; return; }
+    const p = parseParcelText(text);
+    // Render preview + edit form
+    const fields = [
+      ['deed', 'Deed #'],
+      ['location', 'Sub-district / location'],
+      ['lat', 'Lat'],
+      ['lng', 'Lng'],
+      ['rai', 'Rai (decimal)'],
+      ['rai_display', 'Rai-Ngan-Wah'],
+      ['price_thb', 'Price ฿'],
+      ['price_usd', 'Price $'],
+      ['contact', 'Contact'],
+      ['title_hint', 'Title'],
+    ];
+    document.getElementById('importPreview').innerHTML = `
+      <div style="background:#0f2115;border:1px solid #2d5f3a;padding:10px;border-radius:6px;color:#7ce38b;font-size:13px;margin-bottom:10px">
+        ✓ Parsed. Edit any field below before saving.
+        ${p.views ? `· Views: <b>${p.views.join(', ')}</b>` : ''}
+        ${p.distress ? `· <span style="color:#ffd166">Distress hits: ${p.distress.join(', ')}</span>` : ''}
+      </div>
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:6px 10px;font-size:13px;align-items:center">
+        ${fields.map(([k,label])=>`
+          <label style="color:var(--txt-dim)">${label}</label>
+          <input type="text" data-if="${k}" value="${(p[k]||'').toString().replace(/"/g,'&quot;')}" style="background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:5px 8px;border-radius:4px">
+        `).join('')}
+        <label style="color:var(--txt-dim)">Notes</label>
+        <input type="text" data-if="notes" value="${(p.raw_first_line||'').replace(/"/g,'&quot;').slice(0,120)}" style="background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:5px 8px;border-radius:4px">
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn primary" id="importSave">Save to Deed Log</button>
+        <button class="btn" id="importAnalyze">Analyze in 🇹🇭 Check plot</button>
+      </div>
+    `;
+    document.getElementById('importSave').onclick = () => {
+      const g = (k) => (document.querySelector(`#importPreview [data-if="${k}"]`) || {}).value || '';
+      const d = {
+        deed: g('deed'), location: g('location'),
+        lat: parseFloat(g('lat')) || null, lng: parseFloat(g('lng')) || null,
+        rai: parseFloat(g('rai')) || null,
+        ask_thb: parseInt(g('price_thb')) || null,
+        zone: '', owner: g('contact'), notes: g('notes'), status: 'evaluating',
+        added: new Date().toISOString().slice(0,10),
+      };
+      if(g('title_hint')) d.notes = (d.notes ? d.notes + ' · ' : '') + g('title_hint');
+      deeds.unshift(d); saveDeeds(deeds);
+      importBg.classList.remove('show');
+      alert('Saved to Deed Log ✓');
+    };
+    document.getElementById('importAnalyze').onclick = () => {
+      const lat = parseFloat(document.querySelector('#importPreview [data-if="lat"]').value);
+      const lng = parseFloat(document.querySelector('#importPreview [data-if="lng"]').value);
+      const rai = parseFloat(document.querySelector('#importPreview [data-if="rai"]').value) || null;
+      if(!lat || !lng){ alert('Need valid coord.'); return; }
+      importBg.classList.remove('show');
+      document.getElementById('plotCheckInput').value = `${lat}, ${lng}`;
+      if(rai) document.getElementById('plotCheckRai').value = rai;
+      document.getElementById('plotCheckChip').click();
+      setTimeout(()=>document.getElementById('plotCheckRun').click(), 100);
+    };
+  };
+
+  // Bookmarklet URLs — assembled with current page origin so import lands in this app
+  const appUrl = location.origin + location.pathname;
+  const bmDolCode = `javascript:(async()=>{const t=document.body.innerText;const u='${appUrl}#import='+encodeURIComponent(t.slice(0,4000));window.open(u,'_blank');})();`;
+  const bmFbCode  = `javascript:(async()=>{const t=(document.querySelector('[role=article]')||document.body).innerText;const u='${appUrl}#import='+encodeURIComponent(t.slice(0,4000));window.open(u,'_blank');})();`;
+  document.getElementById('bmDol').href = bmDolCode;
+  document.getElementById('bmFb').href = bmFbCode;
+
+  // Auto-open Import if URL has #import=<encoded text>
+  if(location.hash.startsWith('#import=')){
+    const txt = decodeURIComponent(location.hash.slice('#import='.length));
+    // Pick DOL panel by default, populate + open
+    document.getElementById('importDolInput').value = txt;
+    importBg.classList.add('show');
+    setTimeout(()=>document.getElementById('importParse').click(), 100);
+  }
 
   // ---- weights: parse rb tags into components; user re-multiplies each ----
   const WEIGHT_KEY = 'weights_v1';
