@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Land Scout — DOL + FB auto-capture",
+  "version": "0.1.0",
+  "description": "Silently captures every Thai DOL parcel and Facebook land-sale post you view. Pushes them into your land-eval app in one click.",
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": [
+    "https://landsmaps.dol.go.th/*",
+    "https://dolwebservice.dol.go.th/*",
+    "https://www.facebook.com/*",
+    "https://m.facebook.com/*",
+    "https://www.marketplace.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://landsmaps.dol.go.th/*", "https://dolwebservice.dol.go.th/*"],
+      "js": ["capture-dol.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.facebook.com/*", "https://m.facebook.com/*"],
+      "js": ["capture-fb.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Land Scout — captured items"
+  }
+}

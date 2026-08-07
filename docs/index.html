@@ -1911,6 +1911,48 @@ Land Parcel Coordinate: 8.06732191,98.75022994
     setTimeout(()=>document.getElementById('importParse').click(), 100);
   }
 
+  // Auto-import bulk payload from browser extension: #captured=<base64 JSON>
+  if(location.hash.startsWith('#captured=')){
+    try {
+      const b64 = location.hash.slice('#captured='.length);
+      const json = decodeURIComponent(escape(atob(b64)));
+      const bulk = JSON.parse(json);
+      const dolItems = bulk.dol || [];
+      const fbItems = bulk.fb || [];
+      let added = 0, skipped = 0;
+      for(const p of dolItems){
+        if(deeds.some(d => d.deed && d.deed === String(p.deed))){ skipped++; continue; }
+        deeds.unshift({
+          deed: String(p.deed || ''), location: [p.subdistrict, p.district].filter(Boolean).join(', '),
+          lat: p.lat || null, lng: p.lng || null, rai: p.rai_decimal || null,
+          ask_thb: null, zone: '', owner: '',
+          notes: `imported from DOL · treasury ฿${p.treasury||'?'}/sqwa · map ${p.map_sheet||'?'}`,
+          status: 'evaluating', added: p.captured_at ? p.captured_at.slice(0,10) : new Date().toISOString().slice(0,10),
+        });
+        added++;
+      }
+      for(const p of fbItems){
+        // dedup by contact phone + rai heuristic
+        if(deeds.some(d => d.owner && p.contact && d.owner === p.contact && d.rai === p.rai)){ skipped++; continue; }
+        deeds.unshift({
+          deed: '', location: p.location || 'FB post',
+          lat: p.lat || null, lng: p.lng || null, rai: p.rai || null,
+          ask_thb: p.price_thb || null, zone: '', owner: p.contact || '',
+          notes: `FB · ${(p.text_preview||'').slice(0,150)}${p.title_hint?' · '+p.title_hint:''}`,
+          status: 'evaluating', added: p.captured_at ? p.captured_at.slice(0,10) : new Date().toISOString().slice(0,10),
+        });
+        added++;
+      }
+      saveDeeds(deeds);
+      alert(`Imported ${added} new items (${skipped} were duplicates). Opening Deed Log…`);
+      setTimeout(() => document.getElementById('deedLogChip').click(), 300);
+      // Clean the hash so a refresh doesn't re-import
+      history.replaceState(null, '', location.pathname + location.search);
+    } catch(e){
+      alert('Failed to import bulk payload: ' + e.message);
+    }
+  }
+
   // ---- weights: parse rb tags into components; user re-multiplies each ----
   const WEIGHT_KEY = 'weights_v1';
   const DEFAULT_WEIGHTS = {
