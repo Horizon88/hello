@@ -942,6 +942,7 @@ Land Parcel Coordinate: 8.06732191,98.75022994
         ${r.viewpoints?`<div><div class="k">👁 Iconic viewpoints nearby</div><div class="v"><b style="color:#9fd96d">${r.viewpoints.map(v=>`${v.name} · ${v.km} km`).join(' · ')}</b></div></div>`:''}
         ${r.distress?`<div style="grid-column:1/-1"><div class="k">🔥 Distress Index</div><div class="v"><b style="color:${r.distress>=60?'#ff8080':r.distress>=40?'#ffb86c':'#ffd166'}">${r.distress}/100</b><div style="font-size:11px;color:var(--txt-dim);margin-top:4px;line-height:1.5">${(r.distress_breakdown||[]).map(p=>`• ${p[0]} <span style="color:#ffb86c">+${p[1]}</span>`).join('<br>')}</div></div></div>`:''}
         ${(window.__reg && (window.__reg.byCountry[r.cf]||[]).length) ? `<div style="grid-column:1/-1"><div class="k">📜 regulatory items affecting ${r.cf}</div><div class="v" style="font-size:11px;line-height:1.45">${(window.__reg.byCountry[r.cf]||[]).map(it=>{const c=({ok:'#7ce38b',changed:'#ffb86c',blocked:'#9aa3b2',network_error:'#ff8080'})[it.last_status]||'#9aa3b2';const dl=it.__days_until!=null?` <span style="color:${it.__days_until<90?'#ff8080':it.__days_until<365?'#ffb86c':'#9aa3b2'}">(${it.deadline_label||'deadline'} ${it.__deadline_str}, ${it.__days_until<0?'expired':'in '+it.__days_until+'d'})</span>`:'';return `<div>• <a href="${it.url}" target="_blank" style="color:#4fa3ff">${it.name}</a> <span style="color:${c}">●</span>${dl}</div>`;}).join('')}</div></div>`:''}
+        ${r.msi != null ? `<div style="grid-column:1/-1"><div class="k">📈 Parcl Motivated Seller Index — ${r.msi_state}</div><div class="v"><b style="color:${window.__msiColor(r.msi)}">${r.msi.toFixed(2)}</b> — <span style="color:${window.__msiColor(r.msi)}">${window.__msiLabel(r.msi)}</span> · US-wide ${window.__msi.national || '?'} · <a href="https://www.parcllabs.com/research/motivated-sellers/map?level=county&state=${r.msi_state}" target="_blank" style="color:#4fa3ff;font-size:11px">county detail ↗</a></div></div>`:''}
         ${(r.bed||r.bath)?`<div><div class="k">rooms</div><div class="v">${r.bed?r.bed+' bed':''}${(r.bed&&r.bath)?' · ':''}${r.bath?r.bath+' bath':''}</div></div>`:''}
         ${r.grade?`<div><div class="k">BAM grade</div><div class="v"><b style="color:${r.grade==='A'?'#7ce38b':r.grade==='C'?'#ff8080':'#ffd166'}">${r.grade}</b></div></div>`:''}
         ${r.days_on_market!=null?`<div><div class="k">on market</div><div class="v"><b style="color:${r.days_on_market>=365?'#ff8080':r.days_on_market>=90?'#ffb86c':'#9aa3b2'}">${r.days_on_market} days</b>${r.days_on_market>=365?' <span style="font-size:11px;color:#ff8080">stale &gt;1yr</span>':r.days_on_market>=180?' <span style="font-size:11px;color:#ffb86c">stale 6mo+</span>':r.days_on_market>=90?' <span style="font-size:11px;color:#ffd166">3mo+</span>':''}</div></div>`:''}
@@ -2179,6 +2180,50 @@ Land Parcel Coordinate: 8.06732191,98.75022994
     } catch(e){ console.error('regulatory_watch fetch failed', e); }
   }
   loadRegulatoryWatch();
+
+  // ---- 📈 Parcl Labs Motivated Seller Index (USA) ----
+  // Higher MSI = more distressed listings in that state/metro/county.
+  // Applied as a badge to every USA listing based on its state-abbrev in region.
+  window.__msi = {national: null, state: {}, metro: {}, county: {}};
+  const STATE_ABBR_FROM_NAME = {'Alabama':'AL','Alaska':'AK','Arizona':'AZ','Arkansas':'AR','California':'CA','Colorado':'CO','Connecticut':'CT','Delaware':'DE','Florida':'FL','Georgia':'GA','Hawaii':'HI','Idaho':'ID','Illinois':'IL','Indiana':'IN','Iowa':'IA','Kansas':'KS','Kentucky':'KY','Louisiana':'LA','Maine':'ME','Maryland':'MD','Massachusetts':'MA','Michigan':'MI','Minnesota':'MN','Mississippi':'MS','Missouri':'MO','Montana':'MT','Nebraska':'NE','Nevada':'NV','New Hampshire':'NH','New Jersey':'NJ','New Mexico':'NM','New York':'NY','North Carolina':'NC','North Dakota':'ND','Ohio':'OH','Oklahoma':'OK','Oregon':'OR','Pennsylvania':'PA','Rhode Island':'RI','South Carolina':'SC','South Dakota':'SD','Tennessee':'TN','Texas':'TX','Utah':'UT','Vermont':'VT','Virginia':'VA','Washington':'WA','West Virginia':'WV','Wisconsin':'WI','Wyoming':'WY'};
+  async function loadMsi(){
+    try {
+      const r = await fetch('parcl_msi.json', {cache:'no-cache'});
+      if(!r.ok) return;
+      const data = await r.json();
+      window.__msi.national = data.national;
+      // Normalize state keys — accept both full names and abbrs
+      for(const k in data.state_msi){
+        const abbr = STATE_ABBR_FROM_NAME[k] || k;
+        window.__msi.state[abbr] = data.state_msi[k];
+      }
+      Object.assign(window.__msi.metro, data.metro_msi || {});
+      Object.assign(window.__msi.county, data.county_msi || {});
+      // Header chip
+      const chip = document.createElement('span');
+      chip.className = 'chip'; chip.id = 'msiChip';
+      chip.style.cssText = 'background:#3a1a1a;color:#ff8080;border-color:#a03030;cursor:pointer';
+      chip.innerHTML = `📈 US MSI ${data.national ?? '?'}`;
+      chip.title = `Parcl Labs Motivated Seller Index · US-wide is ${data.national}. Click to open the map source.`;
+      chip.onclick = () => window.open('https://www.parcllabs.com/research/motivated-sellers/map', '_blank');
+      const stats = document.getElementById('stats');
+      if(stats) stats.appendChild(chip);
+      // Populate MSI on every USA listing
+      for(const r of DATA){
+        if(r.cf !== 'USA') continue;
+        // rg often ends with -XX (state code) like "Aspen-CO"
+        const m = (r.rg || '').match(/-([A-Z]{2})$/);
+        if(m && window.__msi.state[m[1]]){
+          r.msi = window.__msi.state[m[1]];
+          r.msi_state = m[1];
+        }
+      }
+    } catch(e){ console.warn('MSI load err', e); }
+  }
+  loadMsi();
+  // Helper for popover
+  window.__msiColor = (v) => v == null ? '#9aa3b2' : v >= 6.5 ? '#7ce38b' : v >= 5.5 ? '#a7e07e' : v >= 4.5 ? '#ffd166' : v >= 3.5 ? '#ffb86c' : '#ff8080';
+  window.__msiLabel = (v) => v == null ? '—' : v >= 6.5 ? 'very motivated' : v >= 5.5 ? 'motivated' : v >= 4.5 ? 'neutral' : v >= 3.5 ? 'seller-friendly' : 'strong seller market';
 
   // ---- Inject sticky close bar into every modal (mobile-friendly) ----
   document.querySelectorAll('.modal-bg .modal').forEach(m => {
