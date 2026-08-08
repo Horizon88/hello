@@ -140,7 +140,7 @@ if __name__ == "__main__":
     all_rows = []
     for prov_name, slug in COASTAL_PROVINCES:
         seen_in_prov = set()
-        for page in range(1, 6):
+        for page in range(1, 15):   # deeper pagination — most coastal provinces have 10+ pages
             url = f"https://www.propertyhub.in.th/land-for-sale/{slug}"
             if page > 1: url += f"?page={page}"
             body = via_relay(url, timeout=35)
@@ -157,7 +157,7 @@ if __name__ == "__main__":
                 all_rows.append(r)
                 new_this_page += 1
             print(f"  {prov_name:>22} p{page}: {len(items)} items → {new_this_page} valid new", file=sys.stderr)
-            if len(items) < 30: break
+            if len(items) < 20: break   # end of results
             time.sleep(0.3)
 
     # Dedup across provinces
