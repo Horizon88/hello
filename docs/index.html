@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Coastal Land — 5-Country Comparison</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+<link rel="stylesheet" href="vendor/leaflet.css"/>
+<link rel="stylesheet" href="vendor/MarkerCluster.css"/>
+<link rel="stylesheet" href="vendor/MarkerCluster.Default.css"/>
 <style>
   :root {
     --bg:#0f1419; --panel:#1a2028; --panel2:#232b35; --border:#2e3845;
@@ -505,8 +505,8 @@ Land Parcel Coordinate: 8.06732191,98.75022994
   </div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="vendor/leaflet.js"></script>
+<script src="vendor/leaflet.markercluster.js"></script>
 <script>
 (async function(){
   const loadingEl = document.createElement('div');
@@ -524,7 +524,12 @@ Land Parcel Coordinate: 8.06732191,98.75022994
   }
   loadingEl.remove();
   const COLORS = {Thailand:'#ff6b6b','New Zealand':'#7ce38b','British Columbia':'#4fa3ff',Canada:'#ff8fb1',Malaysia:'#ffd166',Japan:'#c084fc',Turkey:'#e76f51',USA:'#a78bfa',Romania:'#56b886',Poland:'#f7c948',Chile:'#ef4444',Portugal:'#22d3ee',Fiji:'#0ea5e9','French Polynesia':'#8b5cf6',Vanuatu:'#f97316','New Caledonia':'#84cc16',Samoa:'#f43f5e',Tonga:'#eab308','Cook Islands':'#a3e635','Papua New Guinea':'#059669','Solomon Islands':'#dc2626',Palau:'#06b6d4','Marshall Islands':'#fb7185',Micronesia:'#65a30d',Kiribati:'#f472b6',Australia:'#fbbf24',Switzerland:'#e11d48',Austria:'#7c3aed',Georgia:'#0284c7'};
-  const ALL_COUNTRIES = ['Thailand','New Zealand','British Columbia','Canada','Malaysia','Japan','Turkey','USA','Romania','Poland','Chile','Portugal','Fiji','French Polynesia','Vanuatu','New Caledonia','Samoa','Tonga','Cook Islands','Papua New Guinea','Solomon Islands','Palau','Marshall Islands','Micronesia','Kiribati','Australia','Switzerland','Austria','Georgia'];
+  // Derived from the data so chips never go stale when countries come and go.
+  // Ordered by listing count; countries not in COLORS get a fallback hue.
+  const _cfCounts = {};
+  DATA.forEach(r=>{ if(r.cf) _cfCounts[r.cf]=(_cfCounts[r.cf]||0)+1; });
+  const ALL_COUNTRIES = Object.keys(_cfCounts).sort((a,b)=>_cfCounts[b]-_cfCounts[a]);
+  ALL_COUNTRIES.forEach((c,i)=>{ if(!COLORS[c]) COLORS[c] = `hsl(${(i*47)%360} 70% 60%)`; });
   const LS_KEY = 'archives_v1';
   const WL_KEY = 'watchlist_v1';
   const DL_KEY = 'deed_log_v1';   // Thai deed evaluation workspace
@@ -797,8 +802,8 @@ Land Parcel Coordinate: 8.06732191,98.75022994
       } else {
         m.bindPopup(`<div class="lp-r" style="color:${color}">★ ${r.r}</div>
           <div><b>${r.cf}</b> — ${r.rg} ${r.a}</div>
-          <div>${r.ac} acres (${r.m2.toLocaleString()} m²) · ${r.v||'-'}</div>
-          <div>${fmtUsd(r.usd)} · <b>$${r.upm}/m²</b></div>
+          <div>${r.ac} acres (${r.m2.toLocaleString()} m²)${r.area_est?' <i>· size est.</i>':''} · ${r.v||'-'}</div>
+          <div>${fmtUsd(r.usd)}${r.upm!=null?` · <b>$${r.upm}/m²</b>`:''}</div>
           <div class="lp-k">${r.t||''} · ${r.rb||''}</div>
           ${flagHtml}
           <div style="margin-top:6px;display:flex;gap:6px"><button onclick="window.__detail('${r.u.replace(/'/g,'%27')}')">details</button><a href="${r.u}" target="_blank">listing →</a></div>`);
@@ -826,7 +831,7 @@ Land Parcel Coordinate: 8.06732191,98.75022994
         <td>${r.rg}</td><td>${r.a}</td>
         <td>${r.tp==='abandoned_ski'?'':r.ac}</td>
         <td>${r.tp==='abandoned_ski'?'':(r.ac?'$'+Math.round(r.usd/r.ac).toLocaleString():'')}</td>
-        <td>${r.tp==='abandoned_ski'?'':r.upm}</td>
+        <td>${r.tp==='abandoned_ski'?'':(r.upm??'')}</td>
         <td>${r.tp==='abandoned_ski'?(r.closure_status==='closed'?'❄ closed':r.closure_status==='suspended'?'❄ susp':r.closure_status==='on hiatus'?'❄ hiatus':'❄'):fmtUsd(r.usd)}</td>
         <td>${r.tp==='abandoned_ski'?(r.year_closed?'cl. '+r.year_closed:''):r.v||''}</td>
         <td title="${r.ski_r||''}">${r.ski_km!=null ? r.ski_km : ''}</td>
@@ -928,9 +933,9 @@ Land Parcel Coordinate: 8.06732191,98.75022994
           <div><div class="k">geocode source</div><div class="v" style="font-size:11px">${r.geocode_src==='wiki'?'wikipedia ✓':r.geocode_src==='osm'?'OpenStreetMap ✓':r.geocode_src==='sub'?'sub-region centroid':'prefecture centroid (approx)'}</div></div>
           ${r.wiki_jp?`<div><div class="k">wikipedia (ja)</div><div class="v"><a href="${r.wiki_jp}" target="_blank" style="color:#4fa3ff">view article →</a></div></div>`:''}
         ` : `
-          <div><div class="k">size</div><div class="v">${r.tp==='penthouse'?r.m2.toLocaleString()+' m²':r.ac+' acres ('+r.m2.toLocaleString()+' m²)'}</div></div>
+          <div><div class="k">size</div><div class="v">${r.tp==='penthouse'?r.m2.toLocaleString()+' m²':r.ac+' acres ('+r.m2.toLocaleString()+' m²)'}${r.area_est?' <span style="color:var(--txt-dim)">· estimated</span>':''}</div></div>
           <div><div class="k">price</div><div class="v">${r.lp?Number(r.lp).toLocaleString()+' '+r.cur:''} ${r.cur!=='USD'?'· $'+r.usd.toLocaleString():''}</div></div>
-          <div><div class="k">$/m²</div><div class="v">$${r.upm}</div></div>
+          <div><div class="k">$/m²</div><div class="v">${r.upm!=null?'$'+r.upm:'—'}</div></div>
           <div><div class="k">$/acre</div><div class="v">$${r.ac?Math.round(r.usd/r.ac).toLocaleString():'-'}</div></div>
           ${r.cf==='Thailand' && r.ac ? `<div><div class="k">$/rai</div><div class="v">$${Math.round(r.usd/(r.ac/0.3954)).toLocaleString()}<span style="color:#9aa3b2"> · ${Math.round(r.ac/0.3954).toLocaleString()} rai · ฿${Math.round(r.usd*36).toLocaleString()} total</span></div></div>` : ''}
         `}
@@ -997,7 +1002,7 @@ Land Parcel Coordinate: 8.06732191,98.75022994
     pendingUrl=url; pendingTags=new Set();
     reasonInp.value='';
     tagBox.querySelectorAll('.tag').forEach(t=>t.classList.remove('on'));
-    modalInfo.innerHTML=`<b>★ ${r.r}</b> · ${r.cf} · ${r.rg} ${r.a}<br>${r.ac} ac · $${r.upm}/m² · ${fmtUsd(r.usd)}<br><a href="${url}" target="_blank" style="color:#4fa3ff">view listing</a>`;
+    modalInfo.innerHTML=`<b>★ ${r.r}</b> · ${r.cf} · ${r.rg} ${r.a}<br>${r.ac} ac${r.upm!=null?` · $${r.upm}/m²`:''} · ${fmtUsd(r.usd)}<br><a href="${url}" target="_blank" style="color:#4fa3ff">view listing</a>`;
     modalBg.classList.add('show');
   }
   window.__archive = openArchive; // expose for popup buttons
@@ -1041,7 +1046,7 @@ Land Parcel Coordinate: 8.06732191,98.75022994
     promoteTagBox.querySelectorAll('.tag').forEach(t=>{
       t.classList.toggle('on', pendingPromoteTags.has(t.dataset.tag));
     });
-    promoteInfo.innerHTML = `<b>★ ${r.r}</b> · ${r.cf} · ${r.rg} ${r.a||''}<br>${r.ac} ac · $${r.upm}/m² · ${fmtUsd(r.usd)}<br><a href="${url}" target="_blank" style="color:#4fa3ff">view listing</a>`;
+    promoteInfo.innerHTML = `<b>★ ${r.r}</b> · ${r.cf} · ${r.rg} ${r.a||''}<br>${r.ac} ac${r.upm!=null?` · $${r.upm}/m²`:''} · ${fmtUsd(r.usd)}<br><a href="${url}" target="_blank" style="color:#4fa3ff">view listing</a>`;
     promoteBg.classList.add('show');
   }
   window.__promote = openPromote;
