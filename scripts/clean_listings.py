@@ -53,6 +53,7 @@ BOUNDS = {
     'Marshall Islands': (4.5, 14.8, 160.7, 172.2),
     'Papua New Guinea': (-11.7, -0.8, 140.8, 156.0),
     'Australia':        (-43.7, -10.0, 112.9, 153.7),
+    'Indonesia':        (-11.0, 6.0, 95.0, 141.0),
 }
 WRAP = {'Fiji', 'Kiribati'}
 
