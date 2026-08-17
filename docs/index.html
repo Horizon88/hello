@@ -238,13 +238,14 @@
   <div class="control"><label><input type="checkbox" id="foreignerOK"> 🛂 Foreigner-friendly only</label></div>
   <div class="control"><label><input type="checkbox" id="distressOnly"> 🔥 Distress only</label></div>
   <div class="control"><label><input type="checkbox" id="npaOnly"> 🏦 NPA/bank-disposal only</label></div>
+  <div class="control"><label><input type="checkbox" id="nomineeOnly"> 🎯 Nominee-held (TH) only</label></div>
   <div class="control"><label><input type="checkbox" id="bigOnly"> 🌲 Big plots (≥25 ac)</label></div>
   <div class="control"><label><input type="checkbox" id="staleOnly"> ⏳ Stale/dropped only</label></div>
   <div class="control"><label><input type="checkbox" id="starredOnly"> ★ Starred only</label></div>
   <div class="control"><label><input type="checkbox" id="watchedOnly"> 👁 Watched only</label></div>
   <div class="control"><label><input type="checkbox" id="hideForest"> 🚫 Hide forest-encroaching (Thai)</label></div>
   <button class="btn" id="openWeights" title="Adjust rating weights">⚖ Weights</button>
-  <div class="control"><label>Sort</label><select id="sort"><option value="r">rating</option><option value="upa">$/acre</option><option value="upm">$/m²</option><option value="ac">acres</option><option value="usd">price USD</option><option value="days_on_market">days listed</option><option value="total_drop_pct">price drop %</option><option value="distress">🔥 distress</option></select></div>
+  <div class="control"><label>Sort</label><select id="sort"><option value="r">rating</option><option value="upa">$/acre</option><option value="upm">$/m²</option><option value="ac">acres</option><option value="usd">price USD</option><option value="days_on_market">days listed</option><option value="total_drop_pct">price drop %</option><option value="distress">🔥 distress</option><option value="leverage">🎯 leverage</option></select></div>
   <button class="btn" id="toggleInsights">Insights ▸</button>
 </div>
 <main>
@@ -579,7 +580,7 @@ Land Parcel Coordinate: 8.06732191,98.75022994
 
   const state = {
     countries: new Set(ALL_COUNTRIES),
-    type: 'all', distressedOnly: false, verifiedOnly: false, terraceOnly: false, foreignerOK: false, distressOnly: false, npaOnly: false, bigOnly: false, staleOnly: false, starredOnly: false, watchedOnly: false, hideForest: false,
+    type: 'all', distressedOnly: false, verifiedOnly: false, terraceOnly: false, foreignerOK: false, distressOnly: false, npaOnly: false, nomineeOnly: false, bigOnly: false, staleOnly: false, starredOnly: false, watchedOnly: false, hideForest: false,
     minR: 0, maxU: 10000, maxUsd: null, minA: null, maxA: null, minAQuick: '', view: '', ski: '',
     sortKey: 'r', sortAsc: false, showArchived: false
   };
@@ -638,6 +639,7 @@ Land Parcel Coordinate: 8.06732191,98.75022994
   document.getElementById('foreignerOK').onchange=e=>{state.foreignerOK=e.target.checked;render();};
   document.getElementById('distressOnly').onchange=e=>{state.distressOnly=e.target.checked;render();};
   document.getElementById('npaOnly').onchange=e=>{state.npaOnly=e.target.checked;render();};
+  document.getElementById('nomineeOnly').onchange=e=>{state.nomineeOnly=e.target.checked;render();};
   document.getElementById('bigOnly').onchange=e=>{state.bigOnly=e.target.checked;render();};
   document.getElementById('staleOnly').onchange=e=>{state.staleOnly=e.target.checked;render();};
   document.getElementById('starredOnly').onchange=e=>{state.starredOnly=e.target.checked;render();};
@@ -704,6 +706,7 @@ Land Parcel Coordinate: 8.06732191,98.75022994
       if(state.foreignerOK && (r.foreign_friction||0) < 0) return false;
       if(state.distressOnly && (r.distress||0) < 30) return false;
       if(state.npaOnly && !r.npa) return false;
+      if(state.nomineeOnly && !r.nominee) return false;
       if(state.bigOnly && (r.ac||0) < 25) return false;
       if(state.staleOnly && !((r.days_on_market||0) >= 90 || (r.total_drop_pct||0) >= 5)) return false;
       if(state.starredOnly && !shortlist[r.u]) return false;
@@ -825,8 +828,9 @@ Land Parcel Coordinate: 8.06732191,98.75022994
       const isFlagged = !!activeFlags[r.u];
       const cls = (highlightUrl===r.u?'hi ':'') + (isArchived?'archived ':'') + (isFlagged && !isArchived?'flagged ':'');
       const flagBadge = isFlagged ? `<span class="flag" title="${activeFlags[r.u].join(', ')}">⚠</span>` : '';
+      const nomBadge = r.nominee ? `<span title="nominee-held · leverage ${r.leverage} · ${r.nominee.hits.join(', ')}" style="cursor:help">🎯</span>` : '';
       return `<tr class="${cls}" data-u="${r.u}">
-        <td class="r ${ratingClass(r.r)}">${r.r}${flagBadge}</td>
+        <td class="r ${ratingClass(r.r)}">${r.r}${flagBadge}${nomBadge}</td>
         <td><span class="dot" style="background:${color}"></span>${r.cf.replace('British Columbia','BC').replace('New Zealand','NZ')}</td>
         <td>${r.rg}</td><td>${r.a}</td>
         <td>${r.tp==='abandoned_ski'?'':r.ac}</td>
@@ -923,6 +927,11 @@ Land Parcel Coordinate: 8.06732191,98.75022994
       ${r.structural_warn?`<div class="detail-flag" style="background:#3a2a10;color:#ffb060;border-color:#7a5020">⚠ Structural concern: ${r.structural_warn}</div>`:''}
       ${r.size_mismatch?`<div class="detail-flag" style="background:#2a2010;color:#ffd060;border-color:#6a5020">⚠ Listing size vs official parcel: ${r.size_mismatch}× — verify which parcels the sale covers</div>`:''}
       ${r.npa?`<div class="detail-flag" style="background:#3a1a1a;color:#ff9090;border-color:#702030">🏦 NPA / Bank repossession (BAM) — disposal sale</div>`:(r.distressed?`<div class="detail-flag" style="background:#2a1a3a;color:#d49aff;border-color:#5a3070">💎 Distressed: bottom-quartile $/m² in ${r.rg}</div>`:'')}
+      ${r.nominee?`<div class="detail-flag" style="background:#0f2a1a;color:#7ce8a8;border-color:#1e6a40">🎯 <b>Nominee-structure signals — leverage ${r.leverage}/100</b>
+        <div style="margin:6px 0 2px;font-size:12px">${r.nominee.own?`Ownership offered: <b>${r.nominee.own}</b> · `:''}signals: ${r.nominee.hits.map(h=>`<code style="background:#143020;padding:1px 5px;border-radius:3px">${h}</code>`).join(' ')}</div>
+        ${r.nominee.excerpt?`<div style="font-size:11px;color:#9ac8ad;margin:6px 0;font-style:italic">"${r.nominee.excerpt.slice(0,220)}…"</div>`:''}
+        <div style="font-size:12px;line-height:1.55;margin-top:6px">This land appears to be held in a Thai company likely controlled by a foreign seller — a structure that is legally exposed (Land Code s.96 bis: nominee shareholding is prohibited; penalties include forced divestment). A seller in this position <b>cannot hold out</b>: the asset is wasting and the exit routes are few.
+        <b>Playbook:</b> (1) never buy the company — you'd inherit the illegal structure and its liabilities; (2) insist on a direct chanote transfer at the Land Office to your own (compliant) structure, which forces the company to liquidate the land sale; (3) price the seller's exposure — 15–30% below comps is a rational opening; (4) verify at the DOL that the chanote is actually in the company's name and unencumbered before offering.</div></div>`:''}
       ${r.cf==='Thailand' && r.lat && window.__forestHits ? (()=>{ const h = window.__forestHits(r.lat, r.lon); return h.length?`<div class="detail-flag" style="background:#3a1a1a;color:#ff8080;border-color:#a03030">🚫 <b>Encroaches Thai protected area</b> — this coord sits inside <b>${h.map(x=>x.name_en||x.name).join(', ').slice(0,120)}</b>. Land within a national park / wildlife sanctuary / forest reserve cannot be privately owned; sale is likely null under Thai law.</div>`:'' })() : ''}
       ${r.cf==='Thailand' && r.ac ? (()=>{ const flags=[]; const rai = r.ac / 0.3954; const hotelRoomsEst = Math.floor(r.ac * 5); /* rough: 5 rooms per acre for mid-density resort */ if (r.coast_km!=null && r.coast_km <= 1) flags.push('within 1 km of shore — any building >4 storeys triggers EIA regardless of size'); if (rai >= 80 && rai < 100) flags.push(`${rai.toFixed(1)} rai — approaching the 100-rai land-subdivision EIA threshold`); if (rai >= 100) flags.push(`${rai.toFixed(1)} rai (≥100) — subdivision triggers EIA (MoNRE Notification B.E. 2562)`); if (r.ac >= 15) flags.push(`build-out ≥ 80 rooms is EIA-required — realistic for ${r.ac.toFixed(1)} ac boutique-hotel scale`); if (r.viewpoints && r.viewpoints.some(v => /karst|nangshe|railay|ao\\s*nang/i.test(v.name))) flags.push('karst-adjacent — slopes >35% require EEA (Enhanced Environmental Assessment) run by ONEP, not standard EIA'); return flags.length?`<div class="detail-flag" style="background:#2a2515;color:#ffd166;border-color:#7a5020">⚠ <b>Thai regulatory risk (auto-checked)</b><ul style="margin:6px 0 0 18px;padding:0;line-height:1.5">${flags.map(f=>`<li>${f}</li>`).join('')}</ul><div style="font-size:11px;color:var(--txt-dim);margin-top:6px">Verify before offering: (1) zoning inquiry to Krabi/Phuket/Samui Provincial Town-Planning Office ~฿2k, 1-2 wk turnaround. (2) topographic survey ~฿30-60k for slope %. Both worth it to price the EIA-risk out of the deal.</div></div>`:'' })() : ''}
       ${r.tp==='penthouse' && (r.pool||r.fullfloor||r.duplex||r.floor)?`<div class="sub" style="margin-bottom:10px">${[r.pool?'🏊 private pool/jacuzzi':null, r.fullfloor?'🏢 full floor':null, r.duplex?'🏛 duplex':null, r.floor?'floor '+r.floor:null].filter(Boolean).join(' · ')}</div>`:''}
