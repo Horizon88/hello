@@ -20,7 +20,7 @@ Fixes the error classes found in the Aug-2026 audit:
 
 Idempotent: safe to re-run. Prints a summary of what changed.
 """
-import json, sys
+import json, re, sys
 from collections import Counter
 
 PATH = '/home/user/hello/docs/listings.json'
@@ -172,7 +172,7 @@ for r in d:
         continue
     if m2 and m2 > 0 and usd:
         raw = usd / m2
-        new_upm = round(raw, 2 if raw < 10 else 1)  # cheap rural land needs 2 decimals
+        new_upm = round(raw, 3 if raw < 1 else (2 if raw < 10 else 1))  # cheap rural land needs decimals
         if r.get('upm') != new_upm:
             r['upm'] = new_upm
             fixed['upm_recomputed'] += 1
@@ -180,6 +180,86 @@ for r in d:
         if r.get('ac') != new_ac:
             r['ac'] = new_ac
             fixed['ac_recomputed'] += 1
+
+# ── 5b. area plausibility ────────────────────────────────────────────
+# Catch listing-side size garbage (e.g. a $935k Samut Sakhon lot claiming
+# 100,000,000 m² — FazWaz agent typo; Portuguese "16,75 hectares" parsed as
+# 1,675 ha).  A row is suspect when its $/m² sits >300× below the country
+# median AND the tract is >100,000 m².  Repair from the listing name when it
+# states a size; quarantine to docs/quarantine.json when the implied price is
+# absurd (<$400/acre); otherwise keep but null upm and flag area_est.
+import statistics
+
+def _num(s):
+    """Parse a number that may use pt/es decimal commas."""
+    s = s.strip()
+    if ',' in s and '.' in s:
+        s = s.replace(',', '') if s.rindex('.') > s.rindex(',') else s.replace('.', '').replace(',', '.')
+    elif ',' in s:
+        head, _, tail = s.rpartition(',')
+        s = s.replace(',', '') if len(tail) == 3 else s.replace(',', '.')
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+def area_from_name(name):
+    """m² stated in the listing title, or None."""
+    if not name:
+        return None
+    for pat, mult in ((r'([\d.,]+)\s*hect', 10000), (r'([\d.,]+)\s*ha\b', 10000),
+                      (r'([\d.,]+)\s*acres?\b', 4046.86), (r'([\d.,]+)\s*rai\b', 1600),
+                      (r'([\d.,]+)\s*(?:m²|m2\b|sqm)', 1)):
+        m = re.search(pat, name, re.I)
+        if m:
+            v = _num(m.group(1))
+            if v and v > 0:
+                return v * mult
+    return None
+
+_upms = {}
+for r in d:
+    if r.get('upm') and r.get('tp') != 'abandoned_ski':
+        _upms.setdefault(r['cf'], []).append(r['upm'])
+_med = {cf: statistics.median(v) for cf, v in _upms.items() if len(v) >= 20}
+
+quarantine = []
+keep = []
+for r in d:
+    upm, m2, usd = r.get('upm'), r.get('m2') or 0, r.get('usd') or 0
+    med = _med.get(r.get('cf'))
+    suspect = (med and upm is not None and m2 > 100_000 and upm < med / 300
+               and r.get('tp') != 'abandoned_ski')
+    if not suspect:
+        keep.append(r)
+        continue
+    stated = area_from_name(r.get('name'))
+    if stated and stated > 50 and (m2 / stated > 5 or stated / m2 > 5):
+        # listing title states the real size — trust it over the size field
+        r['m2'] = int(stated) if stated >= 100 else round(stated, 1)
+        r['ac'] = round(stated / 4046.86, 3)
+        raw = usd / stated
+        r['upm'] = round(raw, 3 if raw < 1 else (2 if raw < 10 else 1))
+        fixed['area_repaired_from_title'] += 1
+        keep.append(r)
+    elif usd / (m2 / 4046.86) < 400:
+        quarantine.append(r)
+        dropped['area_implausible_quarantined'] += 1
+    else:
+        r['area_est'] = True
+        r['upm'] = None
+        fixed['area_suspect_upm_nulled'] += 1
+        keep.append(r)
+d = keep
+if quarantine:
+    qpath = PATH.replace('listings.json', 'quarantine.json')
+    try:
+        prev = {q.get('u'): q for q in json.load(open(qpath))}
+    except Exception:
+        prev = {}
+    for q in quarantine:
+        prev[q.get('u')] = q
+    json.dump(list(prev.values()), open(qpath, 'w'), indent=1)
 
 # ── 6. payload slimming ──────────────────────────────────────────────
 # foreign_note: identical country boilerplate repeated per row (1.3 MB) and

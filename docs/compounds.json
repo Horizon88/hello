@@ -276,6 +276,29 @@
     }
   },
   {
+    "cf": "Canada",
+    "state": null,
+    "rg": "Kootenays",
+    "ski_r": "Panorama",
+    "ac": 248.0,
+    "usd": 1598700,
+    "ski_km": 10.78,
+    "lat": 50.4697,
+    "lon": -116.0674,
+    "name": "Trophy Private Acreage with Rocky Mountain Views only Minutes to Town - Invermer",
+    "url": "https://www.landquest.com/listings/trophy-private-acreage-rocky-mountain-views-invermere-bc",
+    "score": {
+      "ski": 7.0,
+      "airstrip": 6,
+      "heli": 8,
+      "snow": 4.0,
+      "carry": 5.6,
+      "permit": 5,
+      "price": 9.2,
+      "total": 44.8
+    }
+  },
+  {
     "cf": "USA",
     "state": "UT",
     "rg": "Wasatch-UT",
@@ -296,6 +319,29 @@
       "permit": 6,
       "price": 2.0,
       "total": 44.2
+    }
+  },
+  {
+    "cf": "Canada",
+    "state": null,
+    "rg": "Thompson Nicola",
+    "ski_r": "Sun Peaks",
+    "ac": 161.3,
+    "usd": 470850,
+    "ski_km": 17.13,
+    "lat": 50.73921,
+    "lon": -119.99437,
+    "name": "Scenic Off-Grid Acreage - Pinantan Lake, BC",
+    "url": "https://www.landquest.com/listings/scenic-off-grid-acreage-pinantan-lake-bc",
+    "score": {
+      "ski": 5.9,
+      "airstrip": 5.4,
+      "heli": 6.5,
+      "snow": 4.7,
+      "carry": 5.6,
+      "permit": 5,
+      "price": 9.8,
+      "total": 42.9
     }
   },
   {
