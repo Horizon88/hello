@@ -24,7 +24,8 @@ RELAY = "https://landrelay.flag-theory.workers.dev"
 # (pattern, tag, weight) — scanned against the DESCRIPTION BLOCK only
 # (whole-page scans false-positive on agency boilerplate like "FazWaz Co., Ltd")
 NOMINEE_PATS = [
-    (r'\bnominee\b', 'nominee-explicit', 35),
+    # negation-guarded: "no nominee shareholders" is a denial, not an admission
+    (r'(?<!no )(?<!not )(?<!without )(?<!free of )\bnominee\b', 'nominee-explicit', 35),
     (r'sold?\s+with\s+(?:the\s+)?(?:thai\s+)?company', 'sold-with-company', 30),
     (r'sale\s+with\s+(?:the\s+)?company', 'sold-with-company', 30),
     (r'(?:company|share)s?\s+transfer', 'share-transfer', 30),
