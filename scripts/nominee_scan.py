@@ -142,9 +142,12 @@ if __name__ == "__main__":
         own = ownership_field(body)
         if own:
             opts = {o.strip().lower() for o in own.split(',')}
-            if opts == {'company'} or opts == {'company', 'leasehold'}:
-                # share transfer is the ONLY route offered — land is company-held
+            if opts == {'company'}:
+                # share transfer is the ONLY route offered — land is company-held freehold
                 nominee.insert(0, 'company-only-transfer'); n_score += 45
+            elif 'company' in opts and 'leasehold' in opts:
+                # company OR lease both offered — share-transfer isn't the only exit
+                nominee.append('company-or-lease-transfer'); n_score += 20
             elif 'company' in opts:
                 nominee.append('offers-company-transfer'); n_score += 20
         n_score = min(n_score, 90)

@@ -239,6 +239,7 @@
   <div class="control"><label><input type="checkbox" id="distressOnly"> 🔥 Distress only</label></div>
   <div class="control"><label><input type="checkbox" id="npaOnly"> 🏦 NPA/bank-disposal only</label></div>
   <div class="control"><label><input type="checkbox" id="nomineeOnly"> 🎯 Nominee-held (TH) only</label></div>
+  <div class="control"><label><input type="checkbox" id="freeholdOnly"> 🏷 Chanote/NS3 title only</label></div>
   <div class="control"><label><input type="checkbox" id="bigOnly"> 🌲 Big plots (≥25 ac)</label></div>
   <div class="control"><label><input type="checkbox" id="staleOnly"> ⏳ Stale/dropped only</label></div>
   <div class="control"><label><input type="checkbox" id="starredOnly"> ★ Starred only</label></div>
@@ -588,7 +589,7 @@ Land Parcel Coordinate: 8.06732191,98.75022994
 
   const state = {
     countries: new Set(ALL_COUNTRIES),
-    type: 'all', distressedOnly: false, verifiedOnly: false, terraceOnly: false, foreignerOK: false, distressOnly: false, npaOnly: false, nomineeOnly: false, bigOnly: false, staleOnly: false, starredOnly: false, watchedOnly: false, hideForest: false,
+    type: 'all', distressedOnly: false, verifiedOnly: false, terraceOnly: false, foreignerOK: false, distressOnly: false, npaOnly: false, nomineeOnly: false, freeholdOnly: false, bigOnly: false, staleOnly: false, starredOnly: false, watchedOnly: false, hideForest: false,
     minR: 0, maxU: 10000, maxUsd: null, minA: null, maxA: null, minAQuick: '', view: '', ski: '',
     sortKey: 'r', sortAsc: false, showArchived: false
   };
@@ -648,6 +649,7 @@ Land Parcel Coordinate: 8.06732191,98.75022994
   document.getElementById('distressOnly').onchange=e=>{state.distressOnly=e.target.checked;render();};
   document.getElementById('npaOnly').onchange=e=>{state.npaOnly=e.target.checked;render();};
   document.getElementById('nomineeOnly').onchange=e=>{state.nomineeOnly=e.target.checked;render();};
+  document.getElementById('freeholdOnly').onchange=e=>{state.freeholdOnly=e.target.checked;render();};
   document.getElementById('bigOnly').onchange=e=>{state.bigOnly=e.target.checked;render();};
   document.getElementById('staleOnly').onchange=e=>{state.staleOnly=e.target.checked;render();};
   document.getElementById('starredOnly').onchange=e=>{state.starredOnly=e.target.checked;render();};
@@ -715,6 +717,7 @@ Land Parcel Coordinate: 8.06732191,98.75022994
       if(state.distressOnly && (r.distress||0) < 30) return false;
       if(state.npaOnly && !r.npa) return false;
       if(state.nomineeOnly && !r.nominee) return false;
+      if(state.freeholdOnly && !(r.nominee && ['chanote','ns3g','ns3'].includes(r.nominee.title_q))) return false;
       if(state.bigOnly && (r.ac||0) < 25) return false;
       if(state.staleOnly && !((r.days_on_market||0) >= 90 || (r.total_drop_pct||0) >= 5)) return false;
       if(state.starredOnly && !shortlist[r.u]) return false;
@@ -936,7 +939,7 @@ Land Parcel Coordinate: 8.06732191,98.75022994
       ${r.size_mismatch?`<div class="detail-flag" style="background:#2a2010;color:#ffd060;border-color:#6a5020">⚠ Listing size vs official parcel: ${r.size_mismatch}× — verify which parcels the sale covers</div>`:''}
       ${r.npa?`<div class="detail-flag" style="background:#3a1a1a;color:#ff9090;border-color:#702030">🏦 NPA / Bank repossession (BAM) — disposal sale</div>`:(r.distressed?`<div class="detail-flag" style="background:#2a1a3a;color:#d49aff;border-color:#5a3070">💎 Distressed: bottom-quartile $/m² in ${r.rg}</div>`:'')}
       ${r.nominee?`<div class="detail-flag" style="background:#0f2a1a;color:#7ce8a8;border-color:#1e6a40">🎯 <b>Nominee-structure signals — leverage ${r.leverage}/100</b>
-        <div style="margin:6px 0 2px;font-size:12px">${r.nominee.own?`Ownership offered: <b>${r.nominee.own}</b> · `:''}${r.nominee.deed?`deed: <b>${r.nominee.deed}</b> · `:''}${r.nominee.dom?`on market <b>${(r.nominee.dom/365).toFixed(1)} yr</b>${r.nominee.listed?` (since ${r.nominee.listed})`:''} · `:''}${r.nominee.updated?`updated <b>${r.nominee.updated}</b> · `:''}signals: ${r.nominee.hits.map(h=>`<code style="background:#143020;padding:1px 5px;border-radius:3px">${h}</code>`).join(' ')}</div>
+        <div style="margin:6px 0 2px;font-size:12px">${(()=>{const q=r.nominee.title_q;const lbl=r.nominee.deed||q;const c=q==='chanote'?'#7ce38b':(q==='ns3g'||q==='ns3')?'#ffd166':'#ff9090';const tip=q==='chanote'?'full freehold — cleanly transferable':(q==='ns3g'||q==='ns3')?'transferable but weaker title — only if the land is special':'weak/unclear title';return `title: <b style="color:${c}" title="${tip}">${lbl}</b> · `;})()}${r.nominee.own?`ownership: <b>${r.nominee.own}</b> · `:''}${r.nominee.dom?`on market <b>${(r.nominee.dom/365).toFixed(1)} yr</b>${r.nominee.listed?` (since ${r.nominee.listed})`:''} · `:''}${r.nominee.updated?`updated <b>${r.nominee.updated}</b> · `:''}signals: ${r.nominee.hits.map(h=>`<code style="background:#143020;padding:1px 5px;border-radius:3px">${h}</code>`).join(' ')}</div>
         ${r.nominee.excerpt?`<div style="font-size:11px;color:#9ac8ad;margin:6px 0;font-style:italic">"${r.nominee.excerpt.slice(0,220)}…"</div>`:''}
         <div style="font-size:12px;line-height:1.55;margin-top:6px">This land appears to be held in a Thai company likely controlled by a foreign seller — a structure that is legally exposed (Land Code s.96 bis: nominee shareholding is prohibited; penalties include forced divestment). A seller in this position <b>cannot hold out</b>: the asset is wasting and the exit routes are few.
         <b>Playbook:</b> (1) never buy the company — you'd inherit the illegal structure and its liabilities; (2) insist on a direct chanote transfer at the Land Office to your own (compliant) structure, which forces the company to liquidate the land sale; (3) price the seller's exposure — 15–30% below comps is a rational opening; (4) verify at the DOL that the chanote is actually in the company's name and unencumbered before offering.</div></div>`:''}
