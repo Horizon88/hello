@@ -474,6 +474,14 @@ Land Parcel Coordinate: 8.06732191,98.75022994
       <button class="btn primary" id="addLinkSave">Add to list</button>
       <span id="addLinkSrc" style="font-size:12px;color:var(--txt-dim)"></span>
     </div>
+    <details style="margin-top:16px;font-size:12px;color:var(--txt-dim)">
+      <summary style="cursor:pointer;font-weight:600;color:#c98bff">🔎 Hunt Facebook for land — Thai groups &amp; marketplace</summary>
+      <div style="padding:8px 2px;line-height:1.7">
+        Opens Facebook (logged-in) filtered to land-for-sale in the hunt areas. Find a post → copy its link → paste it above.
+        <div id="fbGroupLinks" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+        <div style="font-size:11px;margin-top:8px">Tip: while viewing a post, the 📘 FB bookmarklet (under 📥 Import parcel) grabs its text with your login — the only way to read price/size, since FB posts are auth-walled.</div>
+      </div>
+    </details>
   </div>
 </div>
 
@@ -616,7 +624,8 @@ Land Parcel Coordinate: 8.06732191,98.75022994
   }
 
   const state = {
-    countries: new Set(ALL_COUNTRIES),
+    // Open focused on Thailand (the active hunt); other countries one click away.
+    countries: new Set(ALL_COUNTRIES.includes('Thailand') ? ['Thailand'] : ALL_COUNTRIES),
     type: 'all', distressedOnly: false, verifiedOnly: false, terraceOnly: false, foreignerOK: false, distressOnly: false, npaOnly: false, nomineeOnly: false, freeholdOnly: false, bigOnly: false, staleOnly: false, starredOnly: false, watchedOnly: false, hideForest: false,
     minR: 0, maxU: 10000, maxUsd: null, minA: null, maxA: null, minAQuick: '', view: '', ski: '',
     sortKey: 'r', sortAsc: false, showArchived: false
@@ -627,7 +636,7 @@ Land Parcel Coordinate: 8.06732191,98.75022994
   ALL_COUNTRIES.forEach(c=>{
     const n=DATA.filter(r=>r.cf===c).length;
     const chip=document.createElement('span');
-    chip.className='chip on'; chip.dataset.cs=c.slice(0,2);
+    chip.className='chip'+(state.countries.has(c)?' on':''); chip.dataset.cs=c.slice(0,2);
     chip.dataset.cf=c;
     chip.innerHTML=`<span class="dot" style="background:${COLORS[c]}"></span>${c} ${n}`;
     chip.onclick=(e)=>{
@@ -1858,6 +1867,18 @@ Land Parcel Coordinate: 8.06732191,98.75022994
     ['addLinkUrl','addLinkTitle','addLinkLoc','addLinkPrice','addLinkRai','addLinkCoord'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('addLinkSrc').textContent=''; addLinkBg.classList.add('show'); document.getElementById('addLinkUrl').focus();
   };
+  // Facebook land-hunt links: group search + marketplace, per hunt area.
+  // Search URLs (not hard-coded group IDs) so they never rot.
+  (function(){
+    const box=document.getElementById('fbGroupLinks'); if(!box) return;
+    const q=s=>encodeURIComponent(s);
+    const areas=['Koh Samui','Phuket','Krabi','Koh Phangan','Phang Nga'];
+    const links=[];
+    areas.forEach(a=>links.push({label:'👥 '+a+' groups', url:`https://www.facebook.com/search/groups/?q=${q(a+' land for sale')}`}));
+    links.push({label:'🛒 Marketplace · Thailand land', url:'https://www.facebook.com/marketplace/category/land'});
+    links.push({label:'🔎 Posts · ที่ดินขาย เกาะสมุย', url:`https://www.facebook.com/search/posts/?q=${q('ที่ดินขาย เกาะสมุย')}`});
+    box.innerHTML=links.map(l=>`<a href="${l.url}" target="_blank" rel="noopener" style="background:#2a1a3a;color:#c98bff;border:1px solid #5a3a6a;padding:4px 9px;border-radius:5px;text-decoration:none;font-size:11px">${l.label}</a>`).join('');
+  })();
   document.getElementById('addLinkClose').onclick = () => addLinkBg.classList.remove('show');
   addLinkBg.onclick = (e)=>{ if(e.target===addLinkBg) addLinkBg.classList.remove('show'); };
   document.getElementById('addLinkUrl').oninput = (e)=>{ const s=e.target.value.trim()?linkSource(e.target.value.trim()):''; document.getElementById('addLinkSrc').textContent = s?('source: '+s):''; };
