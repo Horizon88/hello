@@ -85,6 +85,22 @@ def ownership_field(body):
     m = re.search(r'Land Ownership.*?basic-information-info\s*">([^<]+)<', body, re.S)
     return m.group(1).strip() if m else ""
 
+def info_fields(body):
+    """All basic-information topic/value pairs: Date Listed, Updated,
+    Land Title Deed, View(s), …"""
+    pairs = re.findall(r'basic-information-topic\D{0,200}?>([A-Za-z][^<]{2,40})<.{0,600}?'
+                       r'basic-information-info\s*"?>([^<]{1,60})<', body, re.S)
+    return {t.strip().rstrip(':'): v.strip() for t, v in pairs}
+
+def days_on_market(date_listed):
+    """'Nov 28, 2022' → days since."""
+    from datetime import datetime
+    try:
+        dt = datetime.strptime(date_listed, "%b %d, %Y")
+        return max(0, (datetime.now() - dt).days)
+    except Exception:
+        return None
+
 def scan(desc):
     dl = desc.lower()
     for pat in BOILERPLATE:
@@ -135,8 +151,15 @@ if __name__ == "__main__":
         # current asking price from title (drop detection)
         m = re.search(r'for\s*\$([\d,]+)\s*\|', body)
         price_now = int(m.group(1).replace(",", "")) if m else None
+        info = info_fields(body)
+        dom = days_on_market(info.get("Date Listed", ""))
         rec = {"ok": True, "n": n_score, "e": e_score, "own": own,
-               "hits": nominee + exit_, "price_now": price_now}
+               "hits": nominee + exit_, "price_now": price_now,
+               "deed": info.get("Land Title Deed", ""),
+               "listed": info.get("Date Listed", ""),
+               "updated": info.get("Updated", ""),
+               "views": info.get("View(s)", ""),
+               "dom": dom}
         if n_score >= 20:
             rec["excerpt"] = desc[:400]
         out[u] = rec

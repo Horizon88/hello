@@ -1299,5 +1299,37 @@
   "distress_breakdown": null,
   "distress_keywords": null,
   "foreign_friction": -25
+ },
+ {
+  "tp": "land",
+  "cf": "Argentina",
+  "r": 108,
+  "rg": "Chubut",
+  "a": "Aldea Apeleg",
+  "ac": 6177.629,
+  "m2": 25000000,
+  "usd": 450000,
+  "upm": 0.018,
+  "v": "mountain",
+  "el": "",
+  "t": "Freehold (Ley 26.737: rural caps + border-zone clearance for foreigners)",
+  "lat": -43.8,
+  "lon": -69.5,
+  "cur": "USD",
+  "lp": "450000",
+  "rb": "src:argenprop+acc+16+size+92+val+10+foreign_ar_rural-10",
+  "imgs": [
+   "https://www.argenprop.com/static-content/06986381/6b67d197-0138-4ba2-9742-6b93a339630e_u_small.jpg"
+  ],
+  "u": "https://www.argenprop.com/campo-en-venta-en-aldea-apeleg--18368960",
+  "apt": "",
+  "apt_km": null,
+  "name": "Campo de 2500 has en Aldea Apeleg",
+  "ski_km": 178.62,
+  "ski_r": "La Hoya",
+  "coast_km": null,
+  "foreign_friction": -10,
+  "geocode_src": "city",
+  "alpine": true
  }
 ]

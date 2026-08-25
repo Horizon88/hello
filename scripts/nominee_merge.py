@@ -29,10 +29,29 @@ for r in d:
            "own": rec.get("own", "")}
     if rec.get("excerpt"):
         nom["excerpt"] = rec["excerpt"][:300]
+    # enrichment: deed quality, staleness, recent-bump
+    stale = 0
+    dom = rec.get("dom")
+    if dom:
+        nom["dom"] = dom
+        nom["listed"] = rec.get("listed", "")
+        if dom > 730: stale = 20
+        elif dom > 365: stale = 10
+        upd = (rec.get("updated") or "").lower()
+        if stale and any(k in upd for k in ("day", "week")):
+            stale += 5  # stale listing the seller is still actively bumping
+            nom["hits"] = nom["hits"] + ["stale-but-bumping"]
+    if rec.get("updated"):
+        nom["updated"] = rec["updated"]
+    deed = rec.get("deed", "")
+    if deed:
+        nom["deed"] = deed
+        if "chanote" in deed.lower():
+            stale += 5  # clean underlying title → clean transfer-out possible
     r["nominee"] = nom
-    r["leverage"] = min(100, rec["n"] + rec.get("e", 0))
+    r["leverage"] = min(100, rec["n"] + rec.get("e", 0) + stale)
     flagged += 1
-    if rec.get("e", 0) >= 15:
+    if rec.get("e", 0) >= 15 or stale >= 15:
         lever += 1
 
 json.dump(d, open("/home/user/hello/docs/listings.json", "w"), separators=(",", ":"))
