@@ -559,11 +559,19 @@ Land Parcel Coordinate: 8.06732191,98.75022994
         added: new Date().toISOString().slice(0,10),
         seed_usd: r.usd,
         cf: r.cf, rg: r.rg, ac: r.ac, name: r.name,
+        status: 'watching', offers: [], notes: '',
       };
     }
     saveWatch(watchlist);
     updateWatchChip();
   }
+  // ---- deal tracking on watched listings (offers / status / notes) ----
+  const DEAL_STATUSES = ['watching','bid','countered','negotiating','won','passed'];
+  const DEAL_COLORS = {watching:'#9aa3b2',bid:'#4fa3ff',countered:'#ffb86c',negotiating:'#ffb86c',won:'#7ce38b',passed:'#6b6659'};
+  function ensureDeal(u){ const m=watchlist[u]; if(!m) return null; if(!m.offers) m.offers=[]; if(!m.status) m.status='watching'; if(m.notes==null) m.notes=''; return m; }
+  function setDealStatus(u,s){ const m=ensureDeal(u); if(!m)return; m.status=s; saveWatch(watchlist); updateWatchChip(); }
+  function addDealOffer(u,o){ const m=ensureDeal(u); if(!m)return; m.offers.push(o); if(m.status==='watching') m.status='bid'; saveWatch(watchlist); updateWatchChip(); }
+  function setDealNotes(u,v){ const m=ensureDeal(u); if(!m||m.notes===v)return; m.notes=v; saveWatch(watchlist); }
   function updateWatchChip(){
     const wc = document.getElementById('wlChip');
     if (!wc) return;
@@ -968,6 +976,22 @@ Land Parcel Coordinate: 8.06732191,98.75022994
         ${r.lat?`<div><div class="k">coords</div><div class="v" style="font-family:monospace;font-size:11px">${r.lat}, ${r.lon}</div></div>`:''}
       </div>
       ${r.lat?`<div id="detailMap"></div>`:`<div id="detailMap" class="empty">no coordinates available</div>`}
+      ${(()=>{ const m=watchlist[r.u]; if(!m) return `<div id="dealPrompt" style="margin-top:12px;padding:10px 12px;border:1px dashed var(--border);border-radius:8px;color:var(--txt-dim);font-size:12px">💬 <b>Track a deal here</b> — click 👁 Watch below to record bids, offers &amp; notes on this listing.</div>`;
+        const offers=(m.offers||[]); const last=offers.length?offers[offers.length-1]:null;
+        const seed=m.seed_usd||r.usd; const pctOfAsk=(last&&r.usd)?Math.round(last.amount/r.usd*100):null;
+        return `<div id="dealPanel" style="margin-top:12px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--panel2)">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+            <b style="font-size:13px">💬 Deal tracking</b>
+            <div style="display:flex;gap:4px;flex-wrap:wrap">${DEAL_STATUSES.map(s=>`<button class="btn" data-dealstatus="${s}" style="padding:3px 9px;font-size:11px;${m.status===s?`background:${DEAL_COLORS[s]};color:#111;border-color:${DEAL_COLORS[s]}`:''}">${s}</button>`).join('')}</div>
+          </div>
+          ${offers.length?`<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px"><thead><tr style="text-align:left;color:var(--txt-dim)"><th style="padding:3px 6px;font-weight:600">date</th><th>bid</th><th>% ask</th><th>their reply</th></tr></thead><tbody>${offers.map(o=>`<tr style="border-top:1px solid var(--border)"><td style="padding:3px 6px;font-family:monospace">${o.date}</td><td style="font-family:monospace">$${(o.amount||0).toLocaleString()}</td><td style="font-family:monospace;color:var(--txt-dim)">${r.usd?Math.round(o.amount/r.usd*100)+'%':''}</td><td>${o.response?o.response.replace(/</g,'&lt;'):'—'}</td></tr>`).join('')}</tbody></table>`:''}
+          <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;align-items:center">
+            <input id="dealBid" type="number" placeholder="Bid (USD)" style="width:120px;background:var(--panel);border:1px solid var(--border);color:var(--txt);border-radius:6px;padding:6px 8px;font-family:monospace">
+            <input id="dealResp" placeholder="Their reply (optional)" style="flex:1;min-width:120px;background:var(--panel);border:1px solid var(--border);color:var(--txt);border-radius:6px;padding:6px 8px">
+            <button class="btn" id="dealAddOffer" style="padding:6px 12px">Log offer</button>
+          </div>
+          <textarea id="dealNotes" placeholder="Notes — negotiation state, contacts, title checks, next action…" style="width:100%;margin-top:8px;background:var(--panel);border:1px solid var(--border);color:var(--txt);border-radius:6px;padding:8px;font-size:13px;resize:vertical;min-height:52px">${(m.notes||'').replace(/</g,'&lt;')}</textarea>
+        </div>`; })()}
       <div class="detail-actions">
         ${archives[r.u]
           ? `<button class="btn" id="detailUnarch">↺ Restore from archive</button>`
@@ -982,7 +1006,16 @@ Land Parcel Coordinate: 8.06732191,98.75022994
     const ub=document.getElementById('detailUnarch'); if(ub) ub.onclick=()=>{ delete archives[r.u]; saveArchives(archives); detailBg.classList.remove('show'); render(); };
     const pb=document.getElementById('detailPromote'); if(pb) pb.onclick=()=>{ detailBg.classList.remove('show'); openPromote(r.u); };
     const fs=document.getElementById('detailFindSimilar'); if(fs) fs.onclick=()=>{ detailBg.classList.remove('show'); openShortlistView(); };
-    const wb=document.getElementById('detailWatch'); if(wb) wb.onclick=()=>{ toggleWatch(r); detailBg.classList.remove('show'); openDetail(r.u); };
+    const wb=document.getElementById('detailWatch'); if(wb) wb.onclick=()=>{ toggleWatch(r); openDetail(r); };
+    // deal-tracking panel wiring (only present when watched)
+    detailBody.querySelectorAll('[data-dealstatus]').forEach(el=>{ el.onclick=()=>{ setDealStatus(r.u, el.dataset.dealstatus); openDetail(r); }; });
+    const dao=document.getElementById('dealAddOffer'); if(dao) dao.onclick=()=>{
+      const bid=document.getElementById('dealBid').value, resp=document.getElementById('dealResp').value;
+      if(!bid){ document.getElementById('dealBid').focus(); return; }
+      addDealOffer(r.u,{date:new Date().toISOString().slice(0,10), amount:Number(bid), response:(resp||'').trim()});
+      openDetail(r);
+    };
+    const dn=document.getElementById('dealNotes'); if(dn) dn.onblur=()=>setDealNotes(r.u, dn.value);
     detailBg.classList.add('show');
     if(r.lat){
       setTimeout(()=>{
@@ -1235,22 +1268,26 @@ Land Parcel Coordinate: 8.06732191,98.75022994
     }
     body.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px">
       <thead><tr style="border-bottom:1px solid var(--border);text-align:left">
-        <th style="padding:6px">added</th><th>country</th><th>region</th><th>ac</th>
-        <th>seed $</th><th>now $</th><th>change</th><th>name</th><th></th>
+        <th style="padding:6px">added</th><th>status</th><th>region</th><th>ac</th>
+        <th>seed $</th><th>now $</th><th>change</th><th>last bid</th><th>name</th><th></th>
       </tr></thead><tbody>
       ${entries.map(({u, meta, row, cur, seed, drop})=>{
         const gone = !row;
         const changePct = (seed && cur) ? ((cur-seed)/seed*100).toFixed(1) : null;
         const color = drop>=10?'#7ce38b':drop>=5?'#9fd96d':drop>0?'#ffd166':gone?'#ff8080':'var(--txt-dim)';
         const changeTxt = gone ? '⛔ delisted' : (changePct===null?'':(cur<seed?`↓${(-changePct)}%`:cur>seed?`↑${changePct}%`:'—'));
+        const st = meta.status||'watching';
+        const offers = meta.offers||[]; const last = offers.length?offers[offers.length-1]:null;
         return `<tr style="border-bottom:1px solid var(--border)">
           <td style="padding:6px;color:var(--txt-dim);font-size:11px">${meta.added||''}</td>
-          <td>${meta.cf||''}</td><td>${meta.rg||''}</td>
+          <td><span style="font-size:11px;font-weight:600;color:${DEAL_COLORS[st]||'#9aa3b2'}">${st}</span></td>
+          <td>${meta.rg||''}</td>
           <td>${meta.ac||''}</td>
           <td>$${(seed||0).toLocaleString()}</td>
           <td>${gone?'—':'$'+(cur||0).toLocaleString()}</td>
           <td style="color:${color};font-weight:600">${changeTxt}</td>
-          <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${meta.name||''}</td>
+          <td style="font-family:monospace">${last?'$'+(last.amount||0).toLocaleString():'—'}</td>
+          <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(meta.notes||'').replace(/"/g,'&quot;')}">${meta.name||''}${meta.notes?' <span style="color:var(--txt-dim)">📝</span>':''}</td>
           <td><a href="${u}" target="_blank" style="color:#4fa3ff">↗</a>
               <button class="btn" style="padding:2px 6px;font-size:11px;margin-left:4px" data-unwatch="${encodeURIComponent(u)}">✕</button></td>
         </tr>`;
