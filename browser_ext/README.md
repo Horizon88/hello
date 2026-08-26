@@ -1,63 +1,48 @@
-# 🌏 Land Scout — DOL + Facebook auto-capture
+# Land Scout — Facebook + DOL auto-capture (for Siri)
 
-A Chrome/Edge extension that silently captures Thai land parcels and Facebook land-sale posts as you browse. One-click push everything into your Land app's Deed Log.
+A tiny Chrome/Edge extension that reads Thai land-sale posts from **your own
+logged-in Facebook** (feed, groups, Marketplace) and DOL parcels, and sends
+them into the land app as **scored listings** — with distress detection and
+bid guidance applied automatically.
 
-## Why
+Facebook posts are behind a login wall, so this is the *only* way to pull them:
+the extension runs inside your session, in your browser. Nothing leaves your
+machine except when you click **Send to app**.
 
-Copy-paste one-at-a-time doesn't scale. You already log into DOL Landsmaps and Facebook every day. This extension watches those tabs and grabs the data automatically.
+## Install (2 minutes)
 
-## Install (unpacked — 30 seconds)
+1. Open **chrome://extensions** (or edge://extensions).
+2. Turn on **Developer mode** (top-right).
+3. Click **Load unpacked** and pick this `browser_ext` folder.
+4. Pin the **Land Scout** icon to your toolbar.
 
-1. Open Chrome / Edge → `chrome://extensions/`
-2. Toggle **Developer mode** (top-right)
-3. Click **Load unpacked** → pick this `browser_ext/` folder
-4. Pin the extension icon to your toolbar (jigsaw-piece → thumbtack)
+## Use it
 
-## Use
+1. Log into Facebook and open the Thai land-sale **groups** (or Marketplace).
+   From the app: **🔗 Add by link → Hunt Facebook** opens the right searches.
+2. **Scroll.** As land posts (with a price + ไร่/rai) scroll past, a green
+   toast confirms each capture — you don't click anything.
+3. Click the **Land Scout toolbar icon** → **Send to app**. It opens the land
+   app and imports every new post into your list, scored and mapped.
 
-**On DOL Landsmaps** (`landsmaps.dol.go.th`):
-- Log in with your Thai ID as usual
-- Click any parcel — the info panel appears
-- Extension silently captures: deed #, coord, area, sub-district, valuation
-- Green toast bottom-right confirms capture
+## What it captures per post
 
-**On Facebook** (`facebook.com` — feed, groups, marketplace):
-- Scroll normally
-- Extension detects any post with "ราคา" + "ไร่" (price + rai) signals
-- Blue toast confirms new captures
+price (฿ / ล้าน / per-rai) · size (ไร่ + งาน + วา) · GPS coords if present ·
+title-deed hint (Chanote / NS3G / SPK warning) · **distress signals**
+(ด่วน / ขายด่วน / ลดราคา / owner-direct / leaving …) · seller name · contact
+phone · first photo · the post permalink. Duplicates are skipped automatically.
 
-**When you're ready to review:**
-- Click the extension icon
-- See totals: DOL parcels, FB posts
-- Click **📤 Send all → Land app** — opens the app with everything imported into your Deed Log
-- Or **📋 Copy as TSV** to paste elsewhere
+## In the app
+
+Each FB post becomes a Thailand land listing with `src:fb-capture`, so it gets
+the same treatment as everything else: distress score, **💰 bid guidance**
+(fair value + suggested opening bid vs the ask), and full deal tracking
+(status, offers, You/Siri approvals). Sort by 🔥 distress to see the keenest
+sellers first.
 
 ## Privacy
 
-- Runs entirely in your browser
-- No data leaves your device except when you click "Send all"
-- Auth cookies (Thai ID, FB session) never touched
-- Storage: `chrome.storage.local` (browser-only)
-
-## What it captures
-
-**DOL parcels:**
-- Title deed # / โฉนดเลขที่
-- Coord (lat, lng)
-- Area (rai + ngan + wah, plus decimal rai)
-- Sub-district, district, province
-- Map sheet number
-- Treasury valuation (฿/sqwa)
-
-**FB posts** (heuristic — post must contain both rai + price):
-- Coord (from Google Maps link or plain lat/lng in text)
-- Rai count
-- Price THB (auto-multiplies per-rai to total)
-- Contact phone (Thai formats)
-- Title hint (Chanote / SPK)
-- Location keywords
-- Text preview for dedup
-
-## Updating
-
-The extension is stateless — pull the latest `browser_ext/` from the repo, then in `chrome://extensions/` click the refresh icon on the Land Scout card.
+Everything is local to your browser until you press **Send to app**. Your
+Facebook login and cookies are never read or transmitted — the extension only
+reads the visible text/photos of posts you scroll past, exactly what you can
+already see.

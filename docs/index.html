@@ -2257,21 +2257,36 @@ Land Parcel Coordinate: 8.06732191,98.75022994
         });
         added++;
       }
+      // FB posts → scored user listings in the MAIN list (mapped, scored,
+      // bid-guided, trackable) — this is where the FB action becomes inventory.
+      let fbAdded = 0;
       for(const p of fbItems){
-        // dedup by contact phone + rai heuristic
-        if(deeds.some(d => d.owner && p.contact && d.owner === p.contact && d.rai === p.rai)){ skipped++; continue; }
-        deeds.unshift({
-          deed: '', location: p.location || 'FB post',
-          lat: p.lat || null, lng: p.lng || null, rai: p.rai || null,
-          ask_thb: p.price_thb || null, zone: '', owner: p.contact || '',
-          notes: `FB · ${(p.text_preview||'').slice(0,150)}${p.title_hint?' · '+p.title_hint:''}`,
-          status: 'evaluating', added: p.captured_at ? p.captured_at.slice(0,10) : new Date().toISOString().slice(0,10),
-        });
-        added++;
+        const u = p.permalink || p.source_url || ('fb:'+p.id);
+        if(DATA.some(r => r.u===u) || userListings.some(r=>r.u===u)){ skipped++; continue; }
+        const usd = p.price_thb ? Math.round(p.price_thb/36) : null;
+        const ac = p.rai ? +(p.rai*0.3954).toFixed(3) : null;
+        const m2 = ac ? Math.round(ac*4046.86) : null;
+        const distress = p.distress ? Math.min(60, p.distress.length*18) : 0;
+        const row = {
+          tp:'land', cf:'Thailand', r:0,
+          rg: p.location || 'FB (Thailand)', a:'',
+          ac, m2, usd, upm:(usd&&m2)?+(usd/m2).toFixed(2):null,
+          v:'', t: p.title_hint||'FB post — verify title', lat:p.lat||null, lon:p.lng||null,
+          cur:'THB', lp: p.price_thb?String(p.price_thb):'',
+          rb:'src:fb-capture'+(p.distress?'+'+p.distress.map(x=>x+'+18').join('+'):''),
+          imgs: p.img?[p.img]:[], u,
+          name: (p.seller?p.seller+' — ':'')+((p.text_preview||'FB land post').slice(0,120)),
+          ski_km:null, ski_r:'', coast_km:null,
+          user_added:true, source:'facebook', added: p.captured_at?p.captured_at.slice(0,10):new Date().toISOString().slice(0,10),
+          distress: distress||undefined, distress_breakdown: p.distress?p.distress.map(x=>[x,18]):undefined,
+          seller: p.seller||'', contact: p.contact||'', fb_text: p.text_preview||'',
+        };
+        userListings.unshift(row); DATA.unshift(row); fbAdded++; added++;
       }
+      if(fbAdded) saveUserListings(userListings);
       saveDeeds(deeds);
-      alert(`Imported ${added} new items (${skipped} were duplicates). Opening Deed Log…`);
-      setTimeout(() => document.getElementById('deedLogChip').click(), 300);
+      alert(`Imported ${added} new items (${fbAdded} FB listings into your list, ${dolItems.length?added-fbAdded+' to Deed Log, ':''}${skipped} duplicates).`);
+      if(fbAdded){ render(); } else setTimeout(() => document.getElementById('deedLogChip').click(), 300);
       // Clean the hash so a refresh doesn't re-import
       history.replaceState(null, '', location.pathname + location.search);
     } catch(e){

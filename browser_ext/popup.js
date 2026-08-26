@@ -1,4 +1,4 @@
-const APP_URL = 'https://raw.githack.com/Horizon88/hello/master/docs/index.html';
+const APP_URL = 'https://raw.githack.com/Horizon88/hello/claude/thai-forest-map-viewer-gxNqV/docs/index.html';
 
 async function refresh(){
   const {parcels = {}, fb_posts = {}} = await chrome.storage.local.get(['parcels', 'fb_posts']);

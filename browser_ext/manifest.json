@@ -1,9 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "Land Scout — DOL + FB auto-capture",
-  "version": "0.1.0",
-  "description": "Silently captures every Thai DOL parcel and Facebook land-sale post you view. Pushes them into your land-eval app in one click.",
-  "permissions": ["storage", "activeTab"],
+  "name": "Land Scout \u2014 DOL + FB auto-capture",
+  "version": "0.2.0",
+  "description": "Captures Thai land-sale posts from your logged-in Facebook (feed/groups/marketplace) + DOL parcels \u2014 with photos, price, size, coords, seller, and distress signals \u2014 and sends them into your land app as scored listings.",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
   "host_permissions": [
     "https://landsmaps.dol.go.th/*",
     "https://dolwebservice.dol.go.th/*",
@@ -13,18 +16,28 @@
   ],
   "content_scripts": [
     {
-      "matches": ["https://landsmaps.dol.go.th/*", "https://dolwebservice.dol.go.th/*"],
-      "js": ["capture-dol.js"],
+      "matches": [
+        "https://landsmaps.dol.go.th/*",
+        "https://dolwebservice.dol.go.th/*"
+      ],
+      "js": [
+        "capture-dol.js"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://www.facebook.com/*", "https://m.facebook.com/*"],
-      "js": ["capture-fb.js"],
+      "matches": [
+        "https://www.facebook.com/*",
+        "https://m.facebook.com/*"
+      ],
+      "js": [
+        "capture-fb.js"
+      ],
       "run_at": "document_idle"
     }
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Land Scout — captured items"
+    "default_title": "Land Scout \u2014 captured items"
   }
 }
