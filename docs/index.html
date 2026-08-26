@@ -486,6 +486,21 @@ Land Parcel Coordinate: 8.06732191,98.75022994
   </div>
 </div>
 
+<!-- Draft offer message -->
+<div class="modal-bg" id="offerDraftBg">
+  <div class="modal" style="max-width:560px">
+    <h3 style="display:flex;align-items:center;gap:8px">✍ Draft offer message
+      <button class="close" id="offerDraftClose" style="margin-left:auto">×</button></h3>
+    <p style="color:var(--txt-dim);font-size:12px;margin:6px 0 10px">A firm, comps-backed offer you send <b>yourself</b> through the listing's own contact. Edit as you like, then copy. This is your negotiation — not an automated blast (see why below).</p>
+    <div id="offerDraftNums" style="font-family:monospace;font-size:12px;margin-bottom:8px"></div>
+    <textarea id="offerDraftText" rows="11" style="width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:10px;border-radius:6px;font-size:13px;line-height:1.5"></textarea>
+    <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+      <button class="btn primary" id="offerDraftCopy">Copy message</button>
+      <span style="font-size:11px;color:var(--txt-dim)">Paste into the listing's contact form / chat, or into a message to the FB seller.</span>
+    </div>
+  </div>
+</div>
+
 <!-- Cross-device sync setup (Firebase) -->
 <div class="modal-bg" id="syncBg">
   <div class="modal" style="max-width:540px">
@@ -1014,6 +1029,46 @@ Land Parcel Coordinate: 8.06732191,98.75022994
     return { fair, opening, belowAsk: 1-opening/r.usd, medUpm, n:comps.length, basis, disc, overFair: r.usd/fair-1, titleMult, tq, dom };
   }
 
+  // ---- offer-message drafter (you send it yourself; comps-backed) ----
+  const offerDraftBg = document.getElementById('offerDraftBg');
+  window.__draftOffer = (u)=>{
+    const url = decodeURIComponent((u||'').replace(/%27/g,"'"));
+    const r = DATA.find(x=>x.u===url); if(!r) return;
+    const fv = fairValue(r);
+    const thb = n => '฿'+Math.round(n*36).toLocaleString();
+    const usd = n => '$'+Math.round(n).toLocaleString();
+    const target = fv ? (fv.overFair>1.0 ? fv.fair : fv.opening) : r.usd*0.85;
+    const perRaiThb = fv ? Math.round(fv.medUpm*1600*36) : null;
+    const yrs = (r.days_on_market || (r.nominee&&r.nominee.dom) || 0)/365;
+    const bits = [];
+    if(fv) bits.push(`comparable same-size land nearby trades around ${usd(fv.medUpm)}/m²${perRaiThb?` (≈฿${perRaiThb.toLocaleString()}/rai)`:''}`);
+    if(yrs>=1) bits.push(`this parcel has been listed ~${yrs.toFixed(1)} years`);
+    if(r.nominee) bits.push(`it is held in a Thai company, which a compliant buyer has to unwind at the Land Office`);
+    const reason = bits.length ? ('Reflecting that '+bits.join(', and ')+',') : 'Based on current market comparables,';
+    const en =
+`Hello — I'm a ready buyer (cash, funds in place) interested in your land${r.rg?` at ${r.rg}`:''}.
+
+${reason} I would like to offer ${thb(target)} (about ${usd(target)}).
+
+I can move quickly and close cleanly via a direct transfer at the Land Office. If that works as a starting point, I'm happy to arrange a survey and title check this month. Open to discussing the number.`;
+    const th =
+`สวัสดีครับ ผมเป็นผู้ซื้อที่พร้อมชำระด้วยเงินสด สนใจที่ดินของคุณ${r.rg?`ที่ ${r.rg}`:''}
+
+จากการเปรียบเทียบที่ดินขนาดใกล้เคียงในพื้นที่${perRaiThb?` (ประมาณ ฿${perRaiThb.toLocaleString()} ต่อไร่)`:''}${yrs>=1?` และที่ดินแปลงนี้ประกาศขายมาประมาณ ${yrs.toFixed(1)} ปี`:''} ผมขอเสนอราคา ${thb(target)}
+
+ผมพร้อมดำเนินการโอนที่กรมที่ดินได้ทันที ยินดีพูดคุยเรื่องราคาครับ`;
+    document.getElementById('offerDraftNums').innerHTML =
+      `Ask <b>${usd(r.usd)}</b> · Fair <b style="color:#9fd96d">${fv?usd(fv.fair):'—'}</b> · Your offer <b style="color:#ffd166">${usd(target)}</b> (${thb(target)})`;
+    document.getElementById('offerDraftText').value = en + '\n\n— — —\n\n' + th;
+    offerDraftBg.classList.add('show');
+  };
+  document.getElementById('offerDraftClose').onclick = ()=>offerDraftBg.classList.remove('show');
+  offerDraftBg.onclick = (e)=>{ if(e.target===offerDraftBg) offerDraftBg.classList.remove('show'); };
+  document.getElementById('offerDraftCopy').onclick = ()=>{
+    const t=document.getElementById('offerDraftText'); t.select();
+    navigator.clipboard.writeText(t.value).then(()=>{ const b=document.getElementById('offerDraftCopy'); const o=b.textContent; b.textContent='✓ Copied'; setTimeout(()=>b.textContent=o,1500); });
+  };
+
   let openDetailUrl=null;
   function openDetail(r){
     openDetailUrl=r.u;
@@ -1081,7 +1136,7 @@ Land Parcel Coordinate: 8.06732191,98.75022994
           over>1.0 ? `<b style="color:#ff8080">⚠ +${Math.round(over*100)}% over comparable land</b> — anchored for a walk-in buyer, or the title isn't clean freehold. Treat <b>$${Math.round(fv.fair).toLocaleString()}</b> as the ceiling, not a % off the ask.`
           : over<-0.5 ? `<b style="color:#ffb86c">⚠ ${Math.round(-over*100)}% under comparable freehold</b> — verify it's genuinely ${fv.tq==='chanote'?'Chanote':'clean freehold'} at this size/price (often a lease, partial plot, or data error) before trusting the deal. If it checks out, open near <b>$${Math.round(fv.opening).toLocaleString()}</b> and move fast.`
           : `${over>0.12?`Listing is <b style="color:#ff8080">+${Math.round(over*100)}% over fair</b>. `:(over<-0.12?`Listing is <b style="color:#7ce38b">${Math.round(-over*100)}% under fair</b> — keen. `:`Roughly at fair. `)}Open at <b>${Math.round(fv.belowAsk*100)}% below ask</b> — ${[r.leverage?`leverage ${r.leverage}`:null, r.distress?`distress ${r.distress}`:null, fv.dom?`${(fv.dom/365).toFixed(1)}yr on market`:null].filter(Boolean).join(' · ')||'standard margin'}.`
-        } <span style="color:var(--txt-dim)">Verify comps + title before offering.</span></div></div>`; })()}
+        } <span style="color:var(--txt-dim)">Verify comps + title before offering.</span></div><button class="btn" onclick="window.__draftOffer && window.__draftOffer('${(r.u||'').replace(/'/g,'%27')}')" style="margin-top:9px;padding:5px 12px;font-size:12px;border-color:#2a5a70;color:#8fd0e8">✍ Draft offer message</button></div>`; })()}
       ${r.cf==='Thailand' && r.lat && window.__forestHits ? (()=>{ const h = window.__forestHits(r.lat, r.lon); return h.length?`<div class="detail-flag" style="background:#3a1a1a;color:#ff8080;border-color:#a03030">🚫 <b>Encroaches Thai protected area</b> — this coord sits inside <b>${h.map(x=>x.name_en||x.name).join(', ').slice(0,120)}</b>. Land within a national park / wildlife sanctuary / forest reserve cannot be privately owned; sale is likely null under Thai law.</div>`:'' })() : ''}
       ${r.cf==='Thailand' && r.ac ? (()=>{ const flags=[]; const rai = r.ac / 0.3954; const hotelRoomsEst = Math.floor(r.ac * 5); /* rough: 5 rooms per acre for mid-density resort */ if (r.coast_km!=null && r.coast_km <= 1) flags.push('within 1 km of shore — any building >4 storeys triggers EIA regardless of size'); if (rai >= 80 && rai < 100) flags.push(`${rai.toFixed(1)} rai — approaching the 100-rai land-subdivision EIA threshold`); if (rai >= 100) flags.push(`${rai.toFixed(1)} rai (≥100) — subdivision triggers EIA (MoNRE Notification B.E. 2562)`); if (r.ac >= 15) flags.push(`build-out ≥ 80 rooms is EIA-required — realistic for ${r.ac.toFixed(1)} ac boutique-hotel scale`); if (r.viewpoints && r.viewpoints.some(v => /karst|nangshe|railay|ao\\s*nang/i.test(v.name))) flags.push('karst-adjacent — slopes >35% require EEA (Enhanced Environmental Assessment) run by ONEP, not standard EIA'); return flags.length?`<div class="detail-flag" style="background:#2a2515;color:#ffd166;border-color:#7a5020">⚠ <b>Thai regulatory risk (auto-checked)</b><ul style="margin:6px 0 0 18px;padding:0;line-height:1.5">${flags.map(f=>`<li>${f}</li>`).join('')}</ul><div style="font-size:11px;color:var(--txt-dim);margin-top:6px">Verify before offering: (1) zoning inquiry to Krabi/Phuket/Samui Provincial Town-Planning Office ~฿2k, 1-2 wk turnaround. (2) topographic survey ~฿30-60k for slope %. Both worth it to price the EIA-risk out of the deal.</div></div>`:'' })() : ''}
       ${r.tp==='penthouse' && (r.pool||r.fullfloor||r.duplex||r.floor)?`<div class="sub" style="margin-bottom:10px">${[r.pool?'🏊 private pool/jacuzzi':null, r.fullfloor?'🏢 full floor':null, r.duplex?'🏛 duplex':null, r.floor?'floor '+r.floor:null].filter(Boolean).join(' · ')}</div>`:''}
