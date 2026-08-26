@@ -212,6 +212,7 @@
   <span class="chip" id="deedLogChip" style="background:#3a2a1a;color:#ffd166;border-color:#ffd166;cursor:pointer" title="Your persistent deed evaluation workspace">📒 Deed Log <span id="deedLogCount">0</span></span>
   <span class="chip" id="importChip" style="background:#1a2a3a;color:#4fa3ff;border-color:#4fa3ff;cursor:pointer" title="Paste text from DOL / Facebook / any listing — auto-parse into a deed row">📥 Import parcel</span>
   <span class="chip" id="addLinkChip" style="background:#2a1a3a;color:#c98bff;border-color:#c98bff;cursor:pointer" title="Paste a Facebook / listing link — adds it to your list to track">🔗 Add by link</span>
+  <span class="chip" id="syncChip" style="background:#1a2a2a;color:#6bd0c0;border-color:#6bd0c0;cursor:pointer" title="Sync deals & offers between you and Siri across devices">☁ Sync <span id="syncState">off</span></span>
   <span class="chip" id="regChip" style="display:none;cursor:pointer" title="Open regulatory watch">📜 Regulatory <span id="regCount">0</span></span>
 </header>
 
@@ -485,6 +486,42 @@ Land Parcel Coordinate: 8.06732191,98.75022994
   </div>
 </div>
 
+<!-- Cross-device sync setup (Firebase) -->
+<div class="modal-bg" id="syncBg">
+  <div class="modal" style="max-width:540px">
+    <h3 style="display:flex;align-items:center;gap:8px">☁ Sync with Siri
+      <button class="close" id="syncClose" style="margin-left:auto">×</button></h3>
+    <p style="color:var(--txt-dim);font-size:13px;margin:6px 0 10px">Share your watchlist, offers, and approvals live across both your phones. One-time setup: create a free Firebase project, paste its config + a shared room name. Both of you use the <b>same config + room</b>.</p>
+    <div id="syncStatusLine" style="font-size:12px;margin-bottom:10px"></div>
+    <label style="font-size:11px;color:var(--txt-dim);text-transform:uppercase;letter-spacing:.05em">Firebase config (the JSON from your project settings)</label>
+    <textarea id="syncConfig" rows="7" placeholder='{
+  "apiKey": "...",
+  "databaseURL": "https://your-project-default-rtdb.firebaseio.com",
+  "projectId": "..."
+}' style="width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:8px;border-radius:6px;font-family:monospace;font-size:11px;margin-top:4px"></textarea>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+      <div><label style="font-size:11px;color:var(--txt-dim);text-transform:uppercase">Room name (shared secret)</label>
+        <input id="syncRoom" placeholder="e.g. ed-and-siri-2026" style="width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:8px;border-radius:6px;margin-top:4px"></div>
+      <div><label style="font-size:11px;color:var(--txt-dim);text-transform:uppercase">Partner's name</label>
+        <input id="syncPartner" placeholder="Siri" style="width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:8px;border-radius:6px;margin-top:4px"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+      <button class="btn primary" id="syncConnect">Connect</button>
+      <button class="btn" id="syncDisconnect" style="display:none">Disconnect</button>
+    </div>
+    <details style="margin-top:14px;font-size:12px;color:var(--txt-dim)">
+      <summary style="cursor:pointer">📖 How to get a free Firebase config (2 min)</summary>
+      <ol style="margin:8px 0 0 18px;line-height:1.7">
+        <li>Go to <b>console.firebase.google.com</b> → Add project (any name) → skip Analytics.</li>
+        <li>Build → <b>Realtime Database</b> → Create Database → Start in <b>test mode</b>.</li>
+        <li>Project settings (⚙) → scroll to <b>Your apps</b> → Web (&lt;/&gt;) → register → copy the <code>firebaseConfig</code> object.</li>
+        <li>Paste it above, pick a room name, hit Connect. Send Siri the same config + room name.</li>
+      </ol>
+      <div style="margin-top:6px;font-size:11px">Test mode is fine to start; anyone who knows your room name + config can read it, so keep them private. Ask me to add locked-down security rules once it works.</div>
+    </details>
+  </div>
+</div>
+
 <div class="modal-bg" id="plotCheckBg">
   <div class="modal" style="max-width:820px;width:95%;max-height:92vh;overflow:auto">
     <h3 style="display:flex;align-items:center;gap:8px">🇹🇭 Check a Thai plot
@@ -539,6 +576,10 @@ Land Parcel Coordinate: 8.06732191,98.75022994
 
 <script src="vendor/leaflet.js"></script>
 <script src="vendor/leaflet.markercluster.js"></script>
+<!-- Firebase (optional cross-device sync for the deal book). Loads from gstatic;
+     if blocked, the app runs fine local-only (sync silently stays off). -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script>
 (async function(){
   const loadingEl = document.createElement('div');
@@ -591,6 +632,7 @@ Land Parcel Coordinate: 8.06732191,98.75022994
   function toggleWatch(r){
     if (watchlist[r.u]) {
       delete watchlist[r.u];
+      saveWatch(watchlist); syncRemove(r.u);
     } else {
       watchlist[r.u] = {
         added: new Date().toISOString().slice(0,10),
@@ -598,20 +640,26 @@ Land Parcel Coordinate: 8.06732191,98.75022994
         cf: r.cf, rg: r.rg, ac: r.ac, name: r.name,
         status: 'watching', offers: [], notes: '',
       };
+      saveWatch(watchlist); syncPush(r.u);
     }
-    saveWatch(watchlist);
     updateWatchChip();
   }
   // ---- deal tracking on watched listings (offers / status / notes) ----
   const DEAL_STATUSES = ['watching','bid','countered','negotiating','won','passed'];
   const DEAL_COLORS = {watching:'#9aa3b2',bid:'#4fa3ff',countered:'#ffb86c',negotiating:'#ffb86c',won:'#7ce38b',passed:'#6b6659'};
   function ensureDeal(u){ const m=watchlist[u]; if(!m) return null; if(!m.offers) m.offers=[]; if(!m.status) m.status='watching'; if(m.notes==null) m.notes=''; return m; }
-  function setDealStatus(u,s){ const m=ensureDeal(u); if(!m)return; m.status=s; saveWatch(watchlist); updateWatchChip(); }
-  function addDealOffer(u,o){ const m=ensureDeal(u); if(!m)return; m.offers.push(o); if(m.status==='watching') m.status='bid'; saveWatch(watchlist); updateWatchChip(); }
-  function toggleOfferField(u,idx,field){ const m=ensureDeal(u); if(!m||!m.offers[idx])return; m.offers[idx][field]=!m.offers[idx][field]; if(field==='sent'&&m.offers[idx].sent&&m.status==='bid') m.status='countered'; saveWatch(watchlist); updateWatchChip(); }
+  function setDealStatus(u,s){ const m=ensureDeal(u); if(!m)return; m.status=s; saveWatch(watchlist); syncPush(u); updateWatchChip(); }
+  function addDealOffer(u,o){ const m=ensureDeal(u); if(!m)return; m.offers.push(o); if(m.status==='watching') m.status='bid'; saveWatch(watchlist); syncPush(u); updateWatchChip(); }
+  function toggleOfferField(u,idx,field){ const m=ensureDeal(u); if(!m||!m.offers[idx])return; m.offers[idx][field]=!m.offers[idx][field]; if(field==='sent'&&m.offers[idx].sent&&m.status==='bid') m.status='countered'; saveWatch(watchlist); syncPush(u); updateWatchChip(); }
   // approver B name (approver A is always "You"); default "Siri"
   function approverB(){ try { return localStorage.getItem('approver_b') || 'Siri'; } catch(e){ return 'Siri'; } }
-  function setDealNotes(u,v){ const m=ensureDeal(u); if(!m||m.notes===v)return; m.notes=v; saveWatch(watchlist); }
+
+  // ---- cross-device sync (Firebase, optional) — shares watchlist/deals/offers/approvals ----
+  let syncRef = null, syncApplying = false;
+  function dealKey(u){ try { return btoa(unescape(encodeURIComponent(u))).replace(/[/+=]/g,c=>({'/':'_','+':'-','=':''}[c])); } catch(e){ return null; } }
+  function syncPush(u){ if(syncRef && !syncApplying && watchlist[u]){ const k=dealKey(u); if(k) syncRef.child(k).set(Object.assign({u:u}, watchlist[u])).catch(()=>{}); } }
+  function syncRemove(u){ if(syncRef && !syncApplying){ const k=dealKey(u); if(k) syncRef.child(k).remove().catch(()=>{}); } }
+  function setDealNotes(u,v){ const m=ensureDeal(u); if(!m||m.notes===v)return; m.notes=v; saveWatch(watchlist); syncPush(u); }
   function updateWatchChip(){
     const wc = document.getElementById('wlChip');
     if (!wc) return;
@@ -927,7 +975,9 @@ Land Parcel Coordinate: 8.06732191,98.75022994
   const detailBg=document.getElementById('detailBg');
   const detailImg=document.getElementById('detailImg');
   const detailBody=document.getElementById('detailBody');
+  let openDetailUrl=null;
   function openDetail(r){
+    openDetailUrl=r.u;
     const color=COLORS[r.cf]||'#999';
     // imgs[] is the multi-image gallery; r.img is the legacy single thumb. Merge & dedupe.
     const gallery = Array.from(new Set([...(r.imgs||[]), r.img].filter(Boolean)));
@@ -1883,6 +1933,64 @@ Land Parcel Coordinate: 8.06732191,98.75022994
     links.push({label:'🔎 Posts · ที่ดินขาย เกาะสมุย', url:`https://www.facebook.com/search/posts/?q=${q('ที่ดินขาย เกาะสมุย')}`});
     box.innerHTML=links.map(l=>`<a href="${l.url}" target="_blank" rel="noopener" style="background:#2a1a3a;color:#c98bff;border:1px solid #5a3a6a;padding:4px 9px;border-radius:5px;text-decoration:none;font-size:11px">${l.label}</a>`).join('');
   })();
+  // ---- sync connect / merge / live listener ----
+  const syncBg = document.getElementById('syncBg');
+  let lastRemoteKeys = new Set();
+  function setSyncStatus(msg,color){ const el=document.getElementById('syncStatusLine'); if(el){el.textContent=msg;el.style.color=color||'var(--txt-dim)';} }
+  function updateSyncChip(on){ const s=document.getElementById('syncState'); if(s){ s.textContent=on?'on':'off'; s.parentElement.style.opacity=on?'1':'0.75'; } document.getElementById('syncDisconnect').style.display=on?'':'none'; }
+  function applyRemote(remote){
+    syncApplying=true;
+    const nowKeys=new Set(Object.keys(remote));
+    Object.values(remote).forEach(v=>{ if(v&&v.u){ watchlist[v.u]=v; } });
+    lastRemoteKeys.forEach(k=>{ if(!nowKeys.has(k)){ Object.keys(watchlist).forEach(u=>{ if(dealKey(u)===k) delete watchlist[u]; }); } });
+    lastRemoteKeys=nowKeys;
+    saveWatch(watchlist); updateWatchChip();
+    try { render(); } catch(e){}
+    if(document.getElementById('detailBg').classList.contains('show') && openDetailUrl){ const row=DATA.find(x=>x.u===openDetailUrl); if(row) openDetail(row); }
+    syncApplying=false;
+  }
+  function connectSync(cfgObj, room, partner){
+    if(typeof firebase==='undefined'){ setSyncStatus('Firebase failed to load (network blocked). Sync unavailable here.','#ff8080'); return false; }
+    try{
+      if(!firebase.apps || !firebase.apps.length) firebase.initializeApp(cfgObj);
+      const db=firebase.database();
+      syncRef=db.ref('rooms/'+room+'/deals');
+      setSyncStatus('Connecting…','var(--txt-dim)');
+      syncRef.once('value').then(snap=>{
+        const remote=snap.val()||{};
+        Object.keys(watchlist).forEach(u=>{ const k=dealKey(u); if(k && !(k in remote)) syncPush(u); });
+        applyRemote(remote);
+        syncRef.on('value', s=>applyRemote(s.val()||{}));
+        updateSyncChip(true); setSyncStatus('Connected to room “'+room+'” ✓ — changes now sync with '+(partner||'Siri')+'.','#7ce38b');
+      }).catch(e=>{ setSyncStatus('Connect failed: '+(e&&e.message||e)+' (check the databaseURL / rules)','#ff8080'); });
+      localStorage.setItem('fb_config', JSON.stringify(cfgObj));
+      localStorage.setItem('fb_room', room);
+      if(partner) localStorage.setItem('approver_b', partner);
+      return true;
+    }catch(e){ setSyncStatus('Bad config: '+(e&&e.message||e),'#ff8080'); return false; }
+  }
+  function disconnectSync(){ try{ if(syncRef) syncRef.off(); }catch(e){} syncRef=null; localStorage.removeItem('fb_config'); localStorage.removeItem('fb_room'); updateSyncChip(false); setSyncStatus('Disconnected — this device is local-only again.','var(--txt-dim)'); }
+  document.getElementById('syncChip').onclick=()=>{
+    document.getElementById('syncConfig').value = localStorage.getItem('fb_config')||'';
+    document.getElementById('syncRoom').value = localStorage.getItem('fb_room')||'';
+    document.getElementById('syncPartner').value = approverB();
+    if(typeof firebase==='undefined') setSyncStatus('Note: Firebase didn’t load in this browser — sync can’t run here.','#ffb86c');
+    else if(syncRef) setSyncStatus('Connected ✓','#7ce38b');
+    else setSyncStatus('','');
+    syncBg.classList.add('show');
+  };
+  document.getElementById('syncClose').onclick=()=>syncBg.classList.remove('show');
+  syncBg.onclick=(e)=>{ if(e.target===syncBg) syncBg.classList.remove('show'); };
+  document.getElementById('syncConnect').onclick=()=>{
+    let cfg; try{ cfg=JSON.parse(document.getElementById('syncConfig').value); }catch(e){ setSyncStatus('Config isn’t valid JSON — paste the whole {…} object.','#ff8080'); return; }
+    const room=document.getElementById('syncRoom').value.trim();
+    if(!room){ setSyncStatus('Pick a room name (any shared secret).','#ff8080'); return; }
+    connectSync(cfg, room, document.getElementById('syncPartner').value.trim()||'Siri');
+  };
+  document.getElementById('syncDisconnect').onclick=disconnectSync;
+  // auto-connect on load if previously set up
+  (function(){ try{ const c=localStorage.getItem('fb_config'), rm=localStorage.getItem('fb_room'); if(c&&rm) connectSync(JSON.parse(c), rm, approverB()); }catch(e){} })();
+
   document.getElementById('addLinkClose').onclick = () => addLinkBg.classList.remove('show');
   addLinkBg.onclick = (e)=>{ if(e.target===addLinkBg) addLinkBg.classList.remove('show'); };
   document.getElementById('addLinkUrl').oninput = (e)=>{ const s=e.target.value.trim()?linkSource(e.target.value.trim()):''; document.getElementById('addLinkSrc').textContent = s?('source: '+s):''; };
