@@ -608,6 +608,9 @@ Land Parcel Coordinate: 8.06732191,98.75022994
   function ensureDeal(u){ const m=watchlist[u]; if(!m) return null; if(!m.offers) m.offers=[]; if(!m.status) m.status='watching'; if(m.notes==null) m.notes=''; return m; }
   function setDealStatus(u,s){ const m=ensureDeal(u); if(!m)return; m.status=s; saveWatch(watchlist); updateWatchChip(); }
   function addDealOffer(u,o){ const m=ensureDeal(u); if(!m)return; m.offers.push(o); if(m.status==='watching') m.status='bid'; saveWatch(watchlist); updateWatchChip(); }
+  function toggleOfferField(u,idx,field){ const m=ensureDeal(u); if(!m||!m.offers[idx])return; m.offers[idx][field]=!m.offers[idx][field]; if(field==='sent'&&m.offers[idx].sent&&m.status==='bid') m.status='countered'; saveWatch(watchlist); updateWatchChip(); }
+  // approver B name (approver A is always "You"); default "Siri"
+  function approverB(){ try { return localStorage.getItem('approver_b') || 'Siri'; } catch(e){ return 'Siri'; } }
   function setDealNotes(u,v){ const m=ensureDeal(u); if(!m||m.notes===v)return; m.notes=v; saveWatch(watchlist); }
   function updateWatchChip(){
     const wc = document.getElementById('wlChip');
@@ -1024,7 +1027,7 @@ Land Parcel Coordinate: 8.06732191,98.75022994
             <b style="font-size:13px">💬 Deal tracking</b>
             <div style="display:flex;gap:4px;flex-wrap:wrap">${DEAL_STATUSES.map(s=>`<button class="btn" data-dealstatus="${s}" style="padding:3px 9px;font-size:11px;${m.status===s?`background:${DEAL_COLORS[s]};color:#111;border-color:${DEAL_COLORS[s]}`:''}">${s}</button>`).join('')}</div>
           </div>
-          ${offers.length?`<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px"><thead><tr style="text-align:left;color:var(--txt-dim)"><th style="padding:3px 6px;font-weight:600">date</th><th>bid</th><th>% ask</th><th>their reply</th></tr></thead><tbody>${offers.map(o=>`<tr style="border-top:1px solid var(--border)"><td style="padding:3px 6px;font-family:monospace">${o.date}</td><td style="font-family:monospace">$${(o.amount||0).toLocaleString()}</td><td style="font-family:monospace;color:var(--txt-dim)">${r.usd?Math.round(o.amount/r.usd*100)+'%':''}</td><td>${o.response?o.response.replace(/</g,'&lt;'):'—'}</td></tr>`).join('')}</tbody></table>`:''}
+          ${offers.length?`<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px"><thead><tr style="text-align:left;color:var(--txt-dim)"><th style="padding:3px 6px;font-weight:600">date</th><th>bid</th><th>%</th><th>reply</th><th>approvals</th><th>status</th></tr></thead><tbody>${offers.map((o,i)=>{const ready=o.approve_you&&o.approve_siri;const st=o.sent?'✈ sent':(ready?'✓ ready':'proposed');const stc=o.sent?'#4fa3ff':(ready?'#7ce38b':'#ffd166');return `<tr style="border-top:1px solid var(--border)"><td style="padding:3px 6px;font-family:monospace">${o.date}</td><td style="font-family:monospace">$${(o.amount||0).toLocaleString()}</td><td style="font-family:monospace;color:var(--txt-dim)">${r.usd?Math.round(o.amount/r.usd*100)+'%':''}</td><td>${o.response?o.response.replace(/</g,'&lt;'):'—'}</td><td style="white-space:nowrap"><button class="btn" data-appr="${i}" data-who="approve_you" style="padding:2px 6px;font-size:10px;${o.approve_you?'background:#1a3a2a;color:#7ce38b;border-color:#3a6a4a':''}">You ${o.approve_you?'✓':'○'}</button> <button class="btn" data-appr="${i}" data-who="approve_siri" style="padding:2px 6px;font-size:10px;${o.approve_siri?'background:#1a3a2a;color:#7ce38b;border-color:#3a6a4a':''}">${approverB()} ${o.approve_siri?'✓':'○'}</button></td><td style="white-space:nowrap"><span style="font-size:10px;color:${stc}">${st}</span>${ready&&!o.sent?` <button class="btn" data-sent="${i}" style="padding:2px 6px;font-size:10px">Mark sent</button>`:''}</td></tr>`;}).join('')}</tbody></table>`:''}
           <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;align-items:center">
             <input id="dealBid" type="number" placeholder="Bid (USD)" style="width:120px;background:var(--panel);border:1px solid var(--border);color:var(--txt);border-radius:6px;padding:6px 8px;font-family:monospace">
             <input id="dealResp" placeholder="Their reply (optional)" style="flex:1;min-width:120px;background:var(--panel);border:1px solid var(--border);color:var(--txt);border-radius:6px;padding:6px 8px">
@@ -1052,9 +1055,11 @@ Land Parcel Coordinate: 8.06732191,98.75022994
     const dao=document.getElementById('dealAddOffer'); if(dao) dao.onclick=()=>{
       const bid=document.getElementById('dealBid').value, resp=document.getElementById('dealResp').value;
       if(!bid){ document.getElementById('dealBid').focus(); return; }
-      addDealOffer(r.u,{date:new Date().toISOString().slice(0,10), amount:Number(bid), response:(resp||'').trim()});
+      addDealOffer(r.u,{date:new Date().toISOString().slice(0,10), amount:Number(bid), response:(resp||'').trim(), approve_you:false, approve_siri:false, sent:false});
       openDetail(r);
     };
+    detailBody.querySelectorAll('[data-appr]').forEach(el=>{ el.onclick=()=>{ toggleOfferField(r.u, +el.getAttribute('data-appr'), el.getAttribute('data-who')); openDetail(r); }; });
+    detailBody.querySelectorAll('[data-sent]').forEach(el=>{ el.onclick=()=>{ toggleOfferField(r.u, +el.getAttribute('data-sent'), 'sent'); openDetail(r); }; });
     const dn=document.getElementById('dealNotes'); if(dn) dn.onblur=()=>setDealNotes(r.u, dn.value);
     detailBg.classList.add('show');
     if(r.lat){
