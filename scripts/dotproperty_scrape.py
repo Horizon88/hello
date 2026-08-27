@@ -44,11 +44,14 @@ def parse_size_sqm(text):
     if not text:
         return None
     t = text.lower().replace(",", "")
-    rai = ngan = wah = sqm = 0.0
-    m = re.search(r'([\d.]+)\s*rai', t);        rai = float(m.group(1)) if m else 0
-    m = re.search(r'([\d.]+)\s*ngan', t);       ngan = float(m.group(1)) if m else 0
-    m = re.search(r'([\d.]+)\s*(?:sq\.?\s*wah|wah|talang wah)', t); wah = float(m.group(1)) if m else 0
-    m = re.search(r'([\d.]+)\s*(?:sqm|sq\.?\s*m|square met|m2|ตร\.?ม)', t); sqm = float(m.group(1)) if m else 0
+    def num(pat):
+        m = re.search(r'(\d+(?:\.\d+)?)\s*' + pat, t)
+        try: return float(m.group(1)) if m else 0.0
+        except (ValueError, AttributeError): return 0.0
+    rai  = num(r'rai')
+    ngan = num(r'ngan')
+    wah  = num(r'(?:sq\.?\s*wah|wah|talang wah)')
+    sqm  = num(r'(?:sqm|sq\.?\s*m|square met|m2|ตร\.?ม)')
     total = rai*1600 + ngan*400 + wah*4
     if total >= 40: return round(total, 1)
     if sqm >= 40: return round(sqm, 1)
