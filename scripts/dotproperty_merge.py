@@ -90,7 +90,7 @@ for r in raw:
         elif coast_km <= 2: score += 12; rb.append("coast≤2km+12")
         elif coast_km <= 10: score += 6; rb.append("coast≤10km+6")
 
-    text = (r.get("name","") + " " + r.get("desc","")).lower()
+    text = ((r.get("name") or "") + " " + (r.get("desc") or "")).lower()
     dist = 0; dbrk = []
     for pat, tag, w in DISTRESS_PATS:
         if re.search(pat, text): dist += w; dbrk.append([tag, w])
@@ -110,14 +110,14 @@ for r in raw:
 
     rows.append({
         "tp":"land", "cf":"Thailand", "r":round(score,1),
-        "rg": r.get("province","Thailand"), "a": r.get("locality","")[:40],
+        "rg": r.get("province","Thailand"), "a": (r.get("locality") or "")[:40],
         "ac":ac, "m2":int(sqm), "usd":usd, "upm":upm,
         "v":"sea_visible" if coast_km is not None and coast_km<=2 else "",
         "el":"", "t": deed or "verify title", "lat":lat, "lon":lng,
         "cur":"THB", "lp":str(thb), "rb":"+".join(rb),
         "imgs":[r["img"]] if r.get("img") else [], "u":r["url"],
-        "name": r.get("name","")[:180], "ski_km":None, "ski_r":"", "coast_km":coast_km,
-        "days_on_market": dom, "first_seen": (r.get("datePosted","")[:10] or None),
+        "name": (r.get("name") or "")[:180], "ski_km":None, "ski_r":"", "coast_km":coast_km,
+        "days_on_market": dom, "first_seen": ((r.get("datePosted") or "")[:10] or None),
         "distress": dist or None, "distress_breakdown": dbrk or None,
         "foreign_friction": -25,
     })
