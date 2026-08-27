@@ -2361,7 +2361,35 @@ Land Parcel Coordinate: 8.06732191,98.75022994
       const bulk = JSON.parse(json);
       const dolItems = bulk.dol || [];
       const fbItems = bulk.fb || [];
+      const bamItems = bulk.bam || [];
       let added = 0, skipped = 0;
+      // BAM (bank-repossessed) → scored NPA land listings. Every BAM asset is a
+      // forced disposal, so distress starts high.
+      let bamAdded = 0;
+      const LAND_TH = ['ที่ดิน'];
+      for(const p of bamItems){
+        const u = p.url || ('bam:'+p.id);
+        if(DATA.some(r=>r.u===u) || userListings.some(r=>r.u===u)){ skipped++; continue; }
+        const isLand = (p.asset_type||'').includes('ที่ดิน');
+        const m2 = p.sqm_land || null;
+        const ac = m2 ? +(m2/4046.86).toFixed(3) : null;
+        const usd = p.price_thb ? Math.round(p.price_thb/36) : null;
+        const row = {
+          tp:'land', cf:'Thailand', r:0,
+          rg: [p.district, p.province].filter(Boolean).join(', ') || 'BAM (Thailand)', a:'',
+          ac, m2, usd, upm:(usd&&m2)?+(usd/m2).toFixed(2):null,
+          v:'', t:'BAM NPA — '+(p.asset_type||'asset'), lat:p.lat||null, lon:p.lng||null,
+          cur:'THB', lp: p.price_thb?String(p.price_thb):'',
+          rb:'src:bam-capture+npa+30', imgs:p.img?[p.img]:[], u,
+          name:(p.name||('BAM '+(p.asset_type||'')+' '+(p.province||''))).slice(0,160),
+          ski_km:null, ski_r:'', coast_km:null,
+          user_added:true, source:'bam', npa:true,
+          distress:60, distress_breakdown:[['bank-repossessed (BAM forced sale)',30],['NPA disposal',30]],
+          grade:p.grade||'', bam_state:p.state||'', added:(p.captured_at||'').slice(0,10)||new Date().toISOString().slice(0,10),
+        };
+        userListings.unshift(row); DATA.unshift(row); bamAdded++; added++;
+      }
+      if(bamAdded) saveUserListings(userListings);
       for(const p of dolItems){
         if(deeds.some(d => d.deed && d.deed === String(p.deed))){ skipped++; continue; }
         deeds.unshift({
@@ -2401,8 +2429,9 @@ Land Parcel Coordinate: 8.06732191,98.75022994
       }
       if(fbAdded) saveUserListings(userListings);
       saveDeeds(deeds);
-      alert(`Imported ${added} new items (${fbAdded} FB listings into your list, ${dolItems.length?added-fbAdded+' to Deed Log, ':''}${skipped} duplicates).`);
-      if(fbAdded){ render(); } else setTimeout(() => document.getElementById('deedLogChip').click(), 300);
+      const intoList = fbAdded + bamAdded;
+      alert(`Imported ${added} new items (${intoList} into your list${bamAdded?` — incl. ${bamAdded} BAM/NPA`:''}, ${dolItems.length?(added-intoList)+' to Deed Log, ':''}${skipped} duplicates).`);
+      if(intoList){ render(); } else setTimeout(() => document.getElementById('deedLogChip').click(), 300);
       // Clean the hash so a refresh doesn't re-import
       history.replaceState(null, '', location.pathname + location.search);
     } catch(e){

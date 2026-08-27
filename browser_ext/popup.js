@@ -1,16 +1,17 @@
 const APP_URL = 'https://raw.githack.com/Horizon88/hello/claude/thai-forest-map-viewer-gxNqV/docs/index.html';
 
 async function refresh(){
-  const {parcels = {}, fb_posts = {}} = await chrome.storage.local.get(['parcels', 'fb_posts']);
+  const {parcels = {}, fb_posts = {}, bam_items = {}} = await chrome.storage.local.get(['parcels', 'fb_posts', 'bam_items']);
   document.getElementById('dolCount').textContent = Object.keys(parcels).length;
   document.getElementById('fbCount').textContent = Object.keys(fb_posts).length;
+  document.getElementById('bamCount').textContent = Object.keys(bam_items).length;
 }
 
 document.getElementById('pushBtn').onclick = async () => {
-  const {parcels = {}, fb_posts = {}} = await chrome.storage.local.get(['parcels', 'fb_posts']);
-  const all = { dol: Object.values(parcels), fb: Object.values(fb_posts) };
-  if(all.dol.length === 0 && all.fb.length === 0){
-    alert('No captured items yet. Browse DOL or FB first — the extension captures silently as you scroll.');
+  const {parcels = {}, fb_posts = {}, bam_items = {}} = await chrome.storage.local.get(['parcels', 'fb_posts', 'bam_items']);
+  const all = { dol: Object.values(parcels), fb: Object.values(fb_posts), bam: Object.values(bam_items) };
+  if(all.dol.length === 0 && all.fb.length === 0 && all.bam.length === 0){
+    alert('No captured items yet. Browse DOL, Facebook, or BAM first — the extension captures silently as you scroll.');
     return;
   }
   // Encode compact JSON in URL hash
@@ -36,8 +37,8 @@ document.getElementById('copyBtn').onclick = async () => {
 };
 
 document.getElementById('clearBtn').onclick = async () => {
-  if(!confirm('Clear all captured DOL parcels and FB posts?')) return;
-  await chrome.storage.local.set({parcels: {}, fb_posts: {}});
+  if(!confirm('Clear all captured DOL parcels, FB posts, and BAM assets?')) return;
+  await chrome.storage.local.set({parcels: {}, fb_posts: {}, bam_items: {}});
   refresh();
 };
 

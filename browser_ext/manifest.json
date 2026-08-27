@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Land Scout \u2014 DOL + FB auto-capture",
-  "version": "0.2.0",
-  "description": "Captures Thai land-sale posts from your logged-in Facebook (feed/groups/marketplace) + DOL parcels \u2014 with photos, price, size, coords, seller, and distress signals \u2014 and sends them into your land app as scored listings.",
+  "name": "Land Scout — DOL + FB auto-capture",
+  "version": "0.3.0",
+  "description": "Captures Thai land-sale posts from your logged-in Facebook (feed/groups/marketplace) + DOL parcels — with photos, price, size, coords, seller, and distress signals — and sends them into your land app as scored listings.",
   "permissions": [
     "storage",
     "activeTab"
@@ -12,7 +12,8 @@
     "https://dolwebservice.dol.go.th/*",
     "https://www.facebook.com/*",
     "https://m.facebook.com/*",
-    "https://www.marketplace.com/*"
+    "https://www.marketplace.com/*",
+    "https://www.bam.co.th/*"
   ],
   "content_scripts": [
     {
@@ -34,10 +35,20 @@
         "capture-fb.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.bam.co.th/*/npa/property/*",
+        "https://www.bam.co.th/*/npa/*"
+      ],
+      "js": [
+        "capture-bam.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Land Scout \u2014 captured items"
+    "default_title": "Land Scout — captured items"
   }
 }
