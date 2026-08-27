@@ -30,6 +30,20 @@
   .chip[data-cs=Tu].on{border-color:var(--tr);box-shadow:inset 0 0 0 1px var(--tr)}
   .chip[data-cs=US].on{border-color:var(--us);box-shadow:inset 0 0 0 1px var(--us)}
   .controls{padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+  #winnersStrip{background:linear-gradient(180deg,rgba(255,209,102,0.08),transparent);border-bottom:1px solid var(--border);padding:10px 16px}
+  #winnersStrip .wh{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  #winnersStrip .wh b{color:#ffd166;font-size:13px;letter-spacing:.02em}
+  #winnersStrip .wh .draftAll{margin-left:auto;background:#10202a;color:#8fd0e8;border:1px solid #2a5a70;border-radius:6px;padding:4px 11px;font-size:12px;cursor:pointer}
+  #winnersStrip .wrow{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
+  .wcard{flex:0 0 auto;width:210px;background:var(--panel2);border:1px solid var(--border);border-left:3px solid #ffd166;border-radius:8px;padding:8px 10px;cursor:pointer;transition:border-color .15s}
+  .wcard:hover{border-color:#ffd166}
+  .wcard .wt{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .wcard .ws{font-size:11px;color:var(--txt-dim);margin-top:2px}
+  .wcard .wbid{font-size:11px;font-family:monospace;margin-top:5px;color:#8fd0e8}
+  .wcard .wtags{margin-top:5px;display:flex;gap:3px;flex-wrap:wrap}
+  .wcard .wtag{font-size:9px;background:#2a2515;color:#ffd166;border-radius:3px;padding:1px 5px}
+  .wcard .wx{float:right;color:var(--txt-dim);font-size:12px;cursor:pointer;padding:0 2px}
+  .wcard .wx:hover{color:#ff8080}
   .control{display:flex;gap:8px;align-items:center;font-size:12px}
   .control label{color:var(--txt-dim);text-transform:uppercase;letter-spacing:.04em}
   .control input[type=range]{accent-color:var(--accent);width:140px}
@@ -251,6 +265,7 @@
   <div class="control"><label>Sort</label><select id="sort"><option value="r">rating</option><option value="upa">$/acre</option><option value="upm">$/m²</option><option value="ac">acres</option><option value="usd">price USD</option><option value="days_on_market">days listed</option><option value="total_drop_pct">price drop %</option><option value="distress">🔥 distress</option><option value="leverage">🎯 leverage</option></select></div>
   <button class="btn" id="toggleInsights">Insights ▸</button>
 </div>
+<div id="winnersStrip" style="display:none"></div>
 <main>
   <div id="map"></div>
   <div class="panel">
@@ -483,6 +498,16 @@ Land Parcel Coordinate: 8.06732191,98.75022994
         <div style="font-size:11px;margin-top:8px">Tip: while viewing a post, the 📘 FB bookmarklet (under 📥 Import parcel) grabs its text with your login — the only way to read price/size, since FB posts are auth-walled.</div>
       </div>
     </details>
+  </div>
+</div>
+
+<!-- Batch outreach worklist -->
+<div class="modal-bg" id="outreachBg">
+  <div class="modal" style="max-width:640px">
+    <h3 style="display:flex;align-items:center;gap:8px">📤 Outreach worklist
+      <button class="close" id="outreachClose" style="margin-left:auto">×</button></h3>
+    <p style="color:var(--txt-dim);font-size:12px;margin:6px 0 10px">A ready offer for every starred plot. Work down the list: <b>Copy</b> → <b>Open listing</b> → paste into its contact/chat → send. You send each one — fast, but from your own account.</p>
+    <div id="outreachList"></div>
   </div>
 </div>
 
@@ -1031,35 +1056,29 @@ Land Parcel Coordinate: 8.06732191,98.75022994
 
   // ---- offer-message drafter (you send it yourself; comps-backed) ----
   const offerDraftBg = document.getElementById('offerDraftBg');
-  window.__draftOffer = (u)=>{
-    const url = decodeURIComponent((u||'').replace(/%27/g,"'"));
-    const r = DATA.find(x=>x.u===url); if(!r) return;
+  const _thb = n => '฿'+Math.round(n*36).toLocaleString();
+  const _usd = n => '$'+Math.round(n).toLocaleString();
+  function offerMessage(r){
     const fv = fairValue(r);
-    const thb = n => '฿'+Math.round(n*36).toLocaleString();
-    const usd = n => '$'+Math.round(n).toLocaleString();
     const target = fv ? (fv.overFair>1.0 ? fv.fair : fv.opening) : r.usd*0.85;
     const perRaiThb = fv ? Math.round(fv.medUpm*1600*36) : null;
     const yrs = (r.days_on_market || (r.nominee&&r.nominee.dom) || 0)/365;
     const bits = [];
-    if(fv) bits.push(`comparable same-size land nearby trades around ${usd(fv.medUpm)}/m²${perRaiThb?` (≈฿${perRaiThb.toLocaleString()}/rai)`:''}`);
+    if(fv) bits.push(`comparable same-size land nearby trades around ${_usd(fv.medUpm)}/m²${perRaiThb?` (≈฿${perRaiThb.toLocaleString()}/rai)`:''}`);
     if(yrs>=1) bits.push(`this parcel has been listed ~${yrs.toFixed(1)} years`);
     if(r.nominee) bits.push(`it is held in a Thai company, which a compliant buyer has to unwind at the Land Office`);
     const reason = bits.length ? ('Reflecting that '+bits.join(', and ')+',') : 'Based on current market comparables,';
-    const en =
-`Hello — I'm a ready buyer (cash, funds in place) interested in your land${r.rg?` at ${r.rg}`:''}.
-
-${reason} I would like to offer ${thb(target)} (about ${usd(target)}).
-
-I can move quickly and close cleanly via a direct transfer at the Land Office. If that works as a starting point, I'm happy to arrange a survey and title check this month. Open to discussing the number.`;
-    const th =
-`สวัสดีครับ ผมเป็นผู้ซื้อที่พร้อมชำระด้วยเงินสด สนใจที่ดินของคุณ${r.rg?`ที่ ${r.rg}`:''}
-
-จากการเปรียบเทียบที่ดินขนาดใกล้เคียงในพื้นที่${perRaiThb?` (ประมาณ ฿${perRaiThb.toLocaleString()} ต่อไร่)`:''}${yrs>=1?` และที่ดินแปลงนี้ประกาศขายมาประมาณ ${yrs.toFixed(1)} ปี`:''} ผมขอเสนอราคา ${thb(target)}
-
-ผมพร้อมดำเนินการโอนที่กรมที่ดินได้ทันที ยินดีพูดคุยเรื่องราคาครับ`;
+    const en = `Hello — I'm a ready buyer (cash, funds in place) interested in your land${r.rg?` at ${r.rg}`:''}.\n\n${reason} I would like to offer ${_thb(target)} (about ${_usd(target)}).\n\nI can move quickly and close cleanly via a direct transfer at the Land Office. If that works as a starting point, I'm happy to arrange a survey and title check this month. Open to discussing the number.`;
+    const th = `สวัสดีครับ ผมเป็นผู้ซื้อที่พร้อมชำระด้วยเงินสด สนใจที่ดินของคุณ${r.rg?`ที่ ${r.rg}`:''}\n\nจากการเปรียบเทียบที่ดินขนาดใกล้เคียงในพื้นที่${perRaiThb?` (ประมาณ ฿${perRaiThb.toLocaleString()} ต่อไร่)`:''}${yrs>=1?` และที่ดินแปลงนี้ประกาศขายมาประมาณ ${yrs.toFixed(1)} ปี`:''} ผมขอเสนอราคา ${_thb(target)}\n\nผมพร้อมดำเนินการโอนที่กรมที่ดินได้ทันที ยินดีพูดคุยเรื่องราคาครับ`;
+    return { fv, target, en, th, text: en+'\n\n— — —\n\n'+th };
+  }
+  window.__draftOffer = (u)=>{
+    const url = decodeURIComponent((u||'').replace(/%27/g,"'"));
+    const r = DATA.find(x=>x.u===url); if(!r) return;
+    const om = offerMessage(r);
     document.getElementById('offerDraftNums').innerHTML =
-      `Ask <b>${usd(r.usd)}</b> · Fair <b style="color:#9fd96d">${fv?usd(fv.fair):'—'}</b> · Your offer <b style="color:#ffd166">${usd(target)}</b> (${thb(target)})`;
-    document.getElementById('offerDraftText').value = en + '\n\n— — —\n\n' + th;
+      `Ask <b>${_usd(r.usd)}</b> · Fair <b style="color:#9fd96d">${om.fv?_usd(om.fv.fair):'—'}</b> · Your offer <b style="color:#ffd166">${_usd(om.target)}</b> (${_thb(om.target)})`;
+    document.getElementById('offerDraftText').value = om.text;
     offerDraftBg.classList.add('show');
   };
   document.getElementById('offerDraftClose').onclick = ()=>offerDraftBg.classList.remove('show');
@@ -1381,7 +1400,49 @@ I can move quickly and close cleanly via a direct transfer at the Land Office. I
     const n=Object.keys(shortlist).length;
     const chip=document.getElementById('slChip');
     if(chip){ chip.textContent=`★ ${n}`; chip.style.display=n?'':'none'; }
+    renderWinners();
   }
+  // ---- winners strip (starred plots, pinned on the main screen) ----
+  function renderWinners(){
+    const strip=document.getElementById('winnersStrip'); if(!strip) return;
+    const rows=Object.keys(shortlist).map(u=>DATA.find(x=>x.u===u)).filter(Boolean)
+      .sort((a,b)=>(b.r||0)-(a.r||0));
+    if(!rows.length){ strip.style.display='none'; strip.innerHTML=''; return; }
+    strip.style.display='';
+    strip.innerHTML=`<div class="wh"><b>★ Winners — ${rows.length}</b>
+      <span style="font-size:11px;color:var(--txt-dim)">your starred plots, always here</span>
+      <button class="draftAll" id="draftAllBtn">📤 Draft all offers</button></div>
+      <div class="wrow">${rows.map(r=>{ const om=offerMessage(r); const tags=(shortlist[r.u].tags||[]);
+        return `<div class="wcard" data-wdetail="${encodeURIComponent(r.u)}">
+          <span class="wx" data-wremove="${encodeURIComponent(r.u)}" title="unstar">✕</span>
+          <div class="wt">★${r.r} · ${(r.rg||r.cf||'').slice(0,22)}</div>
+          <div class="ws">${r.ac?r.ac+' ac · ':''}${fmtUsd(r.usd)}</div>
+          <div class="wbid">open ${_usd(om.target)}${(om.fv && Math.abs(om.fv.overFair)<1)?` · fair ${_usd(om.fv.fair)}`:''}</div>
+          ${tags.length?`<div class="wtags">${tags.slice(0,3).map(t=>`<span class="wtag">${t}</span>`).join('')}</div>`:''}
+        </div>`; }).join('')}</div>`;
+    strip.querySelectorAll('[data-wdetail]').forEach(el=>el.onclick=(e)=>{ if(e.target.classList.contains('wx'))return; const u=decodeURIComponent(el.dataset.wdetail); const r=DATA.find(x=>x.u===u); if(r) openDetail(r); });
+    strip.querySelectorAll('[data-wremove]').forEach(el=>el.onclick=(e)=>{ e.stopPropagation(); delete shortlist[decodeURIComponent(el.dataset.wremove)]; saveShortlist(shortlist); refreshShortlistChip(); });
+    document.getElementById('draftAllBtn').onclick=()=>window.__draftAllOffers();
+  }
+  // ---- batch outreach: a ready message per starred plot ----
+  window.__draftAllOffers=()=>{
+    const rows=Object.keys(shortlist).map(u=>DATA.find(x=>x.u===u)).filter(Boolean).sort((a,b)=>(b.r||0)-(a.r||0));
+    const box=document.getElementById('outreachList');
+    if(!rows.length){ box.innerHTML='<p style="color:var(--txt-dim);padding:12px">No starred plots yet.</p>'; document.getElementById('outreachBg').classList.add('show'); return; }
+    box.innerHTML=rows.map((r,i)=>{ const om=offerMessage(r); const contact=r.contact?` · 📞 ${r.contact}`:'';
+      return `<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b style="font-size:13px">${i+1}. ★${r.r} ${(r.rg||'')} </b><span style="font-family:monospace;font-size:11px;color:#8fd0e8">ask ${_usd(r.usd)} → open ${_usd(om.target)}</span></div>
+        <div style="font-size:11px;color:var(--txt-dim);margin:3px 0">${(r.name||'').slice(0,70)}${contact}</div>
+        <textarea readonly rows="4" id="oa_${i}" style="width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--txt);padding:7px;border-radius:5px;font-size:12px;line-height:1.45">${om.text.replace(/</g,'&lt;')}</textarea>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button class="btn" data-oacopy="${i}" style="padding:4px 11px;font-size:12px">Copy</button>
+          <a class="btn" href="${r.u}" target="_blank" rel="noopener" style="padding:4px 11px;font-size:12px">Open listing ↗</a>
+        </div></div>`; }).join('');
+    box.querySelectorAll('[data-oacopy]').forEach(el=>el.onclick=()=>{ const t=document.getElementById('oa_'+el.dataset.oacopy); t.select(); navigator.clipboard.writeText(t.value).then(()=>{ const o=el.textContent; el.textContent='✓ Copied'; setTimeout(()=>el.textContent=o,1400); }); });
+    document.getElementById('outreachBg').classList.add('show');
+  };
+  document.getElementById('outreachClose').onclick=()=>document.getElementById('outreachBg').classList.remove('show');
+  document.getElementById('outreachBg').onclick=(e)=>{ if(e.target.id==='outreachBg') document.getElementById('outreachBg').classList.remove('show'); };
   function slCard(r, isPick, why){
     const img=(r.imgs && r.imgs[0]) || r.img || '';
     const whyTxt=why && why.length ? `<div class="why">${why.join(' · ')}</div>` : '';
