@@ -44,6 +44,16 @@
   .wcard .wtag{font-size:9px;background:#2a2515;color:#ffd166;border-radius:3px;padding:1px 5px}
   .wcard .wx{float:right;color:var(--txt-dim);font-size:12px;cursor:pointer;padding:0 2px}
   .wcard .wx:hover{color:#ff8080}
+  #packageBar{position:fixed;left:0;right:0;bottom:0;z-index:1200;background:var(--panel);border-top:2px solid #c084fc;box-shadow:0 -4px 16px rgba(0,0,0,.3);padding:8px 14px;font-size:13px}
+  #packageBar .pkhead{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  #packageBar .pktot{display:flex;gap:18px;flex-wrap:wrap;align-items:baseline}
+  #packageBar .pktot .k{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--txt-dim)}
+  #packageBar .pktot .v{font-family:monospace;font-size:16px}
+  #packageBar .pkchips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;max-height:56px;overflow:auto}
+  #packageBar .pkchip{background:var(--panel2);border:1px solid #5a3a6a;border-radius:5px;padding:2px 7px;font-size:11px;cursor:pointer;color:#c084fc}
+  #packageBar .pkchip .x{margin-left:5px;color:var(--txt-dim)}
+  #packageBar .pkbtns{margin-left:auto;display:flex;gap:6px}
+  #packageBar .adj{font-size:11px;padding:2px 8px;border-radius:10px}
   .control{display:flex;gap:8px;align-items:center;font-size:12px}
   .control label{color:var(--txt-dim);text-transform:uppercase;letter-spacing:.04em}
   .control input[type=range]{accent-color:var(--accent);width:140px}
@@ -501,6 +511,8 @@ Land Parcel Coordinate: 8.06732191,98.75022994
   </div>
 </div>
 
+<div id="packageBar" style="display:none"></div>
+
 <!-- Batch outreach worklist -->
 <div class="modal-bg" id="outreachBg">
   <div class="modal" style="max-width:640px">
@@ -641,6 +653,11 @@ Land Parcel Coordinate: 8.06732191,98.75022994
   function saveUserListings(a){ localStorage.setItem(UL_KEY, JSON.stringify(a)); }
   let userListings = loadUserListings();
   { const seen = new Set(userListings.map(r=>r.u)); DATA = userListings.concat(DATA.filter(r=>!seen.has(r.u))); }
+  // ---- plot package (assemble adjacent parcels into one deal) ----
+  const PK_KEY = 'package_v1';
+  function loadPkg(){ try { return JSON.parse(localStorage.getItem(PK_KEY) || '{}'); } catch(e){ return {}; } }
+  function savePkg(p){ localStorage.setItem(PK_KEY, JSON.stringify(p)); }
+  let pkg = loadPkg();
   loadingEl.remove();
   const COLORS = {Thailand:'#ff6b6b','New Zealand':'#7ce38b','British Columbia':'#4fa3ff',Canada:'#ff8fb1',Malaysia:'#ffd166',Japan:'#c084fc',Turkey:'#e76f51',USA:'#a78bfa',Romania:'#56b886',Poland:'#f7c948',Chile:'#ef4444',Portugal:'#22d3ee',Fiji:'#0ea5e9','French Polynesia':'#8b5cf6',Vanuatu:'#f97316','New Caledonia':'#84cc16',Samoa:'#f43f5e',Tonga:'#eab308','Cook Islands':'#a3e635','Papua New Guinea':'#059669','Solomon Islands':'#dc2626',Palau:'#06b6d4','Marshall Islands':'#fb7185',Micronesia:'#65a30d',Kiribati:'#f472b6',Australia:'#fbbf24',Switzerland:'#e11d48',Austria:'#7c3aed',Georgia:'#0284c7'};
   // Derived from the data so chips never go stale when countries come and go.
@@ -1214,12 +1231,14 @@ Land Parcel Coordinate: 8.06732191,98.75022994
           : `<button class="btn" id="detailArch">✕ Archive (give reason)</button>`}
         <button class="btn" id="detailPromote" style="${shortlist[r.u]?'border-color:#ffd166;color:#ffd166':''}">★ ${shortlist[r.u]?'Shortlisted (edit)':'Promote'}</button>
         <button class="btn" id="detailWatch" style="${isWatched(r.u)?'border-color:#4fa3ff;color:#4fa3ff':''}" title="Add to watchlist — cool but too pricey; alert on drops">👁 ${isWatched(r.u)?'Watching':'Watch price'}</button>
+        <button class="btn" id="detailPackage" style="${pkg[r.u]?'border-color:#c084fc;color:#c084fc':''}" title="Combine adjacent plots into one deal package to see total price/size">🧩 ${pkg[r.u]?'In package':'Add to package'}</button>
         ${shortlist[r.u]?`<button class="btn" id="detailFindSimilar">Find similar →</button>`:''}
         <a class="btn primary" href="${r.u}" target="_blank" rel="noopener">Open listing →</a>
       </div>`;
     document.getElementById('detailClose').onclick=()=>detailBg.classList.remove('show');
     const ab=document.getElementById('detailArch'); if(ab) ab.onclick=()=>{ detailBg.classList.remove('show'); openArchive(r.u); };
     const ub=document.getElementById('detailUnarch'); if(ub) ub.onclick=()=>{ delete archives[r.u]; saveArchives(archives); detailBg.classList.remove('show'); render(); };
+    const pkb=document.getElementById('detailPackage'); if(pkb) pkb.onclick=()=>{ if(pkg[r.u]) delete pkg[r.u]; else pkg[r.u]=true; savePkg(pkg); openDetail(r); renderPackage(); };
     const pb=document.getElementById('detailPromote'); if(pb) pb.onclick=()=>{ detailBg.classList.remove('show'); openPromote(r.u); };
     const fs=document.getElementById('detailFindSimilar'); if(fs) fs.onclick=()=>{ detailBg.classList.remove('show'); openShortlistView(); };
     const wb=document.getElementById('detailWatch'); if(wb) wb.onclick=()=>{ toggleWatch(r); openDetail(r); };
@@ -1424,6 +1443,55 @@ Land Parcel Coordinate: 8.06732191,98.75022994
     strip.querySelectorAll('[data-wremove]').forEach(el=>el.onclick=(e)=>{ e.stopPropagation(); delete shortlist[decodeURIComponent(el.dataset.wremove)]; saveShortlist(shortlist); refreshShortlistChip(); });
     document.getElementById('draftAllBtn').onclick=()=>window.__draftAllOffers();
   }
+  // ---- plot package: combined price / size / commitment for adjacent parcels ----
+  function renderPackage(){
+    const bar=document.getElementById('packageBar'); if(!bar) return;
+    const rows=Object.keys(pkg).map(u=>DATA.find(x=>x.u===u)).filter(Boolean);
+    if(!rows.length){ bar.style.display='none'; bar.innerHTML=''; return; }
+    bar.style.display='';
+    const usd=rows.reduce((s,r)=>s+(r.usd||0),0);
+    const m2=rows.reduce((s,r)=>s+(r.m2||0),0);
+    const ac=m2/4046.86, rai=m2/1600;
+    const blended=m2?usd/m2:0;
+    // adjacency: max pairwise distance between plots that have coords
+    const geo=rows.filter(r=>r.lat&&r.lon);
+    let maxd=0, allTH=rows.every(r=>r.cf==='Thailand');
+    for(let i=0;i<geo.length;i++)for(let j=i+1;j<geo.length;j++){ const d=haversine(geo[i].lat,geo[i].lon,geo[j].lat,geo[j].lon); if(d>maxd)maxd=d; }
+    let adj;
+    if(geo.length<2) adj=`<span class="adj" style="background:#2a2515;color:#ffd166">need coords to check adjacency</span>`;
+    else if(maxd<=0.5) adj=`<span class="adj" style="background:#0f2a1a;color:#7ce38b">✓ adjacent (≤${(maxd*1000).toFixed(0)} m apart)</span>`;
+    else if(maxd<=2) adj=`<span class="adj" style="background:#2a2515;color:#ffd166">near (${maxd.toFixed(1)} km apart)</span>`;
+    else adj=`<span class="adj" style="background:#3a1a1a;color:#ff9090">not contiguous (${maxd.toFixed(1)} km apart)</span>`;
+    bar.innerHTML=`<div class="pkhead">
+      <b style="color:#c084fc">🧩 Package · ${rows.length} plot${rows.length>1?'s':''}</b>
+      <div class="pktot">
+        <div><div class="k">total price</div><div class="v">${fmtUsd(usd)}${allTH?` <span style="color:var(--txt-dim);font-size:12px">฿${Math.round(usd*36).toLocaleString()}</span>`:''}</div></div>
+        <div><div class="k">total size</div><div class="v">${ac.toFixed(2)} ac${allTH?` · ${rai.toFixed(1)} rai`:''} <span style="color:var(--txt-dim);font-size:12px">(${Math.round(m2).toLocaleString()} m²)</span></div></div>
+        <div><div class="k">blended</div><div class="v">$${blended.toFixed(1)}/m²</div></div>
+      </div>
+      ${adj}
+      <div class="pkbtns">
+        <button class="btn" id="pkDraft" style="padding:4px 11px;font-size:12px;border-color:#2a5a70;color:#8fd0e8">✍ Combined offer</button>
+        <button class="btn" id="pkClear" style="padding:4px 11px;font-size:12px;border-color:#5a3a6a;color:var(--txt-dim)">clear</button>
+      </div></div>
+      <div class="pkchips">${rows.map(r=>`<span class="pkchip" data-pkopen="${encodeURIComponent(r.u)}">${(r.rg||r.cf||'').slice(0,16)} · ${fmtUsd(r.usd)}<span class="x" data-pkremove="${encodeURIComponent(r.u)}">✕</span></span>`).join('')}</div>`;
+    bar.querySelectorAll('[data-pkopen]').forEach(el=>el.onclick=(e)=>{ if(e.target.dataset.pkremove!==undefined)return; const r=DATA.find(x=>x.u===decodeURIComponent(el.dataset.pkopen)); if(r) openDetail(r); });
+    bar.querySelectorAll('[data-pkremove]').forEach(el=>el.onclick=(e)=>{ e.stopPropagation(); delete pkg[decodeURIComponent(el.dataset.pkremove)]; savePkg(pkg); renderPackage(); });
+    document.getElementById('pkClear').onclick=()=>{ pkg={}; savePkg(pkg); renderPackage(); };
+    document.getElementById('pkDraft').onclick=()=>window.__draftPackageOffer();
+  }
+  window.__draftPackageOffer=()=>{
+    const rows=Object.keys(pkg).map(u=>DATA.find(x=>x.u===u)).filter(Boolean); if(!rows.length)return;
+    const usd=rows.reduce((s,r)=>s+(r.usd||0),0), m2=rows.reduce((s,r)=>s+(r.m2||0),0);
+    // combined opening: sum of each plot's suggested opening (fallback 12% under ask)
+    let openTot=0; rows.forEach(r=>{ const om=offerMessage(r); openTot += om?om.target:(r.usd*0.88); });
+    const rai=m2/1600;
+    const list=rows.map((r,i)=>`  ${i+1}. ${r.rg||''} — ${fmtUsd(r.usd)} (${r.ac||'?'} ac)`).join('\n');
+    const en=`Hello — I'm interested in acquiring these ${rows.length} adjacent plots together as one purchase:\n\n${list}\n\nCombined they total ~${rai.toFixed(1)} rai. Buying the whole package, and as a cash buyer who can close via direct Land Office transfer, I'd like to offer ${_thb(openTot)} (about ${_usd(openTot)}) for all of them together. Happy to discuss.`;
+    document.getElementById('offerDraftNums').innerHTML=`Package of ${rows.length} · ask total <b>${_usd(usd)}</b> · combined offer <b style="color:#ffd166">${_usd(openTot)}</b> (${_thb(openTot)})`;
+    document.getElementById('offerDraftText').value=en;
+    document.getElementById('offerDraftBg').classList.add('show');
+  };
   // ---- batch outreach: a ready message per starred plot ----
   window.__draftAllOffers=()=>{
     const rows=Object.keys(shortlist).map(u=>DATA.find(x=>x.u===u)).filter(Boolean).sort((a,b)=>(b.r||0)-(a.r||0));
@@ -1505,6 +1573,7 @@ Land Parcel Coordinate: 8.06732191,98.75022994
   shortlistBg.onclick=(e)=>{ if(e.target===shortlistBg) shortlistBg.classList.remove('show'); };
   document.getElementById('slChip').onclick=()=>openShortlistView();
   refreshShortlistChip();
+  renderPackage();
 
   // ---- watchlist modal ----
   const watchlistBg = document.getElementById('watchlistBg');
