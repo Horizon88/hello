@@ -36,7 +36,23 @@
   "listing_agent": "Pawinee Real Estate",
   "added": "2026-08-27",
   "slope_pct": 25,
-  "road_access": true
+  "road_access": true,
+  "rental_comps": [
+   {
+    "url": "https://www.airbnb.com/rooms/24379821",
+    "beds": 2,
+    "nightly_usd": 420,
+    "occupancy": "low (Xmas/NY only)",
+    "note": "2-bed, weak calendar"
+   },
+   {
+    "url": "https://www.airbnb.com/rooms/27970506",
+    "nightly_usd": 500,
+    "high_season_usd": 750,
+    "occupancy": "almost fully booked next winter",
+    "note": "strong performer — proves the location books"
+   }
+  ]
  },
  {
   "tp": "land",
