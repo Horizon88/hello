@@ -4,12 +4,49 @@
   "cf": "Thailand",
   "r": 0,
   "rg": "Khao Thong, Krabi",
+  "a": "Deed 54240",
+  "ac": 8.604,
+  "m2": 34818,
+  "usd": 3333333,
+  "upm": 95.74,
+  "v": "sea_visible",
+  "t": "Chanote (DOL official)",
+  "lat": 8.1705913,
+  "lon": 98.75065365,
+  "cur": "THB",
+  "lp": "120000000",
+  "rb": "src:dol-parcel",
+  "u": "dol:54240",
+  "name": "Pawinee 23-rai sea-view listing · Deed 54240 (21-3-4.5) + 50861 · Khao Thong, Krabi",
+  "imgs": [],
+  "ski_km": null,
+  "ski_r": "",
+  "coast_km": null,
+  "user_added": true,
+  "source": "dol",
+  "deed": "54240",
+  "land_no": "27",
+  "map_sheet": "4725 III 7202-00 (4000)",
+  "treasury_baht_sqwa": 390,
+  "official_value_thb": 3394755,
+  "price_is_official": false,
+  "has_market_ask": true,
+  "xref_url": "https://www.facebook.com/photo/?fbid=27954154180885633&set=pcb.4670486556515209",
+  "xref_note": "Pawinee Real Estate · ฿120M for 23 rai (this deed 54240 + deed 50861) · sea view over Phang Nga bay",
+  "listing_agent": "Pawinee Real Estate",
+  "added": "2026-08-27"
+ },
+ {
+  "tp": "land",
+  "cf": "Thailand",
+  "r": 0,
+  "rg": "Khao Thong, Krabi",
   "a": "Deed 50861",
   "ac": 0.698,
   "m2": 2825,
   "usd": 10398,
   "upm": 3.68,
-  "v": "",
+  "v": "sea_visible",
   "t": "Chanote (DOL official)",
   "lat": 8.17128157,
   "lon": 98.749889,
@@ -32,7 +69,7 @@
   "price_is_official": true,
   "added": "2026-08-27",
   "xref_url": "https://www.facebook.com/photo/?fbid=27954154180885633&set=pcb.4670486556515209",
-  "xref_note": "Part of a ฿120M Facebook assembly listing (Khao Thong)"
+  "xref_note": "Part of the ฿120M / 23-rai Pawinee listing (with deed 54240) · sea view"
  },
  {
   "tp": "land",
@@ -100,9 +137,7 @@
   "treasury_baht_sqwa": 990,
   "official_value_thb": 16286490,
   "price_is_official": true,
-  "added": "2026-08-27",
-  "xref_url": "https://www.facebook.com/photo/?fbid=27954154180885633&set=pcb.4670486556515209",
-  "xref_note": "Part of a ฿120M Facebook assembly listing (Khao Thong)"
+  "added": "2026-08-27"
  },
  {
   "tp": "land",
@@ -135,9 +170,7 @@
   "treasury_baht_sqwa": 390,
   "official_value_thb": 4417491,
   "price_is_official": true,
-  "added": "2026-08-27",
-  "xref_url": "https://www.facebook.com/photo/?fbid=27954154180885633&set=pcb.4670486556515209",
-  "xref_note": "Part of a ฿120M Facebook assembly listing (Khao Thong)"
+  "added": "2026-08-27"
  },
  {
   "tp": "land",
@@ -170,8 +203,6 @@
   "treasury_baht_sqwa": 450,
   "official_value_thb": 1704060,
   "price_is_official": true,
-  "added": "2026-08-27",
-  "xref_url": "https://www.facebook.com/photo/?fbid=27954154180885633&set=pcb.4670486556515209",
-  "xref_note": "Part of a ฿120M Facebook assembly listing (Khao Thong)"
+  "added": "2026-08-27"
  }
 ]
