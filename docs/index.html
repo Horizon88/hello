@@ -1126,14 +1126,22 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
     // so comparing like-for-like size is essential (0.25×–4× the subject).
     const sizeOK = x => x.m2 >= r.m2/4 && x.m2 <= r.m2*4;
     const near = x => r.lat && r.lon && x.lat && x.lon && haversine(r.lat,r.lon,x.lat,x.lon) <= 15;
+    // View class matters as much as size: a sea-view parcel comps at multiples
+    // of inland land. Prefer view-to-view comps; only fall back to mixed view.
+    const isSea = x => /sea|beach|ocean|waterfront/i.test((x.v||'')+' '+(x.name||''));
+    const seaView = isSea(r);
+    const viewMatch = x => isSea(x)===seaView;
+    const vlabel = seaView?'sea-view ':'inland ';
     let comps=[], basis='';
-    // Only ever compare size-similar parcels — never fall back to mixed sizes
-    // (small-lot $/m² × a big parcel produces absurd values). If no size-matched
-    // comps exist, show no guidance rather than a wrong number.
+    // Size-similar only (never mixed sizes — small-lot $/m² × a big parcel is
+    // absurd). Prefer same view class; fall back to mixed view if too few.
     const tries = [
-      [pool.filter(x=>near(x)&&sizeOK(x)), 'similar-size within 15 km'],
-      [pool.filter(x=>x.rg===r.rg&&sizeOK(x)), 'similar-size in '+r.rg],
-      [pool.filter(x=>sizeOK(x)), 'similar-size, '+r.cf+'-wide'],
+      [pool.filter(x=>near(x)&&sizeOK(x)&&viewMatch(x)), vlabel+'same-size ≤15 km'],
+      [pool.filter(x=>x.rg===r.rg&&sizeOK(x)&&viewMatch(x)), vlabel+'same-size in '+r.rg],
+      [pool.filter(x=>sizeOK(x)&&viewMatch(x)), vlabel+'same-size, '+r.cf],
+      [pool.filter(x=>near(x)&&sizeOK(x)), 'same-size ≤15 km (mixed view)'],
+      [pool.filter(x=>x.rg===r.rg&&sizeOK(x)), 'same-size in '+r.rg],
+      [pool.filter(x=>sizeOK(x)), 'same-size, '+r.cf+'-wide'],
     ];
     for(const [c,bs] of tries){ if(c.length>=3){ comps=c; basis=bs; break; } }
     if(comps.length < 3) return null;
