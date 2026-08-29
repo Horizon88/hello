@@ -1513,11 +1513,13 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
     const strip=document.getElementById('winnersStrip'); if(!strip) return;
     const rows=Object.keys(shortlist).map(u=>DATA.find(x=>x.u===u)).filter(Boolean)
       .sort((a,b)=>(b.r||0)-(a.r||0));
-    if(!rows.length){ strip.style.display='none'; strip.innerHTML=''; return; }
+    let hidden=false; try{ hidden=localStorage.getItem('winners_hidden')==='1'; }catch(e){}
+    if(!rows.length || hidden){ strip.style.display='none'; strip.innerHTML=''; return; }
     strip.style.display='';
     strip.innerHTML=`<div class="wh"><b>★ Winners — ${rows.length}</b>
-      <span style="font-size:11px;color:var(--txt-dim)">your starred plots, always here</span>
-      <button class="draftAll" id="draftAllBtn">📤 Draft all offers</button></div>
+      <span style="font-size:11px;color:var(--txt-dim)">your starred plots (open the ★ chip to bring back)</span>
+      <button class="draftAll" id="draftAllBtn">📤 Draft all offers</button>
+      <button class="wx" id="winnersHide" title="Hide this strip" style="font-size:16px;color:var(--txt-dim);background:none;border:none;cursor:pointer;padding:0 4px">✕</button></div>
       <div class="wrow">${rows.map(r=>{ const om=offerMessage(r); const tags=(shortlist[r.u].tags||[]);
         return `<div class="wcard" data-wdetail="${encodeURIComponent(r.u)}">
           <span class="wx" data-wremove="${encodeURIComponent(r.u)}" title="unstar">✕</span>
@@ -1529,6 +1531,7 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
     strip.querySelectorAll('[data-wdetail]').forEach(el=>el.onclick=(e)=>{ if(e.target.classList.contains('wx'))return; const u=decodeURIComponent(el.dataset.wdetail); const r=DATA.find(x=>x.u===u); if(r) openDetail(r); });
     strip.querySelectorAll('[data-wremove]').forEach(el=>el.onclick=(e)=>{ e.stopPropagation(); delete shortlist[decodeURIComponent(el.dataset.wremove)]; saveShortlist(shortlist); refreshShortlistChip(); });
     document.getElementById('draftAllBtn').onclick=()=>window.__draftAllOffers();
+    document.getElementById('winnersHide').onclick=()=>{ try{ localStorage.setItem('winners_hidden','1'); }catch(e){} renderWinners(); };
   }
   // ---- plot package: combined price / size / commitment for adjacent parcels ----
   function renderPackage(){
@@ -1689,7 +1692,7 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
   }
   document.getElementById('shortlistClose').onclick=()=>shortlistBg.classList.remove('show');
   shortlistBg.onclick=(e)=>{ if(e.target===shortlistBg) shortlistBg.classList.remove('show'); };
-  document.getElementById('slChip').onclick=()=>openShortlistView();
+  document.getElementById('slChip').onclick=()=>{ try{ localStorage.removeItem('winners_hidden'); }catch(e){} renderWinners(); openShortlistView(); };
   refreshShortlistChip();
   renderPackage();
 
