@@ -9,7 +9,7 @@
   "m2": 34818,
   "usd": 3333333,
   "upm": 95.74,
-  "v": "sea_visible",
+  "v": "sea_view",
   "t": "Chanote (DOL official)",
   "lat": 8.1705913,
   "lon": 98.75065365,
@@ -32,9 +32,11 @@
   "price_is_official": false,
   "has_market_ask": true,
   "xref_url": "https://www.facebook.com/photo/?fbid=27954154180885633&set=pcb.4670486556515209",
-  "xref_note": "Pawinee Real Estate · ฿120M for 23 rai (this deed 54240 + deed 50861) · sea view over Phang Nga bay",
+  "xref_note": "Pawinee Real Estate · ฿120M for 23 rai (this deed 54240 + deed 50861) · sea view over Phang Nga bay · slope ~25% (buildable, sub-EEA) · road reaches · elevated sea view",
   "listing_agent": "Pawinee Real Estate",
-  "added": "2026-08-27"
+  "added": "2026-08-27",
+  "slope_pct": 25,
+  "road_access": true
  },
  {
   "tp": "land",
