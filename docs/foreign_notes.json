@@ -1,19 +1,3 @@
 {
- "Thailand": "Thai land: freehold blocked for foreigners, but Thai-company structure (49% farang / 51% Thai) is standard for coastal properties. Friction moderate, not blocking.",
- "USA": "no foreign-ownership restriction federally",
- "New Zealand": "NZ: Overseas Investment Act 2018 blocks residential; rural land needs OIO consent + benefit-to-NZ test. Effectively -25 vs unrestricted.",
- "Portugal": "Portugal: freehold for anyone; Golden Visa no longer covers residential real estate (post-2024).",
- "Romania": "EU citizens: freehold OK. Non-EU: needs RO company structure (unless reciprocity treaty).",
- "Chile": "Chile: freehold OK. Border zone (10km from AR/PE/BO border) needs presidential decree for foreigners.",
- "French Polynesia": "Tahiti: freehold available for non-French but permit process complex.",
- "Turkey": "30 ha cap for foreigners + military-zone exclusions; reciprocity rule",
- "Poland": "EU: freehold. Non-EU: needs Ministry permit for ag-land >1ha; border/coastal land restricted.",
- "Fiji": "Fiji: mostly native lease (99-year); freehold rare and iTaukei consent required for coastal.",
- "New Caledonia": "French territory: freehold available for anyone.",
- "Japan": "no restrictions, full freehold for foreigners",
- "Australia": "FIRB approval required for non-resident purchases.",
- "Vanuatu": "Vanuatu: NO freehold for non-citizens; 75-year lease max.",
- "Austria": "AT: non-EU buyers need Ausl\u00e4ndergrunderwerbsgesetz permit per state. Vorarlberg + Tirol very restrictive; K\u00e4rnten more open. Tourist-zone chalets often easier.",
- "Switzerland": "CH: non-residents restricted by Lex Koller. Alpine resort communes have annual foreign-purchase quotas (mostly filled). Buy via commercial (chalet-hotel operator) or holiday-home authorization.",
- "Georgia": "GE: foreigners can hold urban land freehold. Agricultural land (>5ha) restricted to Georgian citizens \u2014 mountain plots often OK if <5ha."
+ "Thailand": "Thai land: freehold blocked for foreigners, Thai-company structure is standard workaround."
 }
