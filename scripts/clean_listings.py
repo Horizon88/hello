@@ -278,6 +278,35 @@ if notes:
     json.dump(notes, open(PATH.replace('listings.json', 'foreign_notes.json'), 'w'), indent=1)
     fixed['foreign_note_moved_to_sidecar'] = len(notes)
 
+# ── 6b. value flag: bottom-quartile $/m² within region ───────────────
+# `distressed` (the 💎 "cheap for area" flag) was never being set on any
+# row — the filter matched nothing. Compute it here: a row is flagged when
+# its $/m² sits in the cheapest quartile of a large-enough same-country,
+# same-region cohort (≥8 priced comps), so it means "underpriced for where
+# it is", distinct from the 🔥 forced-sale `distress` score.
+from collections import defaultdict as _dd
+_cohort = _dd(list)
+for r in d:
+    upm = r.get('upm')
+    if r.get('cf') and r.get('rg') and isinstance(upm, (int, float)) and upm > 0:
+        _cohort[(r['cf'], r['rg'])].append(upm)
+_q1 = {}
+for key, vals in _cohort.items():
+    if len(vals) >= 8:
+        vs = sorted(vals)
+        _q1[key] = vs[len(vs) // 4]   # 25th percentile
+_flagged = 0
+for r in d:
+    upm = r.get('upm')
+    key = (r.get('cf'), r.get('rg'))
+    if key in _q1 and isinstance(upm, (int, float)) and upm > 0 and upm <= _q1[key]:
+        r['distressed'] = True
+        _flagged += 1
+    elif r.get('distressed'):
+        r.pop('distressed', None)   # clear stale flags if price/region moved
+if _flagged:
+    fixed['value_flag_bottom_quartile'] = _flagged
+
 # ── 7. number normalization (payload size) ───────────────────────────
 # full-precision floats bloat the 18 MB payload; 5-decimal coords ≈ 1 m
 for r in d:
