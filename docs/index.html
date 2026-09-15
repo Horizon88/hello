@@ -1120,7 +1120,7 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
   // Opening = fair minus a negotiation discount that widens with the seller's
   // weakness (leverage / distress / time on market).
   function fairValue(r){
-    if(!r || r.tp==='abandoned_ski' || r.tp==='penthouse' || r.price_is_official || !r.m2 || !r.usd) return null;
+    if(!r || r.tp==='abandoned_ski' || r.tp==='penthouse' || r.tp==='villa' || r.price_is_official || !r.m2 || !r.usd) return null;
     const pool = DATA.filter(x => x!==r && x.cf===r.cf && x.upm && x.m2 && !x.area_est && !x.nominee && x.tp!=='abandoned_ski');
     // size-similar only — big parcels trade at far lower $/m² than small lots,
     // so comparing like-for-like size is essential (0.25×–4× the subject).
