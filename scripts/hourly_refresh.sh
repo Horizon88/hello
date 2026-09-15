@@ -25,16 +25,18 @@ print('snapshot', len(d))
 PY
 
 # fresh fetch (clear caches so it's not a replay)
-rm -f /tmp/dotproperty.json /tmp/fazwaz_south.json /tmp/propertyhub_th.json
+rm -f /tmp/dotproperty.json /tmp/fazwaz_south.json /tmp/propertyhub_th.json /tmp/thailandproperty.json
 
-log "scraping DotProperty…";   timeout 900 python3 scripts/dotproperty_scrape.py    2>>/tmp/hr.log || log "dotproperty partial"
-log "scraping FazWaz South…";  timeout 900 python3 scripts/fazwaz_south_th_scrape.py 2>>/tmp/hr.log || log "fazwaz partial"
-log "scraping PropertyHub…";   timeout 900 python3 scripts/propertyhub_th_scrape.py  2>>/tmp/hr.log || log "propertyhub partial"
+log "scraping DotProperty…";        timeout 900 python3 scripts/dotproperty_scrape.py       2>>/tmp/hr.log || log "dotproperty partial"
+log "scraping FazWaz South…";       timeout 900 python3 scripts/fazwaz_south_th_scrape.py    2>>/tmp/hr.log || log "fazwaz partial"
+log "scraping PropertyHub…";        timeout 900 python3 scripts/propertyhub_th_scrape.py     2>>/tmp/hr.log || log "propertyhub partial"
+log "scraping thailand-property…";  timeout 900 python3 scripts/thailandproperty_scrape.py   2>>/tmp/hr.log || log "thailand-property partial"
 
 log "merging…"
-python3 scripts/fazwaz_south_th_merge.py 2>>/tmp/hr.log || true
-python3 scripts/propertyhub_th_merge.py  2>>/tmp/hr.log || true
-python3 scripts/dotproperty_merge.py     2>>/tmp/hr.log || true
+python3 scripts/fazwaz_south_th_merge.py  2>>/tmp/hr.log || true
+python3 scripts/propertyhub_th_merge.py   2>>/tmp/hr.log || true
+python3 scripts/dotproperty_merge.py      2>>/tmp/hr.log || true
+python3 scripts/thailandproperty_merge.py 2>>/tmp/hr.log || true
 
 log "nominee scan/merge…"
 python3 scripts/nominee_scan.py  2>>/tmp/hr.log || true
