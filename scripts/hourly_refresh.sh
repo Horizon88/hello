@@ -45,16 +45,22 @@ python3 scripts/nominee_merge.py 2>>/tmp/hr.log || true
 log "clean/value pass…"
 python3 scripts/clean_listings.py 2>>/tmp/hr.log || true
 
-# measure genuine net-new Thai listings vs snapshot
+# measure genuine net-new Thai listings vs snapshot.
+# EXCLUDE src:dotproperty — its merge replaces the whole source each run and
+# DotProperty's pagination is non-deterministic, so it churns URLs every run
+# and would otherwise fool the gate into committing noise hourly. Only count
+# net-new from the stable-URL sources (fazwaz / propertyhub / thailand-property).
 NEW=$(python3 - <<'PY'
 import json
 d=json.load(open('docs/listings.json'))
 pre=set(json.load(open('/tmp/pre_refresh_urls.json')))
-new=[r for r in d if r.get('cf')=='Thailand' and r.get('u') not in pre]
+new=[r for r in d if r.get('cf')=='Thailand'
+     and r.get('u') not in pre
+     and 'src:dotproperty' not in (r.get('rb','') or '')]
 print(len(new))
 PY
 )
-log "net-new Thai listings this run: $NEW"
+log "net-new Thai listings this run (excl. dotproperty churn): $NEW"
 
 # commit + push ONLY if there is a real change AND net-new listings
 if [ "${NEW:-0}" -gt 0 ] && ! git diff --quiet -- docs/; then
