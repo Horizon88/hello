@@ -279,7 +279,7 @@
 <main>
   <div id="map"></div>
   <div class="panel">
-    <table id="tbl"><thead><tr><th data-k="r" class="sorted">★</th><th data-k="cf">country</th><th data-k="rg">region</th><th data-k="a">area</th><th data-k="ac">acres</th><th data-k="upa">$/ac</th><th data-k="upm">$/m²</th><th data-k="usd">price USD</th><th data-k="v">view</th><th data-k="ski_km">⛷ km</th><th data-k="coast_km">🌊 km</th><th data-k="distress">🔥</th><th data-k="days_on_market">⏳</th><th>link</th><th></th></tr></thead><tbody id="tbody"></tbody></table>
+    <table id="tbl"><thead><tr><th data-k="r" class="sorted">★</th><th data-k="cf">country</th><th data-k="rg">region</th><th data-k="a">area</th><th data-k="ac">size</th><th data-k="upa">$/ac · ฿/rai</th><th data-k="upm">$/m²</th><th data-k="usd">price USD</th><th data-k="v">view</th><th data-k="ski_km">⛷ km</th><th data-k="coast_km">🌊 km</th><th data-k="distress">🔥</th><th data-k="days_on_market">⏳</th><th>link</th><th></th></tr></thead><tbody id="tbody"></tbody></table>
     <div class="insights" id="insights">
       <h3>📊 Patterns from your archives</h3>
       <div id="insightsBody"><p style="color:var(--txt-dim);font-size:12px">Archive listings (with a reason) to start training the model. Patterns will appear here as you accumulate signals.</p></div>
@@ -1068,12 +1068,13 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
       const cls = (highlightUrl===r.u?'hi ':'') + (isArchived?'archived ':'') + (isFlagged && !isArchived?'flagged ':'');
       const flagBadge = isFlagged ? `<span class="flag" title="${activeFlags[r.u].join(', ')}">⚠</span>` : '';
       const nomBadge = r.nominee ? `<span title="nominee-held · leverage ${r.leverage} · ${r.nominee.hits.join(', ')}" style="cursor:help">🎯</span>` : '';
+      const isTH = r.cf==='Thailand';
       return `<tr class="${cls}" data-u="${r.u}">
         <td class="r ${ratingClass(r.r)}">${r.r}${flagBadge}${nomBadge}</td>
         <td><span class="dot" style="background:${color}"></span>${r.cf.replace('British Columbia','BC').replace('New Zealand','NZ')}</td>
-        <td>${r.rg}</td><td>${r.a}</td>
-        <td>${r.tp==='abandoned_ski'?'':r.ac}</td>
-        <td>${r.tp==='abandoned_ski'?'':(r.ac?'$'+Math.round(r.usd/r.ac).toLocaleString():'')}</td>
+        <td>${r.rg}</td><td>${r.code?`<code style="font-size:10px;opacity:.65;margin-right:5px">${r.code}</code>`:''}${r.a}</td>
+        <td>${r.tp==='abandoned_ski'?'':(isTH&&r.rai!=null?r.rai+' rai':(r.ac??''))}</td>
+        <td>${r.tp==='abandoned_ski'?'':(isTH&&r.baht_rai?'฿'+Math.round(r.baht_rai).toLocaleString():(r.ac?'$'+Math.round(r.usd/r.ac).toLocaleString():''))}</td>
         <td>${r.tp==='abandoned_ski'?'':(r.upm??'')}</td>
         <td>${r.tp==='abandoned_ski'?(r.closure_status==='closed'?'❄ closed':r.closure_status==='suspended'?'❄ susp':r.closure_status==='on hiatus'?'❄ hiatus':'❄'):fmtUsd(r.usd)}</td>
         <td>${r.tp==='abandoned_ski'?(r.year_closed?'cl. '+r.year_closed:''):r.v||''}</td>
@@ -1243,9 +1244,10 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
     const ratingC = ratingClass(r.r);
     detailBody.innerHTML = `
       <div class="detail-rating ${ratingC}" style="color:${ratingC==='s90'?'#7ce38b':ratingC==='s80'?'#9fd96d':ratingC==='s70'?'#d9e57c':ratingC==='s60'?'#e5b87c':'#fff'}">★ ${r.r}<span class="rb">${r.rb||''}</span></div>
-      <h3>${r.rg} ${r.a?' · '+r.a:''}</h3>
+      <h3>${r.code?`<code style="font-size:13px;opacity:.6;margin-right:8px">${r.code}</code>`:''}${r.rg} ${r.a?' · '+r.a:''}</h3>
       <div class="sub">${r.v||'no view'}${r.view_verified===true?' <span style="color:#7ce38b">✓ verified</span>':r.view_verified===false?' <span style="color:#ff8080">✗ unverified</span>':''} · ${r.t||'title unspecified'} · src: ${r.cur||''}</div>
       ${flag}${arch}
+      ${r.cf==='Thailand' && r.rai?`<div class="detail-flag" style="background:#101d2a;color:#8fb8e8;border-color:#2a4a70">📐 <b>${r.rai} rai</b> <span style="opacity:.7">(${(r.m2||0).toLocaleString()} m² · ${Math.round((r.m2||0)/4).toLocaleString()} wah²)</span>${r.baht?` · total <b>฿${r.baht.toLocaleString()}</b>`:''}${r.baht_rai?` · <b>฿${r.baht_rai.toLocaleString()}/rai</b>`:''}${r.baht_wah?` · <b>฿${r.baht_wah.toLocaleString()}/wah</b>`:''}</div>`:''}
       ${r.structural_warn?`<div class="detail-flag" style="background:#3a2a10;color:#ffb060;border-color:#7a5020">⚠ Structural concern: ${r.structural_warn}</div>`:''}
       ${r.size_mismatch?`<div class="detail-flag" style="background:#2a2010;color:#ffd060;border-color:#6a5020">⚠ Listing size vs official parcel: ${r.size_mismatch}× — verify which parcels the sale covers</div>`:''}
       ${r.npa?`<div class="detail-flag" style="background:#3a1a1a;color:#ff9090;border-color:#702030">🏦 NPA / Bank repossession (BAM) — disposal sale</div>`:(r.distressed?`<div class="detail-flag" style="background:#2a1a3a;color:#d49aff;border-color:#5a3070">💎 Distressed: bottom-quartile $/m² in ${r.rg}</div>`:'')}

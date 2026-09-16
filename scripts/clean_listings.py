@@ -307,6 +307,50 @@ for r in d:
 if _flagged:
     fixed['value_flag_bottom_quartile'] = _flagged
 
+# ── 6c. stable plot code + Thai units (rai, ฿/rai, ฿/talang-wah) ──────
+# `code` is a short human-distinguishable id derived only from the URL, so
+# it is STABLE across re-scrapes/re-scores (never renumbers). Thai rows also
+# carry rai + baht-denominated per-area prices, the units the buyer thinks in.
+import hashlib as _hl
+_CC = {'Thailand':'TH','Japan':'JP','Canada':'CA','USA':'US','Portugal':'PT',
+       'Chile':'CL','Poland':'PL','Romania':'RO','Indonesia':'ID',
+       'New Zealand':'NZ','Argentina':'AR','Turkey':'TR','Austria':'AT',
+       'Switzerland':'CH','French Polynesia':'PF','Fiji':'FJ','Georgia':'GE',
+       'New Caledonia':'NC','Vanuatu':'VU','Australia':'AU'}
+_B32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'   # Crockford-ish: no I L O U
+def _plot_code(url, cf):
+    n = int(_hl.blake2b((url or '').encode(), digest_size=8).hexdigest(), 16)
+    s = ''
+    for _ in range(6):                       # 32^6 ≈ 1B keyspace → ~0 collisions
+        s = _B32[n % 32] + s; n //= 32
+    return f"{_CC.get(cf, 'XX')}-{s}"
+
+_coded = 0; _thai_units = 0
+for r in d:
+    if r.get('u'):
+        r['code'] = _plot_code(r['u'], r.get('cf', '')); _coded += 1
+    if r.get('cf') == 'Thailand' and r.get('m2'):
+        m2 = r['m2']
+        # recover THB: prefer the native list price, else convert from usd
+        baht = None
+        if str(r.get('cur', '')).upper() == 'THB' and r.get('lp'):
+            try: baht = float(str(r['lp']).replace(',', ''))
+            except Exception: baht = None
+        if not baht and r.get('usd'):
+            baht = r['usd'] * 36
+        rai = m2 / 1600.0                    # 1 rai = 1600 m²
+        r['rai'] = round(rai, 2)
+        if baht and rai:
+            r['baht'] = int(round(baht))
+            r['baht_rai'] = int(round(baht / rai))            # per rai
+            r['baht_wah'] = int(round(baht / (m2 / 4.0)))     # per talang wah (1 wah²=4 m²)
+            _thai_units += 1
+    else:
+        for k in ('rai', 'baht', 'baht_rai', 'baht_wah'):
+            r.pop(k, None)
+if _coded: fixed['plot_code_assigned'] = _coded
+if _thai_units: fixed['thai_units_added'] = _thai_units
+
 # ── 7. number normalization (payload size) ───────────────────────────
 # full-precision floats bloat the 18 MB payload; 5-decimal coords ≈ 1 m
 for r in d:
