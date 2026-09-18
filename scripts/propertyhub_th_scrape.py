@@ -1,172 +1,143 @@
-"""PropertyHub.in.th — Thai land listings scrape.
+"""PropertyHub.in.th — Thai land scrape (v2, post-restructure).
 
-Big Thai property portal. List pages have __NEXT_DATA__ JSON with 60
-listings each, including lat/lng coords, price in THB, title, slug,
-and landAndHouseInformation (rai/ngan/wah area).
+PropertyHub moved to a Next.js SPA. Listings now live in the page's
+__NEXT_DATA__ at props.pageProps.resultListings (60/page), and the working
+detail URL is  /en/listings/<slug>---<id>  (triple dash). The old
+/<thai-slug> URLs 404, which is why the previous scraper died.
 
-Coverage: sweeps all 77 Thai provinces. For coastal-focused users the
-notable ones are captured below; add more via ALL_PROVINCES if needed.
-
-URL pattern:
-  /land-for-sale/<province-slug>?page=N   (English slug where available)
-
-The site is server-rendered, so a plain fetch through the CF relay
-returns the JSON directly.
+Server-side pagination isn't exposed (?page= is ignored — the site paginates
+client-side via XHR the relay can't drive), so we fetch the first page of
+each South-province land feed (~60 listings, default-sorted = freshest).
+Province slugs use PropertyHub's own spellings; a bad slug falls back to the
+all-Thailand feed, which the South-Thailand bounding-box filter discards.
+Emits /tmp/propertyhub_th.json for the merge.
 """
-import json, re, subprocess, sys, time, urllib.parse, os
+import json, os, re, subprocess, sys, time, urllib.parse
 
 RELAY = "https://landrelay.flag-theory.workers.dev"
+OUT = "/tmp/propertyhub_th.json"
+# South-Thailand bounding box (Andaman + southern Gulf incl. Prachuap/Hua Hin)
+S_LAT = (5.5, 12.7); S_LNG = (97.3, 100.9)
 
-# All Thai coastal provinces (Andaman + Gulf) — where waterfront land lives.
-COASTAL_PROVINCES = [
-    # Andaman
-    ("Ranong",              "ranong"),
-    ("Phang Nga",           "phang-nga"),
-    ("Phuket",              "phuket"),
-    ("Krabi",               "krabi"),
-    ("Trang",               "trang"),
-    ("Satun",               "satun"),
-    # Southern Gulf
-    ("Pattani",             "pattani"),
-    ("Songkhla",            "songkhla"),
-    ("Nakhon Si Thammarat", "nakhon-si-thammarat"),
-    ("Surat Thani",         "surat-thani"),
-    ("Chumphon",            "chumphon"),
-    # Western Gulf
-    ("Prachuap Khiri Khan", "prachuap-khiri-khan"),
-    ("Petchaburi",          "petchaburi"),
-    # Bangkok / metro Gulf
-    ("Samut Songkhram",     "samut-songkhram"),
-    ("Samut Sakhon",        "samut-sakhon"),
-    ("Samut Prakan",        "samut-prakan"),
-    # Eastern Gulf
-    ("Chonburi",            "chonburi"),
-    ("Rayong",              "rayong"),
-    ("Chanthaburi",         "chanthaburi"),
-    ("Trat",                "trat"),
+# PropertyHub province slugs (their spellings) for the southern hunt provinces.
+# Bad/duplicate spellings are harmless — the bbox filter drops any that fall
+# back to the all-Thailand feed.
+PROVINCE_SLUGS = [
+    "phuket", "krabi", "phangnga", "surat-thani", "trang", "chumphon",
+    "ranong", "satun", "songkhla", "prachaubkirikhan",
+    "nakhon-si-thammarat", "nakhonsithammarat", "pattani",
 ]
 
-DISTRESS_PATS = [
-    (r'ด่วน|urgent', 'urgent+15'),
-    (r'ลดราคา|reduced|price\s*drop', 'price-drop+20'),
-    (r'เจ้าของขายเอง|owner\s*sale', 'owner-direct+8'),
-    (r'ต่อรอง|negotiable', 'negotiable+8'),
-    (r'ต่ำกว่าราคาประเมิน|below\s*market', 'below-market+15'),
-    (r'ขายด่วน|quick\s*sale', 'quick-sale+15'),
-    (r'ขาดทุน|desperate', 'desperate+20'),
-    (r'ยึด|foreclosure|npa|npl', 'foreclosure+30'),
-    (r'ฟรีโอน|no\s*transfer\s*fee', 'no-transfer-fee+5'),
-    (r'สร้างไม่ได้|can\'t\s*build', 'no-build-warning+0'),  # info only
-]
+# recognizable southern provinces for labelling from the address string
+S_PROVINCES = ["Phuket", "Krabi", "Phang Nga", "Phangnga", "Surat Thani",
+               "Nakhon Si Thammarat", "Trang", "Chumphon", "Ranong", "Satun",
+               "Songkhla", "Pattani", "Yala", "Narathiwat", "Prachuap Khiri Khan"]
 
-def via_relay(url, timeout=40):
+def via_relay(url, timeout=35):
     api = f"{RELAY}/?url={urllib.parse.quote(url, safe='')}"
     try:
-        p = subprocess.run(["curl","-sk","--compressed","-m",str(timeout),api],
-                          capture_output=True, timeout=timeout+5)
+        p = subprocess.run(["curl", "-sk", "--compressed", "-m", str(timeout), api],
+                           capture_output=True, timeout=timeout + 5)
         return p.stdout.decode("utf-8", errors="replace")
     except Exception:
         return ""
 
-def parse_list(body):
-    m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', body, re.S)
-    if not m: return []
-    try:
-        d = json.loads(m.group(1))
-        return d.get("props", {}).get("pageProps", {}).get("resultListings", []) or []
-    except (KeyError, json.JSONDecodeError):
-        return []
-
-def extract_land_info(item):
-    """Parse a PropertyHub listing dict into our common shape."""
-    if item.get("propertyType") != "LAND": return None
-    loc = item.get("location") or {}
-    lat, lng = loc.get("lat"), loc.get("lng")
-    if not lat or not lng or not (5 < lat < 21 and 95 < lng < 106):
+def next_data_from_html(h):
+    m = re.search(r'id="__NEXT_DATA__"[^>]*>(.*?)</script>', h, re.S)
+    if not m:
         return None
-    price = ((item.get("price") or {}).get("forSale") or {}).get("price")
-    if not price or price < 100000: return None    # < ฿100k = data noise
-    lai = item.get("landAndHouseInformation") or {}
-    # Area — fields are flat on landAndHouseInformation
-    rai = int(lai.get("rai") or 0)
-    ngan = int(lai.get("ngan") or 0)
-    wah_str = lai.get("squareWa") or lai.get("wah") or 0
-    try: wah = float(wah_str)
-    except: wah = 0
-    total_wah = rai * 400 + ngan * 100 + wah
-    if not total_wah:
-        # Fallback: squareWaInTotal or landSize
-        for k in ("squareWaInTotal", "landSize"):
-            v = lai.get(k)
-            if v:
-                try: total_wah = float(v); break
-                except: pass
-    sqm = total_wah * 4    # 1 sqwa = 4 m²
-    if sqm < 100: return None    # smaller than 25 sqwa is data noise
-    title = item.get("title") or ""
-    # Distress scan on title
-    dist_hits = []
-    dist_bonus = 0
-    for pat, tag in DISTRESS_PATS:
-        if re.search(pat, title, re.I):
-            dist_hits.append(tag)
-            dist_bonus += int(tag.rsplit("+",1)[1])
-    if dist_bonus > 60: dist_bonus = 60
-    # Image
-    pic = item.get("coverPicture")
-    img = ("https://images.propertyhub.in.th/" + pic.lstrip("/")) if pic else ""
+    try:
+        return json.loads(m.group(1))
+    except Exception:
+        return None
+
+def province_from(addr):
+    a = addr or ""
+    for p in S_PROVINCES:
+        if p.replace(" ", "").lower() in a.replace(" ", "").lower():
+            return "Phang Nga" if p == "Phangnga" else p
+    return (a.split()[-1] if a.split() else "Thailand")
+
+def area_sqm(lh):
+    if not isinstance(lh, dict):
+        return None
+    tw = lh.get("squareWaInTotal") or lh.get("squareWa")
+    if tw:
+        return round(float(tw) * 4, 1)          # 1 talang wah = 4 m²
+    rai = lh.get("rai") or 0; ngan = lh.get("ngan") or 0; wa = lh.get("squareWa") or 0
+    total = rai * 1600 + ngan * 400 + wa * 4
+    if total >= 40:
+        return round(total, 1)
+    ls = lh.get("landSize")
+    if ls:
+        return round(float(ls), 1)
+    w, d = lh.get("width"), lh.get("depth")
+    if w and d:
+        return round(float(w) * float(d), 1)
+    return None
+
+def extract(listing):
+    if listing.get("propertyType") != "LAND" or listing.get("postType") != "FOR_SALE":
+        return None
+    loc = listing.get("location") or {}
+    lat, lng = loc.get("lat"), loc.get("lng")
+    if lat is None or lng is None:
+        return None
+    if not (S_LAT[0] <= lat <= S_LAT[1] and S_LNG[0] <= lng <= S_LNG[1]):
+        return None                               # outside the hunt area
+    sale = ((listing.get("price") or {}).get("forSale") or {})
+    thb = sale.get("price")
+    if not thb:
+        return None
+    sqm = area_sqm(listing.get("landAndHouseInformation"))
+    if not sqm or sqm < 40:
+        return None
+    slug = listing.get("slug"); lid = listing.get("id")
+    if not slug or not lid:
+        return None
+    lh = listing.get("landAndHouseInformation") or {}
+    rai = round(sqm / 1600, 2)
     return {
-        "id": str(item.get("id")),
-        "url": f"https://www.propertyhub.in.th/{item.get('slug','')}",
-        "title": title[:200],
-        "price_thb": price,
-        "price_usd": round(price / 36),
+        "id": str(lid),
+        "url": f"https://www.propertyhub.in.th/en/listings/{slug}---{lid}",
+        "title": listing.get("title", "")[:200],
+        "province": province_from(listing.get("address")),
+        "locality": listing.get("address", ""),
         "sqm": sqm,
-        "rai_display": f"{rai}-{ngan}-{wah}",
-        "lat": lat, "lng": lng,
-        "img": img,
-        "distress_hits": dist_hits,
-        "distress_bonus": dist_bonus,
+        "price_thb": int(thb),
+        "price_usd": round(int(thb) / 36),
+        "lat": round(float(lat), 6), "lng": round(float(lng), 6),
+        "img": ("https://img.propertyhub.in.th" + listing["coverPicture"]) if listing.get("coverPicture") else "",
+        "first_seen": (listing.get("createdAt") or "")[:10] or None,
+        "rai_display": rai,
     }
 
+def main():
+    out = {}
+    if os.path.exists(OUT):
+        for r in json.load(open(OUT)):
+            out[r["id"]] = r
+    for slug in PROVINCE_SLUGS:
+        h = via_relay(f"https://www.propertyhub.in.th/en/land-for-sale/{slug}")
+        nd = next_data_from_html(h)
+        if not nd:
+            print(f"  {slug:>22}: no __NEXT_DATA__", file=sys.stderr)
+            continue
+        pp = nd["props"]["pageProps"]
+        listings = pp.get("resultListings", [])
+        total = (pp.get("pagination") or {}).get("totalCount")
+        new = 0
+        for L in listings:
+            rec = extract(L)
+            if rec and rec["id"] not in out:
+                out[rec["id"]] = rec; new += 1
+        note = " (fell back to all-TH → bbox-filtered)" if total == 6811 else f" of {total}"
+        print(f"  {slug:>22}: {len(listings)} listings{note}, {new} new south-land (total {len(out)})", file=sys.stderr)
+        json.dump(list(out.values()), open(OUT, "w"))
+        time.sleep(0.4)
+
+    json.dump(list(out.values()), open(OUT, "w"))
+    print(f"TOTAL {len(out)} south-Thailand land rows -> {OUT}", file=sys.stderr)
+
 if __name__ == "__main__":
-    out_path = "/tmp/propertyhub_th.json"
-    existing = {}
-    if os.path.exists(out_path):
-        for r in json.load(open(out_path)):
-            existing[r["id"]] = r
-        print(f"loaded {len(existing)} existing", file=sys.stderr)
-
-    all_rows = []
-    for prov_name, slug in COASTAL_PROVINCES:
-        seen_in_prov = set()
-        for page in range(1, 15):   # deeper pagination — most coastal provinces have 10+ pages
-            url = f"https://www.propertyhub.in.th/land-for-sale/{slug}"
-            if page > 1: url += f"?page={page}"
-            body = via_relay(url, timeout=35)
-            if not body or len(body) < 30000: continue
-            items = parse_list(body)
-            new_this_page = 0
-            for it in items:
-                lid = str(it.get("id"))
-                if lid in seen_in_prov: continue
-                seen_in_prov.add(lid)
-                r = extract_land_info(it)
-                if not r: continue
-                r["province"] = prov_name
-                all_rows.append(r)
-                new_this_page += 1
-            print(f"  {prov_name:>22} p{page}: {len(items)} items → {new_this_page} valid new", file=sys.stderr)
-            if len(items) < 20: break   # end of results
-            time.sleep(0.3)
-
-    # Dedup across provinces
-    seen = set(); dedup = []
-    for r in all_rows:
-        if r["id"] in seen: continue
-        seen.add(r["id"]); dedup.append(r)
-    json.dump(dedup, open(out_path, "w"), ensure_ascii=False)
-    from collections import Counter
-    n_dist = sum(1 for r in dedup if r["distress_bonus"])
-    print(f"\ndone. {len(dedup)} unique listings saved (distressed: {n_dist})", file=sys.stderr)
-    print(dict(Counter(r["province"] for r in dedup).most_common()), file=sys.stderr)
+    main()
