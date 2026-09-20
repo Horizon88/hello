@@ -32,6 +32,22 @@ PREFS = {
     "akita":    ("Akita",    39.8,  140.4,  ["senboku","kazuno","daisen","yokote","yuzawa"]),
     "iwate":    ("Iwate",    39.6,  141.1,  ["shizukuishi","hachimantai","takizawa","morioka","hanamaki","kitakami","waga_gun"]),
     "aomori":   ("Aomori",   40.6,  140.6,  ["hirosaki","kuroishi","aomori","towada","hirakawa"]),
+    # ── scenic / resort expansion (Fuji-Izu, hot-spring, coastal, islands) ──
+    "shizuoka": ("Shizuoka", 35.00, 138.50, ["izu","atami","ito","fuji","gotemba","susono","kannami","kawazu","numazu","mishima","shimoda","matsuzaki","higashiizu","minamiizu"]),
+    "kanagawa": ("Kanagawa", 35.25, 139.10, ["hakone","yugawara","odawara","ashigarashimo","ashigarakami"]),  # restrict to Hakone side
+    "shiga":    ("Shiga",    35.20, 136.00, ["takashima","otsu","nagahama","maibara","kohoku","hikone","yasu"]),
+    "wakayama": ("Wakayama", 33.90, 135.40, []),   # whole pref scenic (Koya, Nachi, Shirahama)
+    "mie":      ("Mie",      34.30, 136.50, ["ise","shima","toba","kumano","owase","nabari","iga","minamiise"]),
+    "nara":     ("Nara",     34.20, 135.90, ["yoshino","gojo","uda","tenkawa","totsukawa","kurotaki","shimokitayama","kamikitayama"]),
+    "okinawa":  ("Okinawa",  26.50, 127.90, []),   # all islands scenic
+    "kumamoto": ("Kumamoto", 32.90, 131.00, ["aso","minamiaso","takamori","ubuyama","oguni","kikuchi","yamaga","amakusa"]),
+    "oita":     ("Oita",     33.20, 131.40, ["yufu","beppu","kokonoe","kuju","hita","taketa","kunisaki","bungo"]),
+    "kagoshima":("Kagoshima",31.60, 130.60, ["kirishima","yakushima","ibusuki","minamikyushu","amami","tarumizu","kanoya","makurazaki"]),
+    "ehime":    ("Ehime",    33.80, 132.80, ["matsuyama","uchiko","ozu","seiyo","kamijima","imabari","saijo","kumakogen"]),
+    "kochi":    ("Kochi",    33.50, 133.50, []),   # rural / coastal Shikoku
+    "ishikawa": ("Ishikawa", 37.00, 136.80, ["wajima","suzu","noto","nanao","hakui","shika","anamizu","hodatsushimizu"]),  # Noto peninsula
+    "toyama":   ("Toyama",   36.70, 137.20, ["tateyama","kurobe","nyuzen","kamiichi","uozu","himi","nanto"]),
+    "fukui":    ("Fukui",    35.90, 136.20, ["ono","katsuyama","echizen","obama","wakasa","tsuruga","mihama"]),
 }
 
 URL_RE = re.compile(r"/tochi/([a-z_]+)/sc_([a-z_0-9]+)/nc_(\d+)/")
