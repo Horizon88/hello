@@ -45,17 +45,41 @@ def ads_of(html):
     except Exception:
         return [], None
 
-def to_sqm(size, suffix):
+def to_sqm(size, suffix, title=""):
     try:
         v = float(str(size).replace(",", ""))
     except Exception:
         return None
     s = (suffix or "").lower()
-    if "acre" in s:    return round(v * 4046.86, 1)
+    t = (title or "").lower()
+    # title often states the true unit even when the suffix field is wrong
+    title_sqft = bool(re.search(r'sq\.?\s*ft|sqft|square\s*f(?:ee|oo)t|kaki persegi|kps', t))
+    title_acre = bool(re.search(r'\backer?s?\b|ekar', t))
+    if "acre" in s:
+        # sellers routinely mis-pick "Acre" for a sq-ft figure. A real parcel
+        # of this many acres at this price would be absurd → treat as sq ft.
+        if title_sqft and not title_acre:
+            return round(v * 0.092903, 1)
+        return round(v * 4046.86, 1)
     if "hectare" in s: return round(v * 10000, 1)
     if "feet" in s or "ft" in s or "sqft" in s: return round(v * 0.092903, 1)
     if "meter" in s or "metre" in s or "sqm" in s: return round(v, 1)
     return round(v * 0.092903, 1)          # mudah's residential default is sq ft
+
+# titles that mean a BUILDING (not land) miscategorised under land-for-sale
+BUILDING_RE = re.compile(
+    r'shop\s?lot|shoplot|shop\s?house|shophouse|factory|kilang|warehouse|gudang|'
+    r'apartment|pangsapuri|condo|\boffice\b|pejabat|\bstorey\b|tingkat|'
+    r'semi-?d\b|terrace\s+house|double\s+storey|single\s+storey', re.I)
+RENT_RE = re.compile(r'for\s*rent|untuk\s*disewa|\bdisewa\b|\bsewa\b|\brental\b', re.I)
+
+def is_landish(title):
+    t = title or ""
+    if RENT_RE.search(t):
+        return False
+    if BUILDING_RE.search(t):
+        return False
+    return True
 
 def geocode(subarea, region, cache):
     key = f"{subarea}|{region}"
@@ -97,16 +121,25 @@ def main():
             lid = str(a.get("listId") or ad.get("id") or "")
             if not lid or lid in out:
                 continue
+            title = (a.get("subject") or "")[:200]
+            if not is_landish(title):
+                continue                       # skip buildings / rentals
             price = a.get("price")
-            sqm = to_sqm(a.get("size"), a.get("sizeSuffix"))
+            sqm = to_sqm(a.get("size"), a.get("sizeSuffix"), title)
             adurl = a.get("adviewUrl")
             if not price or not sqm or not adurl:
                 continue
+            price = int(float(price))
+            # price-sanity unit correction: a genuine >50-acre parcel is never
+            # this cheap per acre → the "Acre" figure was really sq ft.
+            if "acre" in (a.get("sizeSuffix") or "").lower():
+                acres = sqm / 4046.86
+                if acres > 50 and (price / acres) < 3000:
+                    sqm = round(float(str(a.get("size")).replace(",", "")) * 0.092903, 1)
             out[lid] = {
-                "id": lid, "url": adurl,
-                "title": (a.get("subject") or "")[:200],
-                "price_rm": int(float(price)),
-                "sqm": sqm,
+                "id": lid, "url": adurl, "title": title,
+                "price_rm": price,
+                "sqm": sqm, "size_raw": a.get("size"), "size_suffix": a.get("sizeSuffix"),
                 "region": a.get("regionName") or "", "subarea": a.get("subareaName") or "",
                 "title_type": a.get("titleTypeName") or "",
                 "property_type": a.get("propertyTypeName") or "",
