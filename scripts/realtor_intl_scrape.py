@@ -11,7 +11,7 @@ market. Currently: Grenada (gd). Emits /tmp/realtor_intl.json for the merge.
 import json, os, re, subprocess, sys, time, urllib.parse
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-COUNTRIES = {"gd": "Grenada"}          # code -> display name
+COUNTRIES = {"gd": "Grenada", "br": "Brazil"}          # code -> display name
 OUT = "/tmp/realtor_intl.json"
 
 def fetch(url, timeout=30):
