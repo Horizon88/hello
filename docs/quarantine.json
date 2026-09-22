@@ -9629,5 +9629,31 @@
   "ski_r": "",
   "coast_km": 16.0,
   "foreign_note": "Brazil: foreigners may own urban/titled land freely; rural land is capped/needs INCRA approval for larger areas, and land within 150 km of a land border needs security clearance. Verify t\u00edtulo + georreferenciamento."
+ },
+ {
+  "tp": "land",
+  "cf": "Brazil",
+  "r": 56,
+  "rg": "Santa Rita De Cassia (BA farm)",
+  "a": "Centro",
+  "ac": 15125.307,
+  "m2": 61210000,
+  "usd": 3833333,
+  "upm": 0.063,
+  "v": "",
+  "el": "",
+  "t": "rural (foreign cap \u2014 Law 5.709/71)",
+  "lat": -11.01152,
+  "lon": -44.51726,
+  "cur": "BRL",
+  "lp": "20700000",
+  "rb": "src:chavesnamao+base+18+scale+28+val+10",
+  "imgs": [],
+  "u": "https://www.chavesnamao.com.br/imovel/fazenda-a-venda-ba-santa-rita-de-cassia-centro-61210000m2-RS20700000/id-19281346/",
+  "name": "Fazenda 6,121 ha \u00b7 Santa Rita De Cassia, Bahia",
+  "ski_km": null,
+  "ski_r": "",
+  "coast_km": null,
+  "foreign_note": "Brazil RURAL land: foreign ownership is CAPPED by Law 5.709/71 \u2014 a foreign person/foreign-controlled company may hold only a limited number of rural 'modules', and larger areas need INCRA + (for big tracts) National Congress approval. Structure via a Brazilian entity with counsel. Verify t\u00edtulo, georreferenciamento (SIGEF), CAR, and \u00e1gua/outorga."
  }
 ]

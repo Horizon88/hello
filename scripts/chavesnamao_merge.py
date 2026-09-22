@@ -52,6 +52,12 @@ def build(r):
     upm = round(usd/sqm, 2 if usd/sqm < 100 else 1)
     lat, lng = r["lat"], r["lng"]
     farm = r.get("kind") == "fazenda"
+    if farm:
+        uph_chk = usd / (sqm / 10000) if sqm else 0
+        # western-Bahia farmland tops out ~$20-30k/ha; >$80k/ha is a seller
+        # data-entry error (wrong unit or an extra price digit) — drop it.
+        if uph_chk > 80000:
+            return None
 
     rb = ["src:chavesnamao"]; score = 18; rb.append("base+18")
     if farm:
