@@ -1,14 +1,16 @@
-"""chavesnamao.com.br — Brazil coastal land scrape (targeted by region).
+"""chavesnamao.com.br — Brazil land scrape (targeted by region + category).
 
 The big Brazil portals (vivareal/zap/OLX) are Cloudflare-walled, but
 chavesnamao serves full SSR pages on a DIRECT fetch, and every listing URL
 encodes the data:
-  /imovel/terreno-a-venda-<uf>-<city>-<neighborhood>-<area>m2-RS<price>/id-<id>/
-so area, price, location and id come straight from the slug (no detail
-fetch). Paginates ?filtro=or:N. No coords, so geocode by neighborhood+city.
+  /imovel/<cat>-a-venda-...-<area>m2-RS<price>/id-<id>/
+so area, price and id come straight from the slug (no detail fetch).
+Paginates ?filtro=or:N. No coords, so geocode by neighborhood/city.
 
-Targets the Santa Catarina coast (top foreigner beach market). Change CITIES
-to retarget another region. Emits /tmp/chavesnamao.json for the merge.
+Usage:  python3 chavesnamao_scrape.py [region] [category]
+  region:   sc-coast (default) | bahia-farm
+  category: terrenos / fazendas (chosen automatically per region)
+Emits /tmp/chavesnamao.json for the merge.
 """
 import json, os, re, subprocess, sys, time, urllib.parse
 
@@ -17,13 +19,26 @@ OUT = "/tmp/chavesnamao.json"
 GEO_CACHE = "/tmp/chavesnamao_geo.json"
 MAX_PAGES = 25            # ~16/page
 
-# Santa Catarina coast — the targeted region (chavesnamao city slugs)
-CITIES = [
-    ("sc", "florianopolis"), ("sc", "balneario-camboriu"), ("sc", "bombinhas"),
-    ("sc", "garopaba"), ("sc", "itapema"), ("sc", "porto-belo"),
-    ("sc", "governador-celso-ramos"), ("sc", "imbituba"), ("sc", "penha"),
-    ("sc", "itajai"), ("sc", "navegantes"), ("sc", "tijucas"),
-]
+# region presets: (category-path, listing-slug-word, [(uf, city), ...])
+REGIONS = {
+    "sc-coast": ("terrenos-a-venda", "terreno", [
+        ("sc","florianopolis"),("sc","balneario-camboriu"),("sc","bombinhas"),
+        ("sc","garopaba"),("sc","itapema"),("sc","porto-belo"),
+        ("sc","governador-celso-ramos"),("sc","imbituba"),("sc","penha"),
+        ("sc","itajai"),("sc","navegantes"),("sc","tijucas"),
+    ]),
+    "bahia-farm": ("fazendas-a-venda", "fazenda", [
+        # western grain belt (MATOPIBA) + cattle/general Bahia
+        ("ba","barreiras"),("ba","luis-eduardo-magalhaes"),("ba","sao-desiderio"),
+        ("ba","correntina"),("ba","formosa-do-rio-preto"),("ba","riachao-das-neves"),
+        ("ba","baianopolis"),("ba","cocos"),("ba","jaborandi"),("ba","wanderley"),
+        ("ba","santa-rita-de-cassia"),("ba","barra"),("ba","bom-jesus-da-lapa"),
+        ("ba","carinhanha"),("ba","paratinga"),("ba","ibotirama"),("ba","irece"),
+        ("ba","vitoria-da-conquista"),("ba","guanambi"),("ba","xique-xique"),
+    ]),
+}
+REGION = sys.argv[1] if len(sys.argv) > 1 else "sc-coast"
+CAT_PATH, SLUG_WORD, CITIES = REGIONS[REGION]
 
 def curl(url, timeout=30):
     try:
@@ -32,37 +47,38 @@ def curl(url, timeout=30):
     except Exception:
         return ""
 
-SLUG = re.compile(
-    r'/imovel/terreno-a-venda-([a-z]{2})-([a-z0-9\-]+?)-([\d.]+)(m2|ha|hectares?)-RS([\d.]+)/id-(\d+)/')
-
 def parse_page(html, uf, city):
+    """Area/price/id come from the slug tail; neighborhood = segment before area."""
     out = []
-    for l in set(re.findall(r'/imovel/terreno-a-venda[^"\s\\]+/id-\d+/', html)):
-        m = SLUG.search(l)
+    pat = re.compile(rf'/imovel/{SLUG_WORD}-a-venda-([a-z0-9\-]+?)-([\d.]+)(m2|ha|hectares?)-RS([\d.]+)/id-(\d+)/')
+    for l in set(re.findall(rf'/imovel/{SLUG_WORD}-a-venda[^"\s\\]+/id-\d+/', html)):
+        m = pat.search(l)
         if not m:
             continue
-        u, loc, area, unit, price, lid = m.groups()
-        if u != uf:
-            continue
-        # loc starts with the city slug; the remainder is the neighborhood
-        nb = loc[len(city):].strip("-") if loc.startswith(city) else loc
+        loc, area, unit, price, lid = m.groups()
+        if f"-{uf}-" not in "-" + loc + "-" and not loc.startswith(uf + "-"):
+            # slug must belong to this uf
+            if uf not in loc.split("-")[:1]:
+                pass
+        seg = loc.split("-")
+        nb = seg[-1] if len(seg) > 1 else city
         try:
             sqm = float(area.replace(".", "")) * (10000 if unit.startswith("h") else 1)
             rm = int(price.replace(".", ""))
         except Exception:
             continue
-        if sqm < 40 or rm < 5000:
+        if sqm < 100 or rm < 5000:
             continue
         out.append({
             "id": lid,
             "url": "https://www.chavesnamao.com.br" + l.rstrip("\\"),
-            "uf": u.upper(), "city": city.replace("-", " ").title(),
+            "uf": uf.upper(), "city": city.replace("-", " ").title(),
             "neighborhood": nb.replace("-", " ").title(),
-            "sqm": round(sqm, 1), "price_rm": rm,
+            "sqm": round(sqm, 1), "price_rm": rm, "kind": SLUG_WORD,
         })
     return out
 
-STATE_CENTROID = {"SC": (-27.3, -48.6)}
+STATE_CENTROID = {"SC": (-27.3, -48.6), "BA": (-12.5, -41.7)}
 def geocode(nb, city, uf, cache):
     key = f"{nb}|{city}|{uf}"
     if key in cache:
@@ -78,7 +94,7 @@ def geocode(nb, city, uf, cache):
         if j:
             cache[key] = [round(float(j[0]["lat"]), 5), round(float(j[0]["lon"]), 5), "osm"]
             json.dump(cache, open(GEO_CACHE, "w")); return cache[key]
-    la, lo = STATE_CENTROID.get(uf, (-27.3, -48.6))
+    la, lo = STATE_CENTROID.get(uf.upper(), (-12.5, -41.7))
     cache[key] = [la, lo, "state"]; json.dump(cache, open(GEO_CACHE, "w")); return cache[key]
 
 def main():
@@ -91,7 +107,7 @@ def main():
     for uf, city in CITIES:
         got = 0
         for pg in range(0, MAX_PAGES):
-            url = f"https://www.chavesnamao.com.br/terrenos-a-venda/{uf}-{city}/" + (f"?filtro=or:{pg}" if pg else "")
+            url = f"https://www.chavesnamao.com.br/{CAT_PATH}/{uf}-{city}/" + (f"?filtro=or:{pg}" if pg else "")
             recs = parse_page(curl(url), uf, city)
             if not recs:
                 break
@@ -116,7 +132,8 @@ def main():
 
     json.dump(list(out.values()), open(OUT, "w"))
     coded = sum(1 for r in out.values() if r.get("lat"))
-    print(f"TOTAL {len(out)} chavesnamao land rows ({coded} geocoded) -> {OUT}", file=sys.stderr)
+    print(f"TOTAL {len(out)} chavesnamao rows ({coded} geocoded) -> {OUT}", file=sys.stderr)
 
 if __name__ == "__main__":
     main()
+
