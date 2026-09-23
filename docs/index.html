@@ -250,7 +250,7 @@
   <div id="regItems"></div>
 </div>
 <div class="controls">
-  <div class="control"><label>Type</label><select id="type"><option value="all">all</option><option value="land">land</option><option value="penthouse">penthouse</option><option value="apartment">apt w/ pool</option><option value="abandoned_ski">❄ abandoned ski</option></select></div>
+  <div class="control"><label>Type</label><select id="type"><option value="all">all</option><option value="land">land</option><option value="house">🏔 house/chalet</option><option value="villa">villa</option><option value="penthouse">penthouse</option><option value="apartment">apt w/ pool</option><option value="abandoned_ski">❄ abandoned ski</option></select></div>
   <div class="control"><label>Rating ≥</label><input type="range" id="minR" min="0" max="100" value="0" step="1"><input type="number" id="minRn" min="0" max="100" value="0" step="1"></div>
   <div class="control"><label>$/m² ≤</label><input type="range" id="maxU" min="0" max="10000" value="10000" step="50"><input type="number" id="maxUn" min="0" value="10000" step="50"></div>
   <div class="control"><label>Max $</label><select id="maxUsd"><option value="">any</option><option value="100000">≤ $100k</option><option value="250000">≤ $250k</option><option value="500000">≤ $500k</option><option value="1000000">≤ $1M</option><option value="2500000">≤ $2.5M (personal)</option><option value="10000000">≤ $10M</option></select></div>
@@ -1121,7 +1121,7 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
   // Opening = fair minus a negotiation discount that widens with the seller's
   // weakness (leverage / distress / time on market).
   function fairValue(r){
-    if(!r || r.tp==='abandoned_ski' || r.tp==='penthouse' || r.tp==='villa' || r.price_is_official || !r.m2 || !r.usd) return null;
+    if(!r || r.tp==='abandoned_ski' || r.tp==='penthouse' || r.tp==='villa' || r.tp==='house' || r.price_is_official || !r.m2 || !r.usd) return null;
     const pool = DATA.filter(x => x!==r && x.cf===r.cf && x.upm && x.m2 && !x.area_est && !x.nominee && x.tp!=='abandoned_ski');
     // size-similar only — big parcels trade at far lower $/m² than small lots,
     // so comparing like-for-like size is essential (0.25×–4× the subject).

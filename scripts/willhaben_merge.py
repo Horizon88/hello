@@ -50,12 +50,11 @@ def nearest(lat,lng):
         if d<best[0]: best=(d,n)
     return best
 
-FOREIGN_NOTE = ("Austria (Grundverkehr): land purchase by non-residents/foreigners is "
-                "RESTRICTED and needs approval from the state land-transfer authority; "
-                "Tirol, Salzburg & Vorarlberg heavily limit vacation/secondary homes "
-                "(Freizeitwohnsitz). EU/EEA buyers are largely treated as locals; "
-                "non-EU buyers usually need residency or an approved purpose. Verify "
-                "Widmung (zoning: Bauland vs Freiland) + Freizeitwohnsitz status first.")
+FOREIGN_NOTE = ("Austria (Grundverkehr): EU/EEA nationals are largely treated as domestic "
+                "buyers — approval from the state land-transfer authority is normally "
+                "routine. Non-EU buyers face real restrictions, and Tirol/Salzburg/Vlbg "
+                "cap vacation/secondary homes (Freizeitwohnsitz) for everyone. Still verify "
+                "Widmung (zoning: Bauland vs Freiland) + any Freizeitwohnsitz limitation.")
 
 existing = json.load(open(PATH))
 existing = [e for e in existing if "src:willhaben" not in (e.get("rb","") or "")]
@@ -64,7 +63,7 @@ existing_urls = {e.get("u") for e in existing}
 rows = []; skipped_far = 0
 for r in raw:
     eur = r.get("eur"); sqm = r.get("sqm")
-    if not eur or not sqm or sqm < 100: continue
+    if not eur or not sqm or sqm < 20: continue
     if r["url"] in existing_urls: continue
     lat, lng = r.get("lat"), r.get("lng")
     if lat is None: continue
@@ -73,7 +72,7 @@ for r in raw:
         skipped_far += 1; continue
     usd = round(eur * EURUSD)
     if usd < 3000: continue
-    ac = round(sqm/4046.86, 3)
+    house = r.get("kind") == "house"
     upm = round(usd/sqm, 1)
 
     rb = ["src:willhaben"]; score = 20; rb.append("base+20")
@@ -82,25 +81,46 @@ for r in raw:
     elif ski_km <= 1: score += 22; rb.append("walk-to-lift+22")
     elif ski_km <= 2: score += 12; rb.append("ski≤2km+12")
     else: score += 5; rb.append("ski≤4km+5")
-    b = -6 if ac<0.05 else 0 if ac<0.15 else 6 if ac<0.4 else 12 if ac<1 else 18
-    score += b; rb.append(f"size{'+' if b>=0 else ''}{b}")
 
-    rows.append({
-        "tp":"land", "cf":"Austria", "r":round(score,1),
-        "rg": r.get("state","Austria"), "a": (r.get("location") or r.get("district") or "")[:40],
-        "ac":ac, "m2":int(sqm), "usd":usd, "upm":upm,
-        "v":"alpine/ski", "el":"", "t": r.get("ptype","Bauland (verify Widmung)"),
-        "lat":lat, "lon":lng, "cur":"EUR", "lp":str(eur), "rb":"+".join(rb),
-        "imgs":[r["img"]] if r.get("img") else [], "u":r["url"],
-        "name": (r.get("title") or "Austria alpine land")[:180],
-        "ski_km":round(ski_km,2), "ski_r":resort, "coast_km":None,
-        "first_seen": r.get("published") or None,
-        "foreign_note": FOREIGN_NOTE,
-    })
+    if house:
+        # score by living size + rooms; land-comp bid math doesn't apply
+        b = -4 if sqm<80 else 0 if sqm<120 else 6 if sqm<200 else 12 if sqm<350 else 18
+        score += b; rb.append(f"living{'+' if b>=0 else ''}{b}")
+        rooms = r.get("rooms")
+        ac = round((r.get("plot_m2") or 0)/4046.86, 3)
+        rows.append({
+            "tp":"house", "cf":"Austria", "r":round(score,1),
+            "rg": r.get("state","Austria"), "a": (r.get("location") or r.get("district") or "")[:40],
+            "ac":ac, "m2":int(sqm), "usd":usd, "upm":upm,
+            "v":"alpine/ski", "el":"", "t": r.get("ptype","Haus"),
+            "lat":lat, "lon":lng, "cur":"EUR", "lp":str(eur), "rb":"+".join(rb),
+            "imgs":[r["img"]] if r.get("img") else [], "u":r["url"],
+            "name": (r.get("title") or "Austria alpine house")[:180],
+            "ski_km":round(ski_km,2), "ski_r":resort, "coast_km":None,
+            "beds": int(rooms) if rooms and str(rooms).isdigit() else None,
+            "living_m2": int(sqm), "plot_m2": int(r["plot_m2"]) if r.get("plot_m2") else None,
+            "first_seen": r.get("published") or None, "foreign_note": FOREIGN_NOTE,
+        })
+    else:
+        ac = round(sqm/4046.86, 3)
+        b = -6 if ac<0.05 else 0 if ac<0.15 else 6 if ac<0.4 else 12 if ac<1 else 18
+        score += b; rb.append(f"size{'+' if b>=0 else ''}{b}")
+        rows.append({
+            "tp":"land", "cf":"Austria", "r":round(score,1),
+            "rg": r.get("state","Austria"), "a": (r.get("location") or r.get("district") or "")[:40],
+            "ac":ac, "m2":int(sqm), "usd":usd, "upm":upm,
+            "v":"alpine/ski", "el":"", "t": r.get("ptype","Bauland (verify Widmung)"),
+            "lat":lat, "lon":lng, "cur":"EUR", "lp":str(eur), "rb":"+".join(rb),
+            "imgs":[r["img"]] if r.get("img") else [], "u":r["url"],
+            "name": (r.get("title") or "Austria alpine land")[:180],
+            "ski_km":round(ski_km,2), "ski_r":resort, "coast_km":None,
+            "first_seen": r.get("published") or None, "foreign_note": FOREIGN_NOTE,
+        })
 
 merged = existing + rows
 merged.sort(key=lambda x: x.get("r",0), reverse=True)
 json.dump(merged, open(PATH,"w"), separators=(",",":"))
-print(f"merged: {len(rows)} willhaben ski-land rows ({skipped_far} dropped as >4km from a resort); total {len(merged)}", file=sys.stderr)
-print("ski-in/out (≤0.5km):", sum(1 for r in rows if r["ski_km"]<=0.5), file=sys.stderr)
+from collections import Counter
+print(f"merged: {len(rows)} willhaben ski rows ({skipped_far} dropped >4km); total {len(merged)}", file=sys.stderr)
+print("kinds:", Counter(r["tp"] for r in rows), "| ski-in/out ≤0.5km:", sum(1 for r in rows if r["ski_km"]<=0.5), file=sys.stderr)
 print("by state:", Counter(r["rg"] for r in rows).most_common(), file=sys.stderr)

@@ -12,7 +12,9 @@ import json, os, re, subprocess, sys, time
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 OUT = "/tmp/willhaben.json"
 STATES = ["tirol", "salzburg", "vorarlberg", "kaernten", "steiermark"]
-MAX_PAGES = 30
+# (category-path, kind)
+CATEGORIES = [("grundstuecke", "land"), ("haus-kaufen", "house")]
+MAX_PAGES = 45
 
 def curl(url, timeout=30):
     try:
@@ -42,49 +44,60 @@ def main():
     if os.path.exists(OUT):
         for r in json.load(open(OUT)):
             out[r["id"]] = r
-    for state in STATES:
-        got = 0; total = None
-        for pg in range(1, MAX_PAGES + 1):
-            url = f"https://www.willhaben.at/iad/immobilien/grundstuecke/{state}/" + (f"?page={pg}" if pg > 1 else "")
-            ads, total = page_ads(curl(url))
-            if not ads:
-                break
-            new = 0
-            for ad in ads:
-                lid = str(ad.get("id") or gv(ad, "ADID") or "")
-                if not lid or lid in out:
-                    continue
-                coords = gv(ad, "COORDINATES")
-                price = gv(ad, "PRICE")
-                size = gv(ad, "ESTATE_SIZE") or gv(ad, "PLOT/AREA")
-                seo = gv(ad, "SEO_URL")
-                if not (coords and price and size and seo):
-                    continue
-                try:
-                    lat, lng = [float(x) for x in coords.split(",")]
-                    eur = int(float(price)); sqm = float(size)
-                except Exception:
-                    continue
-                imgs = gv(ad, "ALL_IMAGE_URLS") or ""
-                out[lid] = {
-                    "id": lid,
-                    "url": "https://www.willhaben.at/iad/" + seo.lstrip("/"),
-                    "title": (gv(ad, "HEADING") or ad.get("description") or "")[:200],
-                    "eur": eur, "sqm": sqm, "lat": lat, "lng": lng,
-                    "location": gv(ad, "LOCATION") or "", "state": gv(ad, "STATE") or state.title(),
-                    "district": gv(ad, "DISTRICT") or "", "postcode": gv(ad, "POSTCODE") or "",
-                    "ptype": gv(ad, "PROPERTY_TYPE") or "",
-                    "published": (gv(ad, "PUBLISHED_String") or "")[:10],
-                    "img": ("https://cache.willhaben.at/mmo/" + imgs.split(";")[0]) if imgs else "",
-                }
-                new += 1; got += 1
-            if new == 0:
-                break
-            time.sleep(0.3)
-        print(f"  {state}: +{got} (of {total}); running total {len(out)}", file=sys.stderr)
-        json.dump(list(out.values()), open(OUT, "w"))
+    for cat, kind in CATEGORIES:
+        for state in STATES:
+            got = 0; total = None
+            for pg in range(1, MAX_PAGES + 1):
+                url = f"https://www.willhaben.at/iad/immobilien/{cat}/{state}/" + (f"?page={pg}" if pg > 1 else "")
+                ads, total = page_ads(curl(url))
+                if not ads:
+                    break
+                new = 0
+                for ad in ads:
+                    lid = str(ad.get("id") or gv(ad, "ADID") or "")
+                    if not lid or lid in out:
+                        continue
+                    coords = gv(ad, "COORDINATES")
+                    price = gv(ad, "PRICE")
+                    seo = gv(ad, "SEO_URL")
+                    if not (coords and price and seo):
+                        continue
+                    if kind == "land":
+                        size = gv(ad, "ESTATE_SIZE") or gv(ad, "PLOT/AREA")
+                    else:  # house: ESTATE_SIZE is living area; FREE_AREA is the plot
+                        size = gv(ad, "ESTATE_SIZE/LIVING_AREA") or gv(ad, "ESTATE_SIZE")
+                    if not size:
+                        continue
+                    try:
+                        lat, lng = [float(x) for x in coords.split(",")]
+                        eur = int(float(price)); sqm = float(size)
+                    except Exception:
+                        continue
+                    imgs = gv(ad, "ALL_IMAGE_URLS") or ""
+                    plot = gv(ad, "FREE_AREA/FREE_AREA_AREA_TOTAL")
+                    out[lid] = {
+                        "id": lid, "kind": kind,
+                        "url": "https://www.willhaben.at/iad/" + seo.lstrip("/"),
+                        "title": (gv(ad, "HEADING") or ad.get("description") or "")[:200],
+                        "eur": eur, "sqm": sqm, "lat": lat, "lng": lng,
+                        "living_m2": (float(size) if kind == "house" else None),
+                        "plot_m2": (float(plot) if plot else None),
+                        "rooms": gv(ad, "NUMBER_OF_ROOMS"),
+                        "location": gv(ad, "LOCATION") or "", "state": gv(ad, "STATE") or state.title(),
+                        "district": gv(ad, "DISTRICT") or "", "postcode": gv(ad, "POSTCODE") or "",
+                        "ptype": gv(ad, "PROPERTY_TYPE") or "",
+                        "published": (gv(ad, "PUBLISHED_String") or "")[:10],
+                        "img": ("https://cache.willhaben.at/mmo/" + imgs.split(";")[0]) if imgs else "",
+                    }
+                    new += 1; got += 1
+                if new == 0:
+                    break
+                time.sleep(0.3)
+            print(f"  {cat}/{state}: +{got} (of {total}); total {len(out)}", file=sys.stderr)
+            json.dump(list(out.values()), open(OUT, "w"))
     json.dump(list(out.values()), open(OUT, "w"))
-    print(f"TOTAL {len(out)} willhaben alpine land rows -> {OUT}", file=sys.stderr)
+    from collections import Counter
+    print(f"TOTAL {len(out)} willhaben rows ({dict(Counter(r['kind'] for r in out.values()))}) -> {OUT}", file=sys.stderr)
 
 if __name__ == "__main__":
     main()
