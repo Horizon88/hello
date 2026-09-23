@@ -1,0 +1,106 @@
+"""Merge willhaben Austria alpine land into listings.json — ski-in/ski-out focus.
+
+Every willhaben ad carries real coordinates, so we compute distance to the
+nearest Austrian ski resort and KEEP ONLY ski-accessible land (<=4 km),
+flagging ski-in/ski-out (<=0.5 km) and walk-to-lift (<=1 km). EUR->USD ~1.08.
+Adds the Grundverkehr foreign-ownership warning (Tirol/Salzburg/Vorarlberg
+restrict non-resident + vacation-home purchases hard).
+"""
+import json, math, sys
+from collections import Counter
+
+RAW = "/tmp/willhaben.json"
+PATH = "/home/user/hello/docs/listings.json"
+EURUSD = 1.08
+raw = json.load(open(RAW))
+print(f"raw willhaben rows: {len(raw)}", file=sys.stderr)
+
+# Major Austrian ski resorts (village / lift-base coords): name, lat, lon
+RESORTS = [
+    ("St. Anton am Arlberg",47.130,10.264),("Lech",47.208,10.143),("Zürs",47.171,10.174),
+    ("Ischgl",47.011,10.291),("Sölden",46.966,11.008),("Obergurgl",46.868,11.026),
+    ("Kitzbühel",47.446,12.392),("Kirchberg in Tirol",47.446,12.316),("Mayrhofen",47.167,11.859),
+    ("Gerlos",47.229,12.128),("Zell am Ziller",47.231,11.884),("Hochfügen",47.263,11.842),
+    ("Serfaus",47.038,10.607),("Fiss",47.048,10.645),("Ladis",47.062,10.669),
+    ("Nauders",46.889,10.503),("Kühtai",47.213,11.021),("Seefeld",47.329,11.188),
+    ("Alpbach",47.399,11.940),("Söll",47.502,12.192),("Ellmau",47.512,12.297),
+    ("Westendorf",47.423,12.213),("St. Johann in Tirol",47.524,12.423),("Fieberbrunn",47.472,12.548),
+    ("Neustift Stubaital",47.116,11.310),("Axamer Lizum",47.196,11.290),("Kaunertal",46.902,10.732),
+    ("Pitztal",46.930,10.870),("Lienz",46.829,12.769),("Obertilliach",46.712,12.606),
+    ("Saalbach-Hinterglemm",47.390,12.636),("Zell am See",47.323,12.797),("Kaprun",47.269,12.755),
+    ("Leogang",47.434,12.760),("Bad Gastein",47.114,13.134),("Bad Hofgastein",47.168,13.101),
+    ("Obertauern",47.250,13.556),("Flachau",47.346,13.390),("Wagrain",47.333,13.298),
+    ("Filzmoos",47.434,13.518),("Mühlbach Hochkönig",47.379,13.130),("Großarl",47.238,13.201),
+    ("Rauris",47.227,12.981),("Lech Zürs",47.208,10.143),
+    ("Silvretta Montafon",47.079,9.918),("Gaschurn",46.984,10.032),("Schruns",47.079,9.919),
+    ("Damüls",47.278,9.902),("Warth",47.257,10.183),("Brand",47.101,9.737),("Gargellen",46.964,9.920),
+    ("Schladming",47.394,13.687),("Ramsau am Dachstein",47.410,13.652),("Haus im Ennstal",47.410,13.788),
+    ("Die Tauplitz",47.573,13.988),("Kreischberg",47.132,14.030),("Turracher Höhe",46.911,13.874),
+    ("Nassfeld",46.560,13.283),("Bad Kleinkirchheim",46.812,13.793),("Gerlitzen",46.694,13.912),
+    ("Katschberg",47.052,13.619),("Mölltaler Gletscher",47.000,12.996),("Heiligenblut",47.041,12.847),
+]
+def hav(a,b,c,d):
+    R=6371; dl=math.radians(c-a); dlo=math.radians(d-b)
+    h=math.sin(dl/2)**2+math.cos(math.radians(a))*math.cos(math.radians(c))*math.sin(dlo/2)**2
+    return 2*R*math.asin(math.sqrt(h))
+def nearest(lat,lng):
+    best=(999,None)
+    for n,rl,ro in RESORTS:
+        d=hav(lat,lng,rl,ro)
+        if d<best[0]: best=(d,n)
+    return best
+
+FOREIGN_NOTE = ("Austria (Grundverkehr): land purchase by non-residents/foreigners is "
+                "RESTRICTED and needs approval from the state land-transfer authority; "
+                "Tirol, Salzburg & Vorarlberg heavily limit vacation/secondary homes "
+                "(Freizeitwohnsitz). EU/EEA buyers are largely treated as locals; "
+                "non-EU buyers usually need residency or an approved purpose. Verify "
+                "Widmung (zoning: Bauland vs Freiland) + Freizeitwohnsitz status first.")
+
+existing = json.load(open(PATH))
+existing = [e for e in existing if "src:willhaben" not in (e.get("rb","") or "")]
+existing_urls = {e.get("u") for e in existing}
+
+rows = []; skipped_far = 0
+for r in raw:
+    eur = r.get("eur"); sqm = r.get("sqm")
+    if not eur or not sqm or sqm < 100: continue
+    if r["url"] in existing_urls: continue
+    lat, lng = r.get("lat"), r.get("lng")
+    if lat is None: continue
+    ski_km, resort = nearest(lat, lng)
+    if ski_km > 4:                     # keep only ski-accessible land
+        skipped_far += 1; continue
+    usd = round(eur * EURUSD)
+    if usd < 3000: continue
+    ac = round(sqm/4046.86, 3)
+    upm = round(usd/sqm, 1)
+
+    rb = ["src:willhaben"]; score = 20; rb.append("base+20")
+    if ski_km <= 0.3: score += 40; rb.append("ski-in/out+40")
+    elif ski_km <= 0.5: score += 32; rb.append("ski-in/out+32")
+    elif ski_km <= 1: score += 22; rb.append("walk-to-lift+22")
+    elif ski_km <= 2: score += 12; rb.append("ski≤2km+12")
+    else: score += 5; rb.append("ski≤4km+5")
+    b = -6 if ac<0.05 else 0 if ac<0.15 else 6 if ac<0.4 else 12 if ac<1 else 18
+    score += b; rb.append(f"size{'+' if b>=0 else ''}{b}")
+
+    rows.append({
+        "tp":"land", "cf":"Austria", "r":round(score,1),
+        "rg": r.get("state","Austria"), "a": (r.get("location") or r.get("district") or "")[:40],
+        "ac":ac, "m2":int(sqm), "usd":usd, "upm":upm,
+        "v":"alpine/ski", "el":"", "t": r.get("ptype","Bauland (verify Widmung)"),
+        "lat":lat, "lon":lng, "cur":"EUR", "lp":str(eur), "rb":"+".join(rb),
+        "imgs":[r["img"]] if r.get("img") else [], "u":r["url"],
+        "name": (r.get("title") or "Austria alpine land")[:180],
+        "ski_km":round(ski_km,2), "ski_r":resort, "coast_km":None,
+        "first_seen": r.get("published") or None,
+        "foreign_note": FOREIGN_NOTE,
+    })
+
+merged = existing + rows
+merged.sort(key=lambda x: x.get("r",0), reverse=True)
+json.dump(merged, open(PATH,"w"), separators=(",",":"))
+print(f"merged: {len(rows)} willhaben ski-land rows ({skipped_far} dropped as >4km from a resort); total {len(merged)}", file=sys.stderr)
+print("ski-in/out (≤0.5km):", sum(1 for r in rows if r["ski_km"]<=0.5), file=sys.stderr)
+print("by state:", Counter(r["rg"] for r in rows).most_common(), file=sys.stderr)
