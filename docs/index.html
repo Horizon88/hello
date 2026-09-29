@@ -819,7 +819,13 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
     countries: new Set(ALL_COUNTRIES.includes('Thailand') ? ['Thailand'] : ALL_COUNTRIES),
     type: 'all', distressedOnly: false, verifiedOnly: false, terraceOnly: false, foreignerOK: false, distressOnly: false, npaOnly: false, nomineeOnly: false, freeholdOnly: false, bigOnly: false, staleOnly: false, starredOnly: false, watchedOnly: false, hideForest: false,
     minR: 0, maxU: 10000, maxUsd: null, minA: null, maxA: null, minAQuick: '', view: '', ski: '',
-    sortKey: 'r', sortAsc: false, showArchived: false
+    sortKey: 'r', sortAsc: false, showArchived: false,
+    region: null            // region tab scope (e.g. 'MA'); null = whole country
+  };
+  // Region tabs: a tab scopes the app to one sub-country region (land + homes).
+  const REGION_TABS = {
+    MA: { label:'🏠 Massachusetts', cf:'USA', center:[41.70,-70.95], zoom:9,
+          match: r => r.cf==='USA' && (r.rg==='Massachusetts' || /-MA$/.test(r.rg||'')) },
   };
 
   // ---- header chips ----
@@ -831,6 +837,8 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
     chip.dataset.cf=c;
     chip.innerHTML=`<span class="dot" style="background:${COLORS[c]}"></span>${c} ${n}`;
     chip.onclick=(e)=>{
+      // Any country chip exits a region tab.
+      if(state.region){ state.region=null; document.querySelectorAll('#stats .chip[data-rt]').forEach(t=>t.classList.remove('on')); }
       // Shift-click = toggle just this chip (add/remove from current set).
       // Plain click = isolate: show only this country. Click same chip
       // again = show all again.
@@ -856,6 +864,37 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
     };
     chip.title = 'Click to isolate this country · Shift-click to toggle (multi-select)';
     stats.appendChild(chip);
+  });
+
+  // ---- region tabs (e.g. Massachusetts: land + homes in one view) ----
+  let _preTabCountries = null;
+  Object.entries(REGION_TABS).forEach(([key, t])=>{
+    const n = DATA.filter(t.match).length;
+    if(!n) return;
+    const tab=document.createElement('span');
+    tab.className='chip'; tab.dataset.rt=key;
+    tab.style.cssText='border-color:#7cc4ff;color:#9fd4ff;font-weight:600';
+    tab.innerHTML=`${t.label} ${n}`;
+    tab.title='Region tab — shows only this region (land + homes). Click again to leave.';
+    tab.onclick=()=>{
+      const chips=document.querySelectorAll('#stats .chip[data-cf]');
+      if(state.region===key){
+        // leave the tab → restore the country selection from before
+        state.region=null; tab.classList.remove('on');
+        state.countries.clear();
+        (_preTabCountries||ALL_COUNTRIES).forEach(c=>state.countries.add(c));
+      } else {
+        if(!state.region) _preTabCountries=[...state.countries];
+        state.region=key;
+        document.querySelectorAll('#stats .chip[data-rt]').forEach(x=>x.classList.remove('on'));
+        tab.classList.add('on');
+        state.countries.clear(); state.countries.add(t.cf);
+        try{ map.setView(t.center, t.zoom); }catch(e){}
+      }
+      chips.forEach(ch=>ch.classList.toggle('on', state.countries.has(ch.dataset.cf)));
+      render();
+    };
+    stats.appendChild(tab);
   });
 
   // ---- controls wiring ----
@@ -913,6 +952,7 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
       if(state.distressedOnly && !r.distressed) return false;
       if(state.verifiedOnly && !r.view_verified) return false;
       if(!state.countries.has(r.cf)) return false;
+      if(state.region && !REGION_TABS[state.region].match(r)) return false;
       if(r.r < state.minR) return false;
       if(r.upm > state.maxU) return false;
       if(state.maxUsd != null && (r.usd||0) > state.maxUsd) return false;
@@ -1073,8 +1113,8 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
         <td class="r ${ratingClass(r.r)}">${r.r}${flagBadge}${nomBadge}</td>
         <td><span class="dot" style="background:${color}"></span>${r.cf.replace('British Columbia','BC').replace('New Zealand','NZ')}</td>
         <td>${r.rg}</td><td>${r.code?`<code style="font-size:10px;opacity:.65;margin-right:5px">${r.code}</code>`:''}${r.a}</td>
-        <td>${r.tp==='abandoned_ski'?'':(isTH&&r.rai!=null?r.rai+' rai':(r.ac??''))}</td>
-        <td>${r.tp==='abandoned_ski'?'':(isTH&&r.baht_rai?'฿'+Math.round(r.baht_rai).toLocaleString():(r.ac?'$'+Math.round(r.usd/r.ac).toLocaleString():''))}</td>
+        <td>${r.tp==='abandoned_ski'?'':r.tp==='house'?`${r.beds?r.beds+'bd · ':''}${r.sqft_living?r.sqft_living.toLocaleString()+' sf':(r.living_m2||r.m2||'')+' m²'}`:(isTH&&r.rai!=null?r.rai+' rai':(r.ac??''))}</td>
+        <td>${r.tp==='abandoned_ski'?'':r.tp==='house'?(r.usd_per_sqft?'$'+r.usd_per_sqft+'/sf':(r.upm?'$'+Math.round(r.upm).toLocaleString()+'/m²':'')):(isTH&&r.baht_rai?'฿'+Math.round(r.baht_rai).toLocaleString():(r.ac?'$'+Math.round(r.usd/r.ac).toLocaleString():''))}</td>
         <td>${r.tp==='abandoned_ski'?'':(r.upm??'')}</td>
         <td>${r.tp==='abandoned_ski'?(r.closure_status==='closed'?'❄ closed':r.closure_status==='suspended'?'❄ susp':r.closure_status==='on hiatus'?'❄ hiatus':'❄'):fmtUsd(r.usd)}</td>
         <td>${r.tp==='abandoned_ski'?(r.year_closed?'cl. '+r.year_closed:''):r.v||''}</td>
@@ -1247,6 +1287,7 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
       <h3>${r.code?`<code style="font-size:13px;opacity:.6;margin-right:8px">${r.code}</code>`:''}${r.rg} ${r.a?' · '+r.a:''}</h3>
       <div class="sub">${r.v||'no view'}${r.view_verified===true?' <span style="color:#7ce38b">✓ verified</span>':r.view_verified===false?' <span style="color:#ff8080">✗ unverified</span>':''} · ${r.t||'title unspecified'} · src: ${r.cur||''}</div>
       ${flag}${arch}
+      ${r.tp==='house'?`<div class="detail-flag" style="background:#101d2a;color:#8fb8e8;border-color:#2a4a70">🏠 <b>${r.beds?r.beds+' bd':''}${r.baths?' · '+r.baths+' ba':''}</b>${r.sqft_living?` · ${r.sqft_living.toLocaleString()} sqft`:(r.living_m2?` · ${r.living_m2} m² living`:'')}${r.ac?` · lot ${r.ac} ac`:''}${r.year_built?` · built ${r.year_built}`:''}${r.usd_per_sqft?` · <b>$${r.usd_per_sqft}/sqft</b>`:''}${r.hoa?` · HOA $${r.hoa}/mo`:''}${r.t?` <span style="opacity:.7">(${r.t})</span>`:''}</div>`:''}
       ${r.cf==='Thailand' && r.rai?`<div class="detail-flag" style="background:#101d2a;color:#8fb8e8;border-color:#2a4a70">📐 <b>${r.rai} rai</b> <span style="opacity:.7">(${(r.m2||0).toLocaleString()} m² · ${Math.round((r.m2||0)/4).toLocaleString()} wah²)</span>${r.baht?` · total <b>฿${r.baht.toLocaleString()}</b>`:''}${r.baht_rai?` · <b>฿${r.baht_rai.toLocaleString()}/rai</b>`:''}${r.baht_wah?` · <b>฿${r.baht_wah.toLocaleString()}/wah</b>`:''}</div>`:''}
       ${r.structural_warn?`<div class="detail-flag" style="background:#3a2a10;color:#ffb060;border-color:#7a5020">⚠ Structural concern: ${r.structural_warn}</div>`:''}
       ${r.size_mismatch?`<div class="detail-flag" style="background:#2a2010;color:#ffd060;border-color:#6a5020">⚠ Listing size vs official parcel: ${r.size_mismatch}× — verify which parcels the sale covers</div>`:''}
