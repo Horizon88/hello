@@ -291,6 +291,7 @@
   <span>map: 732 with coords (TH/NZ/BC); table: all 2,274</span>
   <span class="right">
     <label style="cursor:pointer"><input type="checkbox" id="showArch"> show archived (<span id="archN">0</span>)</label>
+    <button class="btn" id="copyArchBtn" title="Copy your archives so they can be saved permanently in the repo">📋 Copy archive list</button>
     <button class="btn" id="exportBtn">⬇ export archives</button>
     <button class="btn" id="importBtn">⬆ import</button>
     <input type="file" id="importFile" accept=".json" style="display:none">
@@ -753,13 +754,43 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
   const WL_KEY = 'watchlist_v1';
   const DL_KEY = 'deed_log_v1';   // Thai deed evaluation workspace
 
-  // ---- archives (localStorage) ----
+  // ---- archives ----
+  // localStorage alone is per-device, per-origin, and some in-app browsers wipe
+  // it — which made archived plots "resurface". Archives now layer three stores:
+  //   1. docs/archived.json committed in the repo (permanent, cross-device)
+  //   2. localStorage (instant)
+  //   3. the ☁ Sync room, when connected (cross-device)
+  const UNARCH_KEY = 'unarchived_overrides_v1';   // repo archives you've restored
   function loadArchives(){
     try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); }
     catch(e){ return {}; }
   }
-  function saveArchives(a){ localStorage.setItem(LS_KEY, JSON.stringify(a)); }
+  let storageWarned = false;
+  function saveArchives(a){
+    try { localStorage.setItem(LS_KEY, JSON.stringify(a)); }
+    catch(e){
+      if(!storageWarned){ storageWarned = true;
+        alert('This browser is not saving your archives (storage blocked or full), so they would come back next visit.\n\nOpen the 📦 archive panel → "📋 Copy archive list" and send it over to save them permanently.'); }
+    }
+  }
   let archives = loadArchives();
+  let unarchOverrides = (()=>{ try { return new Set(JSON.parse(localStorage.getItem(UNARCH_KEY)||'[]')); } catch(e){ return new Set(); } })();
+  function saveUnarch(){ try { localStorage.setItem(UNARCH_KEY, JSON.stringify([...unarchOverrides])); } catch(e){} }
+  // permanent, repo-committed archives
+  try {
+    const ar = await fetch('archived.json', {cache:'no-cache'});
+    if(ar.ok){ const j = await ar.json();
+      Object.entries(j.archives||{}).forEach(([u,a])=>{ if(!unarchOverrides.has(u) && !archives[u]) archives[u] = Object.assign({repo:true}, a); }); }
+  } catch(e){}
+  // single entry points so every store stays in step
+  function archiveUrl(u, rec){
+    unarchOverrides.delete(u); saveUnarch();
+    archives[u] = rec; saveArchives(archives); archSyncPush(u);
+  }
+  function unarchiveUrl(u){
+    if(archives[u] && archives[u].repo){ unarchOverrides.add(u); saveUnarch(); }
+    delete archives[u]; saveArchives(archives); archSyncRemove(u);
+  }
 
   // ---- watchlist (localStorage) — "cool but too expensive, revisit later" ----
   function loadWatch(){
@@ -799,6 +830,20 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
   function dealKey(u){ try { return btoa(unescape(encodeURIComponent(u))).replace(/[/+=]/g,c=>({'/':'_','+':'-','=':''}[c])); } catch(e){ return null; } }
   function syncPush(u){ if(syncRef && !syncApplying && watchlist[u]){ const k=dealKey(u); if(k) syncRef.child(k).set(Object.assign({u:u}, watchlist[u])).catch(()=>{}); } }
   function syncRemove(u){ if(syncRef && !syncApplying){ const k=dealKey(u); if(k) syncRef.child(k).remove().catch(()=>{}); } }
+  // archives ride the same ☁ Sync room so they follow you across devices
+  let archRef = null, lastRemoteArch = new Set();
+  function archSyncPush(u){ if(archRef && !syncApplying && archives[u]){ const k=dealKey(u); if(k) archRef.child(k).set(Object.assign({}, archives[u], {u:u, repo:null})).catch(()=>{}); } }
+  function archSyncRemove(u){ if(archRef && !syncApplying){ const k=dealKey(u); if(k) archRef.child(k).remove().catch(()=>{}); } }
+  function applyRemoteArch(remote){
+    syncApplying = true;
+    const now = new Set(Object.keys(remote));
+    Object.values(remote).forEach(v=>{ if(v && v.u && !unarchOverrides.has(v.u) && !archives[v.u]) archives[v.u] = v; });
+    lastRemoteArch.forEach(k=>{ if(!now.has(k)) Object.keys(archives).forEach(u=>{ if(dealKey(u)===k && !archives[u].repo) delete archives[u]; }); });
+    lastRemoteArch = now;
+    saveArchives(archives);
+    try { render(); } catch(e){}
+    syncApplying = false;
+  }
   function setDealNotes(u,v){ const m=ensureDeal(u); if(!m||m.notes===v)return; m.notes=v; saveWatch(watchlist); syncPush(u); }
   function updateWatchChip(){
     const wc = document.getElementById('wlChip');
@@ -1148,7 +1193,7 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
       b.onclick=(e)=>{e.stopPropagation(); openArchive(decodeURIComponent(b.dataset.arch));};
     });
     tbody.querySelectorAll('[data-unarch]').forEach(b=>{
-      b.onclick=(e)=>{e.stopPropagation(); delete archives[decodeURIComponent(b.dataset.unarch)]; saveArchives(archives); render();};
+      b.onclick=(e)=>{e.stopPropagation(); unarchiveUrl(decodeURIComponent(b.dataset.unarch)); render();};
     });
   }
 
@@ -1280,7 +1325,7 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
     }
     detailImg.insertAdjacentHTML('beforeend',`<span class="badge" style="border-left:3px solid ${color};padding-left:8px">${r.cf}</span><button class="close" id="detailClose">×</button>`);
     const flag = activeFlags && activeFlags[r.u] ? `<div class="detail-flag">⚠ Auto-flag: ${activeFlags[r.u].join(', ')}</div>` : '';
-    const arch = archives[r.u] ? `<div class="detail-arch-info">📦 Archived${archives[r.u].tags && archives[r.u].tags.length?': '+archives[r.u].tags.join(', '):''}${archives[r.u].reason?' — "'+archives[r.u].reason+'"':''}</div>` : '';
+    const arch = archives[r.u] ? `<div class="detail-arch-info">📦 Archived${archives[r.u].tags && archives[r.u].tags.length?': '+archives[r.u].tags.join(', '):''}${archives[r.u].reason?' — "'+archives[r.u].reason+'"':''}${archives[r.u].repo?' · <b>saved permanently</b>':''}</div>` : '';
     const ratingC = ratingClass(r.r);
     detailBody.innerHTML = `
       <div class="detail-rating ${ratingC}" style="color:${ratingC==='s90'?'#7ce38b':ratingC==='s80'?'#9fd96d':ratingC==='s70'?'#d9e57c':ratingC==='s60'?'#e5b87c':'#fff'}">★ ${r.r}<span class="rb">${r.rb||''}</span></div>
@@ -1374,7 +1419,7 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
       </div>`;
     document.getElementById('detailClose').onclick=()=>detailBg.classList.remove('show');
     const ab=document.getElementById('detailArch'); if(ab) ab.onclick=()=>{ detailBg.classList.remove('show'); openArchive(r.u); };
-    const ub=document.getElementById('detailUnarch'); if(ub) ub.onclick=()=>{ delete archives[r.u]; saveArchives(archives); detailBg.classList.remove('show'); render(); };
+    const ub=document.getElementById('detailUnarch'); if(ub) ub.onclick=()=>{ unarchiveUrl(r.u); detailBg.classList.remove('show'); render(); };
     const pkb=document.getElementById('detailPackage'); if(pkb) pkb.onclick=()=>{ if(pkg[r.u]) delete pkg[r.u]; else pkg[r.u]=true; savePkg(pkg); openDetail(r); renderPackage(); };
     const xrb=document.getElementById('detailXref'); if(xrb) xrb.onclick=()=>openXref(r);
     const pb=document.getElementById('detailPromote'); if(pb) pb.onclick=()=>{ detailBg.classList.remove('show'); openPromote(r.u); };
@@ -1434,8 +1479,8 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
   document.getElementById('cancelArch').onclick=()=>modalBg.classList.remove('show');
   document.getElementById('saveArch').onclick=()=>{
     if(!pendingUrl) return;
-    archives[pendingUrl]={tags:Array.from(pendingTags), reason:reasonInp.value.trim(), ts:Date.now()};
-    saveArchives(archives);
+    const _row = DATA.find(x=>x.u===pendingUrl);
+    archiveUrl(pendingUrl, {code:(_row&&_row.code)||'', tags:Array.from(pendingTags), reason:reasonInp.value.trim(), ts:Date.now()});
     modalBg.classList.remove('show');
     render();
   };
@@ -2368,6 +2413,13 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
         Object.keys(watchlist).forEach(u=>{ const k=dealKey(u); if(k && !(k in remote)) syncPush(u); });
         applyRemote(remote);
         syncRef.on('value', s=>applyRemote(s.val()||{}));
+        archRef = db.ref('rooms/'+room+'/archives');
+        archRef.once('value').then(as=>{
+          const ra = as.val()||{};
+          Object.keys(archives).forEach(u=>{ const k=dealKey(u); if(k && !(k in ra)) archSyncPush(u); });
+          applyRemoteArch(ra);
+          archRef.on('value', s=>applyRemoteArch(s.val()||{}));
+        }).catch(()=>{});
         updateSyncChip(true); setSyncStatus('Connected to room “'+room+'” ✓ — changes now sync with '+(partner||'Siri')+'.','#7ce38b');
       }).catch(e=>{ setSyncStatus('Connect failed: '+(e&&e.message||e)+' (check the databaseURL / rules)','#ff8080'); });
       localStorage.setItem('fb_config', JSON.stringify(cfgObj));
@@ -2376,7 +2428,7 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
       return true;
     }catch(e){ setSyncStatus('Bad config: '+(e&&e.message||e),'#ff8080'); return false; }
   }
-  function disconnectSync(){ try{ if(syncRef) syncRef.off(); }catch(e){} syncRef=null; localStorage.removeItem('fb_config'); localStorage.removeItem('fb_room'); updateSyncChip(false); setSyncStatus('Disconnected — this device is local-only again.','var(--txt-dim)'); }
+  function disconnectSync(){ try{ if(syncRef) syncRef.off(); if(archRef) archRef.off(); }catch(e){} syncRef=null; archRef=null; localStorage.removeItem('fb_config'); localStorage.removeItem('fb_room'); updateSyncChip(false); setSyncStatus('Disconnected — this device is local-only again.','var(--txt-dim)'); }
   document.getElementById('syncChip').onclick=()=>{
     document.getElementById('syncConfig').value = localStorage.getItem('fb_config')||'';
     document.getElementById('syncRoom').value = localStorage.getItem('fb_room')||'';
@@ -3102,6 +3154,17 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
   }
 
   // ---- export / import ----
+  document.getElementById('copyArchBtn').onclick=async (e)=>{
+    // local (not-yet-permanent) archives, in docs/archived.json format
+    const local = {};
+    Object.entries(archives).forEach(([u,a])=>{ if(!a.repo){ const row=DATA.find(x=>x.u===u); local[u]={code:a.code||(row&&row.code)||'', tags:a.tags||[], reason:a.reason||'', ts:a.ts||Date.now()}; } });
+    const txt = JSON.stringify({archives:local}, null, 1);
+    const n = Object.keys(local).length;
+    const btn = e.currentTarget;
+    try { await navigator.clipboard.writeText(txt); btn.textContent = `✓ Copied ${n} — paste to Claude to save permanently`; }
+    catch(err){ prompt(`Copy these ${n} archives and paste them to Claude:`, txt); }
+    setTimeout(()=>{ btn.textContent='📋 Copy archive list'; }, 4000);
+  };
   document.getElementById('exportBtn').onclick=()=>{
     const out={schema:'archives_v1',exported:new Date().toISOString(),archives};
     const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
