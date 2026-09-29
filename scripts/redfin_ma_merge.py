@@ -76,6 +76,7 @@ for r in raw:
     else:
         sqft = r.get("sqft_living")
         if not sqft or sqft < 300: continue
+        if usd < 40000: continue          # sub-$40k "homes" are rents/typos, not sale prices
         living_m2 = int(sqft*0.092903)
         ratio = (usd/sqft)/med_ppsf
         vb = 12 if ratio<0.6 else 7 if ratio<0.8 else 3 if ratio<1.0 else 0 if ratio<1.3 else -4 if ratio<1.8 else -8
