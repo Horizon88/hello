@@ -867,6 +867,34 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
     sortKey: 'r', sortAsc: false, showArchived: false,
     region: null            // region tab scope (e.g. 'MA'); null = whole country
   };
+  // Filter defaults + helpers. Country-specific filters (Thai nominee/Chanote,
+  // ski distance, distress scores) silently empty other regions, so region tabs
+  // start from clean filters and empty views say which filters are hiding rows.
+  const FILTER_DEFAULTS = { type:'all', distressedOnly:false, verifiedOnly:false, terraceOnly:false,
+    foreignerOK:false, distressOnly:false, npaOnly:false, nomineeOnly:false, freeholdOnly:false,
+    bigOnly:false, staleOnly:false, starredOnly:false, watchedOnly:false, hideForest:false,
+    minR:0, maxU:10000, maxUsd:null, minA:null, maxA:null, minAQuick:'', view:'', ski:'' };
+  const FILTER_LABELS = { type:'Type', distressedOnly:'💎 Cheap for area', verifiedOnly:'✓ Verified view',
+    terraceOnly:'🏔 Terrace zone', foreignerOK:'🛂 Foreigner-friendly', distressOnly:'🔥 Forced-sale',
+    npaOnly:'🏦 NPA only', nomineeOnly:'🎯 Nominee-held (TH)', freeholdOnly:'🏷 Chanote/NS3 (TH)',
+    bigOnly:'Big parcels', staleOnly:'Stale/price drop', starredOnly:'★ Starred', watchedOnly:'👁 Watched',
+    hideForest:'Hide protected forest', minR:'Rating ≥', maxU:'$/m² ≤', maxUsd:'Max $', minA:'Min acres',
+    maxA:'Max acres', minAQuick:'Min size', view:'View', ski:'Ski' };
+  function activeFilters(){
+    const norm=v=>(v===''||v==null)?'':String(v);
+    return Object.keys(FILTER_DEFAULTS).filter(k=>norm(state[k])!==norm(FILTER_DEFAULTS[k]));
+  }
+  function snapshotFilters(){ const s={}; Object.keys(FILTER_DEFAULTS).forEach(k=>s[k]=state[k]); return s; }
+  function applyFilters(vals){
+    Object.assign(state, vals);
+    const set=(id,v)=>{ const el=document.getElementById(id); if(!el) return; if(el.type==='checkbox') el.checked=!!v; else el.value=(v==null?'':v); };
+    ['distressedOnly','verifiedOnly','terraceOnly','foreignerOK','distressOnly','npaOnly','nomineeOnly',
+     'freeholdOnly','bigOnly','staleOnly','starredOnly','watchedOnly','hideForest'].forEach(k=>set(k,state[k]));
+    set('type',state.type); set('minAQuick',state.minAQuick); set('view',state.view); set('ski',state.ski);
+    set('minR',state.minR); set('minRn',state.minR); set('maxU',state.maxU); set('maxUn',state.maxU);
+    set('maxUsd',state.maxUsd); set('minA',state.minA); set('maxA',state.maxA);
+  }
+  function resetFilters(){ applyFilters(Object.assign({}, FILTER_DEFAULTS)); }
   // Region tabs: a tab scopes the app to one sub-country region (land + homes).
   const REGION_TABS = {
     MA: { label:'🏠 Massachusetts', cf:'USA', center:[41.70,-70.95], zoom:9,
@@ -883,7 +911,10 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
     chip.innerHTML=`<span class="dot" style="background:${COLORS[c]}"></span>${c} ${n}`;
     chip.onclick=(e)=>{
       // Any country chip exits a region tab.
-      if(state.region){ state.region=null; document.querySelectorAll('#stats .chip[data-rt]').forEach(t=>t.classList.remove('on')); }
+      if(state.region){
+        state.region=null; document.querySelectorAll('#stats .chip[data-rt]').forEach(t=>t.classList.remove('on'));
+        if(_preTabFilters){ applyFilters(_preTabFilters); _preTabFilters=null; }
+      }
       // Shift-click = toggle just this chip (add/remove from current set).
       // Plain click = isolate: show only this country. Click same chip
       // again = show all again.
@@ -912,7 +943,7 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
   });
 
   // ---- region tabs (e.g. Massachusetts: land + homes in one view) ----
-  let _preTabCountries = null;
+  let _preTabCountries = null, _preTabFilters = null;
   Object.entries(REGION_TABS).forEach(([key, t])=>{
     const n = DATA.filter(t.match).length;
     if(!n) return;
@@ -928,8 +959,10 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
         state.region=null; tab.classList.remove('on');
         state.countries.clear();
         (_preTabCountries||ALL_COUNTRIES).forEach(c=>state.countries.add(c));
+        if(_preTabFilters){ applyFilters(_preTabFilters); _preTabFilters=null; }   // give back your filters
       } else {
-        if(!state.region) _preTabCountries=[...state.countries];
+        if(!state.region){ _preTabCountries=[...state.countries]; _preTabFilters=snapshotFilters(); }
+        resetFilters();                 // a region tab always opens showing its listings
         state.region=key;
         document.querySelectorAll('#stats .chip[data-rt]').forEach(x=>x.classList.remove('on'));
         tab.classList.add('on');
@@ -1171,7 +1204,17 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
         <td>${isArchived ? `<button class="arch-btn" data-unarch="${encodeURIComponent(r.u)}" title="restore">↺</button>` : `<button class="arch-btn" data-arch="${encodeURIComponent(r.u)}" title="archive">✕</button>`}</td>
       </tr>`;
     }).join('');
-    tbody.innerHTML = html || '<tr><td colspan="10" style="padding:20px;text-align:center;color:#666">no matches — loosen filters or check "show archived"</td></tr>';
+    if(html){ tbody.innerHTML = html; }
+    else {
+      const act = activeFilters();
+      const where = state.region ? REGION_TABS[state.region].label : [...state.countries].join(', ');
+      tbody.innerHTML = `<tr><td colspan="15" style="padding:22px;text-align:center;color:var(--txt-dim)">
+        No listings in <b>${where}</b> match your filters.
+        ${act.length ? `<div style="margin:8px 0">Hiding everything: ${act.map(k=>`<span class="chip" style="cursor:default">${FILTER_LABELS[k]||k}${typeof state[k]==='boolean'?'':': '+state[k]}</span>`).join(' ')}</div>
+          <button class="btn primary" id="emptyReset">Reset filters</button>` : ' Try <b>show archived</b>.'}
+      </td></tr>`;
+      const eb=document.getElementById('emptyReset'); if(eb) eb.onclick=()=>{ resetFilters(); render(); };
+    }
 
     document.querySelectorAll('thead th[data-k]').forEach(th=>{
       th.classList.remove('sorted','asc');
