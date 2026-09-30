@@ -132,6 +132,7 @@
   .detail-grid .v{font-weight:500}
   .detail-rating{font-size:28px;font-weight:700;margin-bottom:2px}
   .detail-rating .rb{font-size:11px;color:var(--txt-dim);font-weight:400;margin-left:8px;letter-spacing:0;text-transform:none}
+  .gem-why{font-size:11px;color:#ffd166;margin-top:3px;white-space:normal;line-height:1.35;opacity:.95}
   .detail-flag{background:#3a2a10;color:var(--warn);border:1px solid #5a401a;padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:12px}
   .detail-arch-info{background:#2a1414;color:#ff8080;border:1px solid #5a2020;padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:12px}
   .detail-actions{display:flex;gap:8px;margin-top:8px}
@@ -953,6 +954,7 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
     tab.innerHTML=`${t.label} ${n}`;
     tab.title='Region tab — shows only this region (land + homes). Click again to leave.';
     tab.onclick=()=>{
+      if(state.gems) leaveGems();          // region tab and ✨ Gems are separate views
       const chips=document.querySelectorAll('#stats .chip[data-cf]');
       if(state.region===key){
         // leave the tab → restore the country selection from before
@@ -974,6 +976,131 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
     };
     stats.appendChild(tab);
   });
+
+  // ---- ✨ Gems: one cross-country feed of genuinely standout listings ----
+  // Each source rates on its own scale, so raw ratings can't be compared across
+  // countries. The gem score (0-100) compares a listing only against similar
+  // listings (same area + size band) and a listing only counts as a gem when it
+  // is strong on at least TWO of: value, setting, motivated seller, substance.
+  function sizeBand(r){ const tp=r.tp||'land'; if(tp==='house') return 'h'; const ac=r.ac||0; return ac<0.25?'a':ac<1?'b':ac<5?'c':ac<25?'d':'e'; }
+  function cohortKeys(r){ const tp=r.tp||'land', b=sizeBand(r);
+    return [`${r.cf}|${r.rg}|${tp}|${b}`, `${r.cf}|${tp}|${b}`, `${r.cf}|${r.rg}|${tp}`, `${r.cf}|${tp}`]; }
+  function computeGems(){
+    const groups={};
+    DATA.forEach(r=>{ if(r.upm>0 && r.m2) cohortKeys(r).forEach(k=>(groups[k]=groups[k]||[]).push(r.upm)); });
+    Object.values(groups).forEach(g=>g.sort((a,b)=>a-b));
+    const lowerBound=(g,v)=>{ let lo=0,hi=g.length; while(lo<hi){ const m=(lo+hi)>>1; if(g[m]<v) lo=m+1; else hi=m; } return lo; };
+    const VIEW={beachfront:32, waterfront:32, sea_view:28, sea_visible:22, coastal:12};
+    let n=0;
+    DATA.forEach(r=>{
+      r._gem=null; r._gemOk=false; r._why=[];
+      if(!(r.upm>0) || !r.m2) return;
+      let pct=null, ratio=1;
+      for(const k of cohortKeys(r)){ const g=groups[k];
+        if(g && g.length>=10){ pct=lowerBound(g,r.upm)/g.length; const med=g[g.length>>1]; ratio=med? r.upm/med : 1; break; } }
+      if(pct==null) return;
+      const why=[];
+      const suspicious = ratio < 0.2;       // <20% of similar plots' median: lease/typo territory
+      let value = 40*(1-pct);
+      if(suspicious){ value=12; why.push('⚠ suspiciously cheap — verify'); }
+      else if(pct<=0.30) why.push(`💰 cheaper than ${Math.round((1-pct)*100)}% of similar nearby`);
+      const c=r.coast_km, s=r.ski_km, v=r.v||'';
+      const coast = c==null?0 : c<=0.2?35 : c<=0.5?30 : c<=1?24 : c<=2?16 : c<=5?8 : 0;
+      const ski = s==null?0 : s<=0.3?35 : s<=0.5?32 : s<=1?24 : s<=2?14 : s<=5?6 : 0;
+      const view = VIEW[v]||0;
+      const setting = Math.max(coast, ski, view) + (r.view_verified?5:0);
+      if(coast>=24) why.push(`🌊 ${c<1?Math.round(c*1000)+' m':c+' km'} to water`);
+      else if(view>=22) why.push(`🌅 ${v.replace('_',' ')}`);
+      if(ski>=24) why.push(s<=0.5?'⛷ ski-in/ski-out':`⛷ ${s} km to lift`);
+      const lev=Math.max(r.leverage||0, r.distress||0), dom=r.days_on_market||0;
+      const motiv=Math.min(15, lev/100*15 + (dom>=365?8:dom>=180?4:0));
+      if(lev>=40) why.push('🎯 motivated seller');
+      if(dom>=365) why.push(`⏳ ${(dom/365).toFixed(1)} yrs on market`);
+      const tp=r.tp||'land', ac=r.ac||0;
+      const subst = tp==='house' ? ((r.living_m2||r.m2||0)>=150?10:(r.beds||0)>=3?6:3)
+                                 : (ac>=5?10:ac>=1?7:ac>=0.25?4:ac>=0.1?1:0);
+      let pen=0; if(!r.lat) pen+=15; if(!(r.imgs&&r.imgs.length)) pen+=4; if(r.area_est) pen+=10; if(r.restricted_foreign) pen+=12;
+      const strong=(pct<=0.30 && !suspicious) + (setting>=22) + (motiv>=8) + (subst>=7 && pct<=0.5 && !suspicious);
+      r._gem=Math.max(0, Math.round(value+setting+motiv+subst-pen));
+      r._why=why; r._gemOk = strong>=2;
+      if(r._gemOk) n++;
+    });
+    return n;
+  }
+  const GEM_TOTAL = computeGems();
+  const GEM_LIMIT = 300;
+  // personal taste: lean toward what you star, away from what you archive
+  function gemEffective(rows){
+    const starred=Object.keys(shortlist).map(u=>DATA.find(x=>x.u===u)).filter(Boolean);
+    const ref = starred.length>=2 ? centroid(starred) : null;
+    rows.forEach(r=>{
+      let e=r._gem||0; r._taste=null;
+      if(activeFlags[r.u]) e-=12;
+      if(ref){ const {d}=distance(featureVec(r), ref); const boost=Math.max(0, 8-4*d); e+=boost; if(boost>=5) r._taste='★ like your starred plots'; }
+      r._gemEff=e;
+    });
+  }
+  // interleave countries (each extra pick from a country costs 2.5 pts), cap 8 per
+  // region and drop duplicates (same price at the same spot) so the feed is a real mix
+  function gemFeed(rows){
+    rows=rows.filter(r=>r._gemOk); gemEffective(rows);
+    const dupKey=r=>`${r.usd}|${(r.lat||0).toFixed(3)}|${(r.lon||0).toFixed(3)}`;
+    const buckets={}; rows.forEach(r=>(buckets[r.cf]=buckets[r.cf]||[]).push(r));
+    Object.values(buckets).forEach(b=>b.sort((a,b)=>b._gemEff-a._gemEff));
+    const idx={}, taken={}, perRg={}, seen=new Set(), out=[];
+    while(out.length<GEM_LIMIT){
+      let best=null, bestV=-1e9;
+      for(const cf in buckets){
+        const b=buckets[cf]; let i=idx[cf]||0;
+        while(i<b.length && (seen.has(dupKey(b[i])) || (perRg[cf+'|'+b[i].rg]||0)>=8)) i++;
+        idx[cf]=i; if(i>=b.length) continue;
+        const v=b[i]._gemEff - 2.5*(taken[cf]||0);
+        if(v>bestV){ bestV=v; best=cf; }
+      }
+      if(best==null) break;
+      const r=buckets[best][idx[best]++];
+      taken[best]=(taken[best]||0)+1; perRg[best+'|'+r.rg]=(perRg[best+'|'+r.rg]||0)+1;
+      seen.add(dupKey(r)); out.push(r);
+    }
+    return out;
+  }
+  // the ✨ Gems tab: all countries, clean filters, curated feed; click again to leave
+  let _preGems=null;
+  function enterGems(){
+    if(state.region){ const t=document.querySelector(`#stats .chip[data-rt="${state.region}"]`); if(t) t.click(); }
+    _preGems={countries:[...state.countries], filters:snapshotFilters(), sortKey:state.sortKey, sortAsc:state.sortAsc};
+    resetFilters();
+    state.countries.clear(); ALL_COUNTRIES.forEach(c=>state.countries.add(c));
+    state.gems=true; state.sortKey='_gem'; state.sortAsc=false;
+    document.querySelectorAll('#stats .chip[data-cf]').forEach(ch=>ch.classList.add('on'));
+    gemChip.classList.add('on');
+    try{ map.setView([15,20],2); }catch(e){}
+  }
+  function leaveGems(){
+    state.gems=false; gemChip.classList.remove('on');
+    if(_preGems){
+      state.countries.clear(); _preGems.countries.forEach(c=>state.countries.add(c));
+      applyFilters(_preGems.filters); state.sortKey=_preGems.sortKey; state.sortAsc=_preGems.sortAsc; _preGems=null;
+    }
+    document.querySelectorAll('#stats .chip[data-cf]').forEach(ch=>ch.classList.toggle('on', state.countries.has(ch.dataset.cf)));
+  }
+  const gemChip=document.createElement('span');
+  gemChip.className='chip'; gemChip.dataset.gem='1';
+  gemChip.style.cssText='border-color:#ffd166;color:#ffd166;font-weight:700';
+  gemChip.innerHTML=`✨ Gems ${GEM_TOTAL.toLocaleString()}`;
+  gemChip.title='Standout listings from every country: strong on at least two of value, setting, motivated seller, size. Click again to leave.';
+  gemChip.onclick=()=>{ state.gems ? leaveGems() : enterGems(); render(); };
+  const allChip=document.createElement('span');
+  allChip.className='chip'; allChip.textContent='🌍 All countries';
+  allChip.title='Show every country at once';
+  allChip.onclick=()=>{
+    if(state.region){ const t=document.querySelector(`#stats .chip[data-rt="${state.region}"]`); if(t){ t.click(); } }
+    state.countries.clear(); ALL_COUNTRIES.forEach(c=>state.countries.add(c));
+    document.querySelectorAll('#stats .chip[data-cf]').forEach(ch=>ch.classList.add('on'));
+    render();
+  };
+  stats.insertBefore(allChip, stats.firstChild);
+  stats.insertBefore(gemChip, stats.firstChild);
 
   // ---- controls wiring ----
   function bindRange(rangeId, numId, key){
@@ -1130,7 +1257,13 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
     activeFlags = flags;
     archN.textContent = Object.keys(archives).length;
 
-    const all = filt(DATA);
+    let all = filt(DATA);
+    if(state.gems){
+      const pool = all.filter(r=>r._gemOk).length;
+      all = gemFeed(all);
+      const ncf = new Set(all.map(r=>r.cf)).size;
+      counter.textContent = `✨ top ${all.length} gems across ${ncf} countries · picked from ${pool.toLocaleString()} standouts (of ${DATA.length.toLocaleString()} listings) · ${Object.keys(flags).length} down-ranked by your archive patterns`;
+    } else
     counter.textContent = `${all.length} listings · ${all.filter(r=>r.lat).length} on map · top rating ${(all.length?Math.max(...all.map(r=>r.r)).toFixed(1):'—')} · ${Object.keys(flags).length} flagged by archive patterns`;
 
     // markers
@@ -1178,7 +1311,8 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
   }
 
   function renderTable(all){
-    const rows = sortRows(all).slice(0, 600);
+    // gems keep their curated (interleaved) order unless you sort by a column
+    const rows = (state.gems && state.sortKey==='_gem') ? all : sortRows(all).slice(0, 600);
     const html = rows.map(r=>{
       const color=COLORS[r.cf]||'#999';
       const isArchived = !!archives[r.u];
@@ -1188,9 +1322,9 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
       const nomBadge = r.nominee ? `<span title="nominee-held · leverage ${r.leverage} · ${r.nominee.hits.join(', ')}" style="cursor:help">🎯</span>` : '';
       const isTH = r.cf==='Thailand';
       return `<tr class="${cls}" data-u="${r.u}">
-        <td class="r ${ratingClass(r.r)}">${r.r}${flagBadge}${nomBadge}</td>
+        <td class="r ${ratingClass(state.gems?r._gem:r.r)}">${state.gems?`<span title="gem score (0-100, comparable across countries)">✨${r._gem}</span>`:r.r}${flagBadge}${nomBadge}</td>
         <td><span class="dot" style="background:${color}"></span>${r.cf.replace('British Columbia','BC').replace('New Zealand','NZ')}</td>
-        <td>${r.rg}</td><td>${r.code?`<code style="font-size:10px;opacity:.65;margin-right:5px">${r.code}</code>`:''}${r.a}</td>
+        <td>${r.rg}</td><td>${r.code?`<code style="font-size:10px;opacity:.65;margin-right:5px">${r.code}</code>`:''}${r.a}${state.gems&&((r._why&&r._why.length)||r._taste)?`<div class="gem-why">${[...(r._why||[]), ...(r._taste?[r._taste]:[])].join(' · ')}</div>`:''}</td>
         <td>${r.tp==='abandoned_ski'?'':r.tp==='house'?`${r.beds?r.beds+'bd · ':''}${r.sqft_living?r.sqft_living.toLocaleString()+' sf':(r.living_m2||r.m2||'')+' m²'}`:(isTH&&r.rai!=null?r.rai+' rai':(r.ac??''))}</td>
         <td>${r.tp==='abandoned_ski'?'':r.tp==='house'?(r.usd_per_sqft?'$'+r.usd_per_sqft+'/sf':(r.upm?'$'+Math.round(r.upm).toLocaleString()+'/m²':'')):(isTH&&r.baht_rai?'฿'+Math.round(r.baht_rai).toLocaleString():(r.ac?'$'+Math.round(r.usd/r.ac).toLocaleString():''))}</td>
         <td>${r.tp==='abandoned_ski'?'':(r.upm??'')}</td>
@@ -1375,6 +1509,7 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
       <h3>${r.code?`<code style="font-size:13px;opacity:.6;margin-right:8px">${r.code}</code>`:''}${r.rg} ${r.a?' · '+r.a:''}</h3>
       <div class="sub">${r.v||'no view'}${r.view_verified===true?' <span style="color:#7ce38b">✓ verified</span>':r.view_verified===false?' <span style="color:#ff8080">✗ unverified</span>':''} · ${r.t||'title unspecified'} · src: ${r.cur||''}</div>
       ${flag}${arch}
+      ${r._gemOk?`<div class="detail-flag" style="background:#2a2410;color:#ffd166;border-color:#6a5a1a">✨ <b>Gem · ${r._gem}/100</b>${r._why&&r._why.length?' — '+r._why.join(' · '):''}</div>`:''}
       ${r.tp==='house'?`<div class="detail-flag" style="background:#101d2a;color:#8fb8e8;border-color:#2a4a70">🏠 <b>${r.beds?r.beds+' bd':''}${r.baths?' · '+r.baths+' ba':''}</b>${r.sqft_living?` · ${r.sqft_living.toLocaleString()} sqft`:(r.living_m2?` · ${r.living_m2} m² living`:'')}${r.ac?` · lot ${r.ac} ac`:''}${r.year_built?` · built ${r.year_built}`:''}${r.usd_per_sqft?` · <b>$${r.usd_per_sqft}/sqft</b>`:''}${r.hoa?` · HOA $${r.hoa}/mo`:''}${r.t?` <span style="opacity:.7">(${r.t})</span>`:''}</div>`:''}
       ${r.cf==='Thailand' && r.rai?`<div class="detail-flag" style="background:#101d2a;color:#8fb8e8;border-color:#2a4a70">📐 <b>${r.rai} rai</b> <span style="opacity:.7">(${(r.m2||0).toLocaleString()} m² · ${Math.round((r.m2||0)/4).toLocaleString()} wah²)</span>${r.baht?` · total <b>฿${r.baht.toLocaleString()}</b>`:''}${r.baht_rai?` · <b>฿${r.baht_rai.toLocaleString()}/rai</b>`:''}${r.baht_wah?` · <b>฿${r.baht_wah.toLocaleString()}/wah</b>`:''}</div>`:''}
       ${r.structural_warn?`<div class="detail-flag" style="background:#3a2a10;color:#ffb060;border-color:#7a5020">⚠ Structural concern: ${r.structural_warn}</div>`:''}
