@@ -251,7 +251,7 @@
   <div id="regItems"></div>
 </div>
 <div class="controls">
-  <div class="control"><label>Type</label><select id="type"><option value="all">all</option><option value="land">land</option><option value="house">🏔 house/chalet</option><option value="villa">villa</option><option value="penthouse">penthouse</option><option value="apartment">apt w/ pool</option><option value="abandoned_ski">❄ abandoned ski</option></select></div>
+  <div class="control"><label>Type</label><select id="type"><option value="all">all</option><option value="land">land</option><option value="house">🏔 house/chalet</option><option value="villa">villa</option><option value="penthouse">penthouse</option><option value="apartment">🏢 apartment</option><option value="abandoned_ski">❄ abandoned ski</option></select></div>
   <div class="control"><label>Rating ≥</label><input type="range" id="minR" min="0" max="100" value="0" step="1"><input type="number" id="minRn" min="0" max="100" value="0" step="1"></div>
   <div class="control"><label>$/m² ≤</label><input type="range" id="maxU" min="0" max="10000" value="10000" step="50"><input type="number" id="maxUn" min="0" value="10000" step="50"></div>
   <div class="control"><label>Max $</label><select id="maxUsd"><option value="">any</option><option value="100000">≤ $100k</option><option value="250000">≤ $250k</option><option value="500000">≤ $500k</option><option value="1000000">≤ $1M</option><option value="2500000">≤ $2.5M (personal)</option><option value="10000000">≤ $10M</option></select></div>
@@ -900,6 +900,10 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
   const REGION_TABS = {
     MA: { label:'🏠 Massachusetts', cf:'USA', center:[41.70,-70.95], zoom:9,
           match: r => r.cf==='USA' && (r.rg==='Massachusetts' || /-MA$/.test(r.rg||'')) },
+    TOKYO: { label:'🗼 Tokyo', cf:'Japan', center:[35.68,139.70], zoom:11,
+          match: r => r.cf==='Japan' && r.rg==='Tokyo' },
+    VIENNA: { label:'🏛 Vienna', cf:'Austria', center:[48.208,16.37], zoom:12,
+          match: r => r.cf==='Austria' && r.rg==='Wien' },
   };
 
   // ---- header chips ----
@@ -982,8 +986,10 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
   // countries. The gem score (0-100) compares a listing only against similar
   // listings (same area + size band) and a listing only counts as a gem when it
   // is strong on at least TWO of: value, setting, motivated seller, substance.
-  function sizeBand(r){ const tp=r.tp||'land'; if(tp==='house') return 'h'; const ac=r.ac||0; return ac<0.25?'a':ac<1?'b':ac<5?'c':ac<25?'d':'e'; }
+  function sizeBand(r){ const tp=r.tp||'land'; if(tp==='house') return 'h'; if(tp==='apartment') return (r.m2||0)<40?'p1':(r.m2||0)<70?'p2':'p3'; const ac=r.ac||0; return ac<0.25?'a':ac<1?'b':ac<5?'c':ac<25?'d':'e'; }
   function cohortKeys(r){ const tp=r.tp||'land', b=sizeBand(r);
+    // apartments: compare within the same ward / district first (Minato ≠ Adachi)
+    if(tp==='apartment') return [`${r.cf}|${r.rg}|${r.a}|${tp}|${b}`, `${r.cf}|${r.rg}|${r.a}|${tp}`, `${r.cf}|${r.rg}|${tp}|${b}`, `${r.cf}|${tp}`];
     return [`${r.cf}|${r.rg}|${tp}|${b}`, `${r.cf}|${tp}|${b}`, `${r.cf}|${r.rg}|${tp}`, `${r.cf}|${tp}`]; }
   function computeGems(){
     const groups={};
@@ -1008,16 +1014,20 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
       const coast = c==null?0 : c<=0.2?35 : c<=0.5?30 : c<=1?24 : c<=2?16 : c<=5?8 : 0;
       const ski = s==null?0 : s<=0.3?35 : s<=0.5?32 : s<=1?24 : s<=2?14 : s<=5?6 : 0;
       const view = VIEW[v]||0;
-      const setting = Math.max(coast, ski, view) + (r.view_verified?5:0);
+      const wm=r.walk_min, apt=(r.tp==='apartment');
+      const station = (apt && wm!=null) ? (wm<=3?24:wm<=5?20:wm<=8?10:0) : 0;
+      const setting = Math.max(coast, ski, view, station) + (r.view_verified?5:0);
       if(coast>=24) why.push(`🌊 ${c<1?Math.round(c*1000)+' m':c+' km'} to water`);
       else if(view>=22) why.push(`🌅 ${v.replace('_',' ')}`);
       if(ski>=24) why.push(s<=0.5?'⛷ ski-in/ski-out':`⛷ ${s} km to lift`);
+      if(station>=20) why.push(`🚉 ${wm} min to ${r.station||'station'}`);
       const lev=Math.max(r.leverage||0, r.distress||0), dom=r.days_on_market||0;
       const motiv=Math.min(15, lev/100*15 + (dom>=365?8:dom>=180?4:0));
       if(lev>=40) why.push('🎯 motivated seller');
       if(dom>=365) why.push(`⏳ ${(dom/365).toFixed(1)} yrs on market`);
       const tp=r.tp||'land', ac=r.ac||0;
-      const subst = tp==='house' ? ((r.living_m2||r.m2||0)>=150?10:(r.beds||0)>=3?6:3)
+      const subst = tp==='apartment' ? ((r.m2||0)>=70?10:(r.m2||0)>=50?7:(r.m2||0)>=35?4:1)
+                  : tp==='house' ? ((r.living_m2||r.m2||0)>=150?10:(r.beds||0)>=3?6:3)
                                  : (ac>=5?10:ac>=1?7:ac>=0.25?4:ac>=0.1?1:0);
       let pen=0; if(!r.lat) pen+=15; if(!(r.imgs&&r.imgs.length)) pen+=4; if(r.area_est) pen+=10; if(r.restricted_foreign) pen+=12;
       const strong=(pct<=0.30 && !suspicious) + (setting>=22) + (motiv>=8) + (subst>=7 && pct<=0.5 && !suspicious);
@@ -1325,8 +1335,8 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
         <td class="r ${ratingClass(state.gems?r._gem:r.r)}">${state.gems?`<span title="gem score (0-100, comparable across countries)">✨${r._gem}</span>`:r.r}${flagBadge}${nomBadge}</td>
         <td><span class="dot" style="background:${color}"></span>${r.cf.replace('British Columbia','BC').replace('New Zealand','NZ')}</td>
         <td>${r.rg}</td><td>${r.code?`<code style="font-size:10px;opacity:.65;margin-right:5px">${r.code}</code>`:''}${r.a}${state.gems&&((r._why&&r._why.length)||r._taste)?`<div class="gem-why">${[...(r._why||[]), ...(r._taste?[r._taste]:[])].join(' · ')}</div>`:''}</td>
-        <td>${r.tp==='abandoned_ski'?'':r.tp==='house'?`${r.beds?r.beds+'bd · ':''}${r.sqft_living?r.sqft_living.toLocaleString()+' sf':(r.living_m2||r.m2||'')+' m²'}`:(isTH&&r.rai!=null?r.rai+' rai':(r.ac??''))}</td>
-        <td>${r.tp==='abandoned_ski'?'':r.tp==='house'?(r.usd_per_sqft?'$'+r.usd_per_sqft+'/sf':(r.upm?'$'+Math.round(r.upm).toLocaleString()+'/m²':'')):(isTH&&r.baht_rai?'฿'+Math.round(r.baht_rai).toLocaleString():(r.ac?'$'+Math.round(r.usd/r.ac).toLocaleString():''))}</td>
+        <td>${r.tp==='abandoned_ski'?'':r.tp==='apartment'?`${r.layout||(r.beds?r.beds+' rm':'')}${(r.layout||r.beds)?' · ':''}${r.living_m2||r.m2} m²${r.walk_min!=null?` · 🚉${r.walk_min}′`:''}`:r.tp==='house'?`${r.beds?r.beds+'bd · ':''}${r.sqft_living?r.sqft_living.toLocaleString()+' sf':(r.living_m2||r.m2||'')+' m²'}`:(isTH&&r.rai!=null?r.rai+' rai':(r.ac??''))}</td>
+        <td>${r.tp==='abandoned_ski'?'':r.tp==='apartment'?(r.upm?'$'+Math.round(r.upm).toLocaleString()+'/m²':''):r.tp==='house'?(r.usd_per_sqft?'$'+r.usd_per_sqft+'/sf':(r.upm?'$'+Math.round(r.upm).toLocaleString()+'/m²':'')):(isTH&&r.baht_rai?'฿'+Math.round(r.baht_rai).toLocaleString():(r.ac?'$'+Math.round(r.usd/r.ac).toLocaleString():''))}</td>
         <td>${r.tp==='abandoned_ski'?'':(r.upm??'')}</td>
         <td>${r.tp==='abandoned_ski'?(r.closure_status==='closed'?'❄ closed':r.closure_status==='suspended'?'❄ susp':r.closure_status==='on hiatus'?'❄ hiatus':'❄'):fmtUsd(r.usd)}</td>
         <td>${r.tp==='abandoned_ski'?(r.year_closed?'cl. '+r.year_closed:''):r.v||''}</td>
@@ -1510,6 +1520,8 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
       <div class="sub">${r.v||'no view'}${r.view_verified===true?' <span style="color:#7ce38b">✓ verified</span>':r.view_verified===false?' <span style="color:#ff8080">✗ unverified</span>':''} · ${r.t||'title unspecified'} · src: ${r.cur||''}</div>
       ${flag}${arch}
       ${r._gemOk?`<div class="detail-flag" style="background:#2a2410;color:#ffd166;border-color:#6a5a1a">✨ <b>Gem · ${r._gem}/100</b>${r._why&&r._why.length?' — '+r._why.join(' · '):''}</div>`:''}
+      ${r.tp==='apartment'?`<div class="detail-flag" style="background:#101d2a;color:#8fb8e8;border-color:#2a4a70">🏢 <b>${r.layout||(r.beds?r.beds+' rooms':'apartment')}</b> · ${r.living_m2||r.m2} m²${r.floor?` · floor ${r.floor}`:''}${r.year_built?` · built ${r.year_built}`:''}${r.upm?` · <b>$${Math.round(r.upm).toLocaleString()}/m²</b>`:''}${r.station?` · 🚉 ${r.station}${r.walk_min!=null?` ${r.walk_min} min walk`:''}`:''}${r.district?` · ${r.district}`:''}</div>`:''}
+      ${r.tp==='house'&&r.station?`<div class="detail-flag" style="background:#101d2a;color:#8fb8e8;border-color:#2a4a70">🚉 ${r.station}${r.walk_min!=null?` · ${r.walk_min} min walk`:''}${r.year_built?` · built ${r.year_built}`:''}${r.layout?` · ${r.layout}`:''}</div>`:''}
       ${r.tp==='house'?`<div class="detail-flag" style="background:#101d2a;color:#8fb8e8;border-color:#2a4a70">🏠 <b>${r.beds?r.beds+' bd':''}${r.baths?' · '+r.baths+' ba':''}</b>${r.sqft_living?` · ${r.sqft_living.toLocaleString()} sqft`:(r.living_m2?` · ${r.living_m2} m² living`:'')}${r.ac?` · lot ${r.ac} ac`:''}${r.year_built?` · built ${r.year_built}`:''}${r.usd_per_sqft?` · <b>$${r.usd_per_sqft}/sqft</b>`:''}${r.hoa?` · HOA $${r.hoa}/mo`:''}${r.t?` <span style="opacity:.7">(${r.t})</span>`:''}</div>`:''}
       ${r.cf==='Thailand' && r.rai?`<div class="detail-flag" style="background:#101d2a;color:#8fb8e8;border-color:#2a4a70">📐 <b>${r.rai} rai</b> <span style="opacity:.7">(${(r.m2||0).toLocaleString()} m² · ${Math.round((r.m2||0)/4).toLocaleString()} wah²)</span>${r.baht?` · total <b>฿${r.baht.toLocaleString()}</b>`:''}${r.baht_rai?` · <b>฿${r.baht_rai.toLocaleString()}/rai</b>`:''}${r.baht_wah?` · <b>฿${r.baht_wah.toLocaleString()}/wah</b>`:''}</div>`:''}
       ${r.structural_warn?`<div class="detail-flag" style="background:#3a2a10;color:#ffb060;border-color:#7a5020">⚠ Structural concern: ${r.structural_warn}</div>`:''}

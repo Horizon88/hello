@@ -11,10 +11,13 @@ import json, os, re, subprocess, sys, time
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 OUT = "/tmp/willhaben.json"
-STATES = ["tirol", "salzburg", "vorarlberg", "kaernten", "steiermark"]
-# (category-path, kind)
-CATEGORIES = [("grundstuecke", "land"), ("haus-kaufen", "house")]
-MAX_PAGES = 45
+ALPINE = ["tirol", "salzburg", "vorarlberg", "kaernten", "steiermark"]
+ALL_STATES = ALPINE + ["wien", "niederoesterreich", "oberoesterreich", "burgenland"]
+# (category-path, kind, states, max pages) — land everywhere, chalets in the
+# alpine states, apartments in Vienna
+JOBS = [("grundstuecke", "land", ALL_STATES, 45),
+        ("haus-kaufen", "house", ALPINE, 45),
+        ("eigentumswohnung", "apartment", ["wien"], 80)]
 
 def curl(url, timeout=30):
     try:
@@ -44,10 +47,10 @@ def main():
     if os.path.exists(OUT):
         for r in json.load(open(OUT)):
             out[r["id"]] = r
-    for cat, kind in CATEGORIES:
-        for state in STATES:
+    for cat, kind, states, max_pages in JOBS:
+        for state in states:
             got = 0; total = None
-            for pg in range(1, MAX_PAGES + 1):
+            for pg in range(1, max_pages + 1):
                 url = f"https://www.willhaben.at/iad/immobilien/{cat}/{state}/" + (f"?page={pg}" if pg > 1 else "")
                 ads, total = page_ads(curl(url))
                 if not ads:
@@ -64,7 +67,7 @@ def main():
                         continue
                     if kind == "land":
                         size = gv(ad, "ESTATE_SIZE") or gv(ad, "PLOT/AREA")
-                    else:  # house: ESTATE_SIZE is living area; FREE_AREA is the plot
+                    else:  # house/apartment: ESTATE_SIZE is living area; FREE_AREA is the plot
                         size = gv(ad, "ESTATE_SIZE/LIVING_AREA") or gv(ad, "ESTATE_SIZE")
                     if not size:
                         continue
@@ -80,7 +83,8 @@ def main():
                         "url": "https://www.willhaben.at/iad/" + seo.lstrip("/"),
                         "title": (gv(ad, "HEADING") or ad.get("description") or "")[:200],
                         "eur": eur, "sqm": sqm, "lat": lat, "lng": lng,
-                        "living_m2": (float(size) if kind == "house" else None),
+                        "living_m2": (float(size) if kind != "land" else None),
+                        "floor": gv(ad, "FLOOR"),
                         "plot_m2": (float(plot) if plot else None),
                         "rooms": gv(ad, "NUMBER_OF_ROOMS"),
                         "location": gv(ad, "LOCATION") or "", "state": gv(ad, "STATE") or state.title(),

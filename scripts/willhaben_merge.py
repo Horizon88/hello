@@ -68,19 +68,46 @@ for r in raw:
     lat, lng = r.get("lat"), r.get("lng")
     if lat is None: continue
     ski_km, resort = nearest(lat, lng)
-    if ski_km > 4:                     # keep only ski-accessible land
+    kind = r.get("kind") or "land"
+    house = kind == "house"
+    # chalets stay ski-focused; land is kept everywhere (ski is a bonus);
+    # Vienna apartments have no ski angle at all
+    if house and ski_km > 4:
         skipped_far += 1; continue
     usd = round(eur * EURUSD)
     if usd < 3000: continue
-    house = r.get("kind") == "house"
     upm = round(usd/sqm, 1)
 
     rb = ["src:willhaben"]; score = 20; rb.append("base+20")
-    if ski_km <= 0.3: score += 40; rb.append("ski-in/out+40")
-    elif ski_km <= 0.5: score += 32; rb.append("ski-in/out+32")
-    elif ski_km <= 1: score += 22; rb.append("walk-to-lift+22")
-    elif ski_km <= 2: score += 12; rb.append("ski≤2km+12")
-    else: score += 5; rb.append("ski≤4km+5")
+    if kind != "apartment":
+        if ski_km <= 0.3: score += 40; rb.append("ski-in/out+40")
+        elif ski_km <= 0.5: score += 32; rb.append("ski-in/out+32")
+        elif ski_km <= 1: score += 22; rb.append("walk-to-lift+22")
+        elif ski_km <= 2: score += 12; rb.append("ski≤2km+12")
+        elif ski_km <= 4: score += 5; rb.append("ski≤4km+5")
+    ski_out = round(ski_km, 2) if (kind != "apartment" and ski_km <= 15) else None
+    resort_out = resort if ski_out is not None else ""
+
+    if kind == "apartment":
+        b = -4 if sqm<40 else 0 if sqm<60 else 6 if sqm<90 else 10
+        score += b; rb.append(f"living{'+' if b>=0 else ''}{b}")
+        rooms = r.get("rooms")
+        loc = r.get("location") or ""
+        bez = loc.split(",")[1].strip() if loc.count(",") >= 1 else loc
+        rows.append({
+            "tp":"apartment", "cf":"Austria", "r":round(score,1),
+            "rg":"Wien", "a": (", ".join(x.strip() for x in loc.split(",")[1:]) or loc)[:40],
+            "ac":0, "m2":int(sqm), "usd":usd, "upm":upm,
+            "v":"", "el":"", "t":"Eigentumswohnung",
+            "lat":lat, "lon":lng, "cur":"EUR", "lp":str(eur), "rb":"+".join(rb),
+            "imgs":[r["img"]] if r.get("img") else [], "u":r["url"],
+            "name": (r.get("title") or "Vienna apartment")[:180],
+            "ski_km":None, "ski_r":"", "coast_km":None,
+            "beds": int(rooms) if rooms and str(rooms).isdigit() else None,
+            "living_m2": int(sqm), "floor": r.get("floor"), "district": bez,
+            "first_seen": r.get("published") or None, "foreign_note": FOREIGN_NOTE,
+        })
+        continue
 
     if house:
         # score by living size + rooms; land-comp bid math doesn't apply
@@ -96,7 +123,7 @@ for r in raw:
             "lat":lat, "lon":lng, "cur":"EUR", "lp":str(eur), "rb":"+".join(rb),
             "imgs":[r["img"]] if r.get("img") else [], "u":r["url"],
             "name": (r.get("title") or "Austria alpine house")[:180],
-            "ski_km":round(ski_km,2), "ski_r":resort, "coast_km":None,
+            "ski_km":ski_out, "ski_r":resort_out, "coast_km":None,
             "beds": int(rooms) if rooms and str(rooms).isdigit() else None,
             "living_m2": int(sqm), "plot_m2": int(r["plot_m2"]) if r.get("plot_m2") else None,
             "first_seen": r.get("published") or None, "foreign_note": FOREIGN_NOTE,
@@ -113,7 +140,7 @@ for r in raw:
             "lat":lat, "lon":lng, "cur":"EUR", "lp":str(eur), "rb":"+".join(rb),
             "imgs":[r["img"]] if r.get("img") else [], "u":r["url"],
             "name": (r.get("title") or "Austria alpine land")[:180],
-            "ski_km":round(ski_km,2), "ski_r":resort, "coast_km":None,
+            "ski_km":ski_out, "ski_r":resort_out, "coast_km":None,
             "first_seen": r.get("published") or None, "foreign_note": FOREIGN_NOTE,
         })
 
@@ -121,6 +148,6 @@ merged = existing + rows
 merged.sort(key=lambda x: x.get("r",0), reverse=True)
 json.dump(merged, open(PATH,"w"), separators=(",",":"))
 from collections import Counter
-print(f"merged: {len(rows)} willhaben ski rows ({skipped_far} dropped >4km); total {len(merged)}", file=sys.stderr)
+print(f"merged: {len(rows)} willhaben rows ({skipped_far} chalets dropped >4km from a lift); total {len(merged)}", file=sys.stderr)
 print("kinds:", Counter(r["tp"] for r in rows), "| ski-in/out ≤0.5km:", sum(1 for r in rows if r["ski_km"]<=0.5), file=sys.stderr)
 print("by state:", Counter(r["rg"] for r in rows).most_common(), file=sys.stderr)
