@@ -1,0 +1,5 @@
+{
+ "schema": "reviews_v1",
+ "note": "Claude photo reviews of finalists: url -> {thumb: up|down|meh, verdict, date}",
+ "reviews": {}
+}

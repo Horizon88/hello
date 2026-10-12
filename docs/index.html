@@ -132,6 +132,15 @@
   .detail-grid .v{font-weight:500}
   .detail-rating{font-size:28px;font-weight:700;margin-bottom:2px}
   .detail-rating .rb{font-size:11px;color:var(--txt-dim);font-weight:400;margin-left:8px;letter-spacing:0;text-transform:none}
+  .note-deal{font-size:11px;color:#ff8080;margin-top:3px;white-space:normal;font-weight:600}
+  .note-warn{font-size:11px;color:#ffb86c;margin-top:2px;white-space:normal}
+  .note-rev{font-size:11px;color:#9fd4ff;margin-top:2px;white-space:normal;font-style:italic}
+  .photo-strip{display:flex;gap:6px;overflow-x:auto;margin:8px 0 12px;padding-bottom:4px}
+  .photo-strip img{height:110px;border-radius:6px;flex:0 0 auto;cursor:zoom-in;background:#222}
+  #triageBg .triage-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;width:min(760px,96vw);max-height:94vh;overflow:auto;padding:16px}
+  .triage-photo{width:100%;height:min(48vh,420px);object-fit:cover;border-radius:8px;background:#111;display:block}
+  .triage-btns{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .triage-btns .btn{flex:1;font-size:14px;padding:10px}
   .gem-why{font-size:11px;color:#ffd166;margin-top:3px;white-space:normal;line-height:1.35;opacity:.95}
   .detail-flag{background:#3a2a10;color:var(--warn);border:1px solid #5a401a;padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:12px}
   .detail-arch-info{background:#2a1414;color:#ff8080;border:1px solid #5a2020;padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:12px}
@@ -300,6 +309,7 @@
 </footer>
 
 <!-- Detail popover -->
+<div class="modal-bg" id="triageBg"><div class="triage-card" id="triageCard"></div></div>
 <div class="modal-bg" id="detailBg">
   <div class="modal detail-modal">
     <div class="detail-img placeholder" id="detailImg"></div>
@@ -783,6 +793,9 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
     if(ar.ok){ const j = await ar.json();
       Object.entries(j.archives||{}).forEach(([u,a])=>{ if(!unarchOverrides.has(u) && !archives[u]) archives[u] = Object.assign({repo:true}, a); }); }
   } catch(e){}
+  // Claude's photo reviews of finalists (docs/reviews.json, committed)
+  let REVIEWS = {};
+  try { const rv = await fetch('reviews.json', {cache:'no-cache'}); if(rv.ok) REVIEWS = (await rv.json()).reviews || {}; } catch(e){}
   // single entry points so every store stays in step
   function archiveUrl(u, rec){
     unarchOverrides.delete(u); saveUnarch();
@@ -1016,10 +1029,16 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
       const view = VIEW[v]||0;
       const wm=r.walk_min, apt=(r.tp==='apartment');
       const station = (apt && wm!=null) ? (wm<=3?24:wm<=5?20:wm<=8?10:0) : 0;
-      const setting = Math.max(coast, ski, view, station) + (r.view_verified?5:0);
+      const lk=r.lake_km;
+      const lake = lk==null?0 : lk<=0.2?32 : lk<=0.5?26 : lk<=1?18 : 0;
+      const perks=r.perks||[], warns=r.warn||[];
+      const perkPts=Math.min(12, 6*perks.length), warnPts=Math.min(8, 4*warns.length);
+      const setting = Math.max(coast, ski, view, station, lake) + (r.view_verified?5:0) + perkPts;
       if(coast>=24) why.push(`🌊 ${c<1?Math.round(c*1000)+' m':c+' km'} to water`);
       else if(view>=22) why.push(`🌅 ${v.replace('_',' ')}`);
       if(ski>=24) why.push(s<=0.5?'⛷ ski-in/ski-out':`⛷ ${s} km to lift`);
+      if(lake>=18) why.push(`🏞 ${lk<1?Math.round(lk*1000)+' m':lk+' km'} to ${r.lake||'lake'}`);
+      perks.slice(0,2).forEach(p=>why.push(p));
       if(station>=20) why.push(`🚉 ${wm} min to ${r.station||'station'}`);
       const lev=Math.max(r.leverage||0, r.distress||0), dom=r.days_on_market||0;
       const motiv=Math.min(15, lev/100*15 + (dom>=365?8:dom>=180?4:0));
@@ -1029,10 +1048,14 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
       const subst = tp==='apartment' ? ((r.m2||0)>=70?10:(r.m2||0)>=50?7:(r.m2||0)>=35?4:1)
                   : tp==='house' ? ((r.living_m2||r.m2||0)>=150?10:(r.beds||0)>=3?6:3)
                                  : (ac>=5?10:ac>=1?7:ac>=0.25?4:ac>=0.1?1:0);
-      let pen=0; if(!r.lat) pen+=15; if(!(r.imgs&&r.imgs.length)) pen+=4; if(r.area_est) pen+=10; if(r.restricted_foreign) pen+=12;
+      let pen=warnPts; if(!r.lat) pen+=15; if(!(r.imgs&&r.imgs.length)) pen+=4; if(r.area_est) pen+=10; if(r.restricted_foreign) pen+=12;
       const strong=(pct<=0.30 && !suspicious) + (setting>=22) + (motiv>=8) + (subst>=7 && pct<=0.5 && !suspicious);
       r._gem=Math.max(0, Math.round(value+setting+motiv+subst-pen));
-      r._why=why; r._gemOk = strong>=2;
+      r._pct=pct; r._ratio=ratio;
+      const rev=REVIEWS[r.u];
+      let bonus = rev ? (rev.thumb==='up'?8:rev.thumb==='down'?-30:0) : 0;
+      r._gem=Math.max(0, r._gem+bonus);
+      r._why=why; r._gemOk = strong>=2 && !(r.deal&&r.deal.length) && !(rev&&rev.thumb==='down');
       if(r._gemOk) n++;
     });
     return n;
@@ -1112,6 +1135,69 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
   stats.insertBefore(allChip, stats.firstChild);
   stats.insertBefore(gemChip, stats.firstChild);
 
+  // ---- 🎯 Hunts: one-click definitions of "special" (ski / sea / lake) ----
+  // Every hunt hides ⛔ deal-killers. Order = gem score.
+  const le=(v,x)=>v!=null && v<=x;
+  const homeScale=r=>r.tp!=='house' || ((r.living_m2||r.m2||0)<=600 && (r.beds||0)<=10);
+  const HUNTS = {
+    jp_ski_home: { label:'🎿 Japan ski homes', desc:'Houses ≤5 km from a Japanese ski lift (Hakuba, Niseko, Nozawa, Furano…), built 1981+ (modern quake code) where known',
+      match:r=>r.cf==='Japan' && r.tp==='house' && homeScale(r) && le(r.ski_km,5) && (!r.year_built || r.year_built>=1981) },
+    jp_ski_land: { label:'🎿 Japan ski land', desc:'Land ≤3 km from a Japanese ski lift',
+      match:r=>r.cf==='Japan' && (r.tp||'land')==='land' && le(r.ski_km,3) },
+    jp_sea: { label:'🌊 Japan by the sea', desc:'Land and houses ≤1 km from the coast, or a sea view in the listing',
+      match:r=>r.cf==='Japan' && r.tp!=='apartment' && r.tp!=='abandoned_ski' && (le(r.coast_km,1) || (r.perks||[]).some(p=>/sea view|Fuji/.test(p))) },
+    jp_onsen: { label:'♨️ Onsen', desc:'Japanese listings with hot-spring rights mentioned',
+      match:r=>r.cf==='Japan' && (r.perks||[]).some(p=>/onsen/.test(p)) },
+    tokyo_value: { label:'🗼 Tokyo value flats', desc:'Tokyo apartments ≤5 min walk from a station, ≥40 m², built 2000+, cheaper than most in the same ward',
+      match:r=>r.cf==='Japan' && r.tp==='apartment' && r.rg==='Tokyo' && le(r.walk_min,5) && (r.m2||0)>=40 && (r.year_built||0)>=2000 && le(r._pct,0.4) },
+    at_ski: { label:'⛷ Austria ski-in/out', desc:'Austrian land and chalets ≤500 m from a lift',
+      match:r=>r.cf==='Austria' && r.tp!=='apartment' && homeScale(r) && le(r.ski_km,0.5) },
+    at_lake: { label:'🏞 Austria lakeside', desc:'Austrian land and homes ≤500 m from a lake (Zeller See, Wörthersee, Wolfgangsee, Attersee…)',
+      match:r=>r.cf==='Austria' && r.tp!=='apartment' && homeScale(r) && le(r.lake_km,0.5) },
+    vienna_value: { label:'🏛 Vienna below-district', desc:'Vienna apartments 60-250 m², ≥15% under the district median $/m², not tenanted',
+      match:r=>r.cf==='Austria' && r.tp==='apartment' && r.rg==='Wien' && (r.m2||0)>=60 && (r.m2||0)<=250 && le(r._ratio,0.85) && (r._ratio||1)>=0.35 && !(r.warn||[]).some(w=>/tenanted/.test(w)) },
+  };
+  const huntRow=document.createElement('div');
+  huntRow.id='huntRow'; huntRow.style.cssText='display:flex;flex-wrap:wrap;gap:6px;width:100%;margin-top:6px';
+  let _preHunt=null;
+  function leaveHunt(){
+    if(!state.hunt) return;
+    state.hunt=null; huntRow.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+    if(_preHunt){ state.countries.clear(); _preHunt.countries.forEach(c=>state.countries.add(c));
+      applyFilters(_preHunt.filters); state.sortKey=_preHunt.sortKey; state.sortAsc=_preHunt.sortAsc; _preHunt=null; }
+    document.querySelectorAll('#stats .chip[data-cf]').forEach(ch=>ch.classList.toggle('on', state.countries.has(ch.dataset.cf)));
+  }
+  function enterHunt(key){
+    if(state.gems) leaveGems();
+    if(state.region){ const t=document.querySelector(`#stats .chip[data-rt="${state.region}"]`); if(t) t.click(); }
+    if(!state.hunt) _preHunt={countries:[...state.countries], filters:snapshotFilters(), sortKey:state.sortKey, sortAsc:state.sortAsc};
+    resetFilters(); state.hunt=key; state.sortKey='_gem'; state.sortAsc=false;
+    state.countries.clear(); ALL_COUNTRIES.forEach(c=>state.countries.add(c));
+    document.querySelectorAll('#stats .chip[data-cf]').forEach(ch=>ch.classList.add('on'));
+    huntRow.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on', c.dataset.hunt===key));
+    const pts=DATA.filter(r=>HUNTS[key].match(r) && r.lat);
+    if(pts.length){ try{ map.fitBounds(L.latLngBounds(pts.map(r=>[r.lat,r.lon])).pad(0.1)); }catch(e){} }
+  }
+  Object.entries(HUNTS).forEach(([key,h])=>{
+    const n=DATA.filter(r=>h.match(r) && !(r.deal&&r.deal.length)).length;
+    if(!n) return;
+    const c=document.createElement('span'); c.className='chip'; c.dataset.hunt=key;
+    c.style.cssText='border-color:#7ce38b;color:#9ff0b0';
+    c.innerHTML=`${h.label} ${n.toLocaleString()}`; c.title=h.desc+' · ⛔ deal-killers hidden · click again to leave';
+    c.onclick=()=>{ state.hunt===key ? leaveHunt() : enterHunt(key); render(); };
+    huntRow.appendChild(c);
+  });
+  const triageChip=document.createElement('span');
+  triageChip.className='chip'; triageChip.style.cssText='border-color:#c084fc;color:#d8b4fe;font-weight:700';
+  triageChip.textContent='🃏 Triage'; triageChip.title='Go through the top untriaged listings in the current view one at a time: keep / skip / maybe';
+  triageChip.onclick=()=>openTriage();
+  huntRow.appendChild(triageChip);
+  stats.appendChild(huntRow);
+  // leaving a hunt when the user picks gems / a region tab / a country chip
+  gemChip.addEventListener('click', ()=>{ if(state.hunt){ state.hunt=null; huntRow.querySelectorAll('.chip').forEach(c=>c.classList.remove('on')); _preHunt=null; } }, true);
+  document.querySelectorAll('#stats .chip[data-cf], #stats .chip[data-rt]').forEach(ch=>ch.addEventListener('click', ()=>{
+    if(state.hunt){ state.hunt=null; huntRow.querySelectorAll('.chip').forEach(c=>c.classList.remove('on')); _preHunt=null; } }, true));
+
   // ---- controls wiring ----
   function bindRange(rangeId, numId, key){
     const r=document.getElementById(rangeId), n=document.getElementById(numId);
@@ -1168,6 +1254,7 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
       if(state.verifiedOnly && !r.view_verified) return false;
       if(!state.countries.has(r.cf)) return false;
       if(state.region && !REGION_TABS[state.region].match(r)) return false;
+      if(state.hunt && (!HUNTS[state.hunt].match(r) || (r.deal&&r.deal.length))) return false;
       if(r.r < state.minR) return false;
       if(r.upm > state.maxU) return false;
       if(state.maxUsd != null && (r.usd||0) > state.maxUsd) return false;
@@ -1273,6 +1360,9 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
       all = gemFeed(all);
       const ncf = new Set(all.map(r=>r.cf)).size;
       counter.textContent = `✨ top ${all.length} gems across ${ncf} countries · picked from ${pool.toLocaleString()} standouts (of ${DATA.length.toLocaleString()} listings) · ${Object.keys(flags).length} down-ranked by your archive patterns`;
+    } else if(state.hunt){
+      const h=HUNTS[state.hunt]; const hidden=DATA.filter(r=>h.match(r) && r.deal && r.deal.length).length;
+      counter.textContent = `${h.label}: ${all.length.toLocaleString()} listings · ${hidden} hidden for deal-killers ⛔ · ${h.desc}`;
     } else
     counter.textContent = `${all.length} listings · ${all.filter(r=>r.lat).length} on map · top rating ${(all.length?Math.max(...all.map(r=>r.r)).toFixed(1):'—')} · ${Object.keys(flags).length} flagged by archive patterns`;
 
@@ -1320,6 +1410,15 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
     renderInsights(regionTags);
   }
 
+  function rowNotes(r){
+    let h='';
+    if(r.deal&&r.deal.length) h+=`<div class="note-deal">⛔ ${r.deal.join(' · ')}</div>`;
+    const good = (state.gems||state.hunt) ? [...(r._why||[]), ...(r._taste?[r._taste]:[])] : (r.perks||[]);
+    if(good.length) h+=`<div class="gem-why">${good.join(' · ')}</div>`;
+    if(r.warn&&r.warn.length) h+=`<div class="note-warn">⚠ ${r.warn.join(' · ')}</div>`;
+    const rv=REVIEWS[r.u]; if(rv) h+=`<div class="note-rev">🧐 ${rv.thumb==='up'?'👍 ':rv.thumb==='down'?'👎 ':''}${rv.verdict}</div>`;
+    return h;
+  }
   function renderTable(all){
     // gems keep their curated (interleaved) order unless you sort by a column
     const rows = (state.gems && state.sortKey==='_gem') ? all : sortRows(all).slice(0, 600);
@@ -1332,9 +1431,9 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
       const nomBadge = r.nominee ? `<span title="nominee-held · leverage ${r.leverage} · ${r.nominee.hits.join(', ')}" style="cursor:help">🎯</span>` : '';
       const isTH = r.cf==='Thailand';
       return `<tr class="${cls}" data-u="${r.u}">
-        <td class="r ${ratingClass(state.gems?r._gem:r.r)}">${state.gems?`<span title="gem score (0-100, comparable across countries)">✨${r._gem}</span>`:r.r}${flagBadge}${nomBadge}</td>
+        <td class="r ${ratingClass((state.gems||state.hunt)?r._gem:r.r)}">${(state.gems||state.hunt)?`<span title="gem score (0-100, comparable across countries)">✨${r._gem}</span>`:r.r}${flagBadge}${nomBadge}</td>
         <td><span class="dot" style="background:${color}"></span>${r.cf.replace('British Columbia','BC').replace('New Zealand','NZ')}</td>
-        <td>${r.rg}</td><td>${r.code?`<code style="font-size:10px;opacity:.65;margin-right:5px">${r.code}</code>`:''}${r.a}${state.gems&&((r._why&&r._why.length)||r._taste)?`<div class="gem-why">${[...(r._why||[]), ...(r._taste?[r._taste]:[])].join(' · ')}</div>`:''}</td>
+        <td>${r.rg}</td><td>${r.code?`<code style="font-size:10px;opacity:.65;margin-right:5px">${r.code}</code>`:''}${r.a}${rowNotes(r)}</td>
         <td>${r.tp==='abandoned_ski'?'':r.tp==='apartment'?`${r.layout||(r.beds?r.beds+' rm':'')}${(r.layout||r.beds)?' · ':''}${r.living_m2||r.m2} m²${r.walk_min!=null?` · 🚉${r.walk_min}′`:''}`:r.tp==='house'?`${r.beds?r.beds+'bd · ':''}${r.sqft_living?r.sqft_living.toLocaleString()+' sf':(r.living_m2||r.m2||'')+' m²'}`:(isTH&&r.rai!=null?r.rai+' rai':(r.ac??''))}</td>
         <td>${r.tp==='abandoned_ski'?'':r.tp==='apartment'?(r.upm?'$'+Math.round(r.upm).toLocaleString()+'/m²':''):r.tp==='house'?(r.usd_per_sqft?'$'+r.usd_per_sqft+'/sf':(r.upm?'$'+Math.round(r.upm).toLocaleString()+'/m²':'')):(isTH&&r.baht_rai?'฿'+Math.round(r.baht_rai).toLocaleString():(r.ac?'$'+Math.round(r.usd/r.ac).toLocaleString():''))}</td>
         <td>${r.tp==='abandoned_ski'?'':(r.upm??'')}</td>
@@ -1519,6 +1618,12 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
       <h3>${r.code?`<code style="font-size:13px;opacity:.6;margin-right:8px">${r.code}</code>`:''}${r.rg} ${r.a?' · '+r.a:''}</h3>
       <div class="sub">${r.v||'no view'}${r.view_verified===true?' <span style="color:#7ce38b">✓ verified</span>':r.view_verified===false?' <span style="color:#ff8080">✗ unverified</span>':''} · ${r.t||'title unspecified'} · src: ${r.cur||''}</div>
       ${flag}${arch}
+      ${(r.imgs&&r.imgs.length)?`<div class="photo-strip">${r.imgs.slice(0,8).map(u=>`<a href="${u}" target="_blank" rel="noopener"><img src="${u}" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></a>`).join('')}</div>`:''}
+      ${REVIEWS[r.u]?`<div class="detail-flag" style="background:#10202a;color:#9fd4ff;border-color:#2a5a70">🧐 <b>Claude's photo review${REVIEWS[r.u].thumb==='up'?' 👍':REVIEWS[r.u].thumb==='down'?' 👎':''}</b> — ${REVIEWS[r.u].verdict}${REVIEWS[r.u].date?` <span style="opacity:.6">(${REVIEWS[r.u].date})</span>`:''}</div>`:''}
+      ${r.deal&&r.deal.length?`<div class="detail-flag" style="background:#3a1a1a;color:#ff9090;border-color:#702030">⛔ <b>Deal-killer${r.deal.length>1?'s':''}</b>: ${r.deal.join(' · ')}</div>`:''}
+      ${r.warn&&r.warn.length?`<div class="detail-flag">⚠ ${r.warn.join(' · ')}</div>`:''}
+      ${r.perks&&r.perks.length?`<div class="detail-flag" style="background:#0f2a1a;color:#7ce8a8;border-color:#1e6a40">✓ ${r.perks.join(' · ')}</div>`:''}
+      ${(r.zoning||r.land_cat||r.road||r.tenure||r.lake_km!=null)?`<div class="sub" style="margin:-4px 0 10px">${[r.zoning&&('zoning: '+r.zoning), r.land_cat&&r.land_cat!=='-'&&('land category: '+r.land_cat), r.tenure&&('tenure: '+r.tenure), r.road&&('road: '+r.road), r.lake_km!=null&&(`🏞 ${r.lake_km} km to ${r.lake}`), r.cf==='Japan'&&r.coast_km!=null&&(`🌊 ${r.coast_km} km to the sea`)].filter(Boolean).join(' · ')}${r.detail_checked?' · <span style="color:#7ce38b">detail page checked ✓</span>':''}</div>`:''}
       ${r._gemOk?`<div class="detail-flag" style="background:#2a2410;color:#ffd166;border-color:#6a5a1a">✨ <b>Gem · ${r._gem}/100</b>${r._why&&r._why.length?' — '+r._why.join(' · '):''}</div>`:''}
       ${r.tp==='apartment'?`<div class="detail-flag" style="background:#101d2a;color:#8fb8e8;border-color:#2a4a70">🏢 <b>${r.layout||(r.beds?r.beds+' rooms':'apartment')}</b> · ${r.living_m2||r.m2} m²${r.floor?` · floor ${r.floor}`:''}${r.year_built?` · built ${r.year_built}`:''}${r.upm?` · <b>$${Math.round(r.upm).toLocaleString()}/m²</b>`:''}${r.station?` · 🚉 ${r.station}${r.walk_min!=null?` ${r.walk_min} min walk`:''}`:''}${r.district?` · ${r.district}`:''}</div>`:''}
       ${r.tp==='house'&&r.station?`<div class="detail-flag" style="background:#101d2a;color:#8fb8e8;border-color:#2a4a70">🚉 ${r.station}${r.walk_min!=null?` · ${r.walk_min} min walk`:''}${r.year_built?` · built ${r.year_built}`:''}${r.layout?` · ${r.layout}`:''}</div>`:''}
@@ -3374,6 +3479,73 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
     };
     r.readAsText(f);
   };
+
+  // ---- 🃏 Triage: one listing at a time, keep / skip / maybe ----
+  const TRI_KEY='triaged_v1';
+  let triaged=(()=>{ try{ return JSON.parse(localStorage.getItem(TRI_KEY)||'{}'); }catch(e){ return {}; } })();
+  function saveTriaged(){ try{ localStorage.setItem(TRI_KEY, JSON.stringify(triaged)); }catch(e){} }
+  const triageBg=document.getElementById('triageBg'), triageCard=document.getElementById('triageCard');
+  let tq=[], ti=0, tphoto=0, tstats={keep:0,skip:0,maybe:0};
+  function currentViewRows(){
+    let all=filt(DATA);
+    if(state.gems) all=gemFeed(all);
+    else all=sortRows(all);
+    return all;
+  }
+  function openTriage(){
+    tq=currentViewRows().filter(r=>!triaged[r.u] && !shortlist[r.u] && !archives[r.u] && !(r.deal&&r.deal.length)).slice(0,20);
+    ti=0; tphoto=0; tstats={keep:0,skip:0,maybe:0};
+    triageBg.classList.add('show'); drawTriage();
+  }
+  function drawTriage(){
+    if(ti>=tq.length){
+      triageCard.innerHTML=`<h3 style="margin-top:0">🃏 Done — ${tq.length} triaged</h3>
+        <p>★ kept ${tstats.keep} · ✕ skipped ${tstats.skip} · ? maybe ${tstats.maybe}</p>
+        <p style="color:var(--txt-dim);font-size:12px">Kept → ★ shortlist. Skipped → archived (tagged "triage-skip"). Maybe → 👁 watchlist. Gems and hunts now lean toward what you kept.</p>
+        <div class="triage-btns"><button class="btn primary" id="triMore">Next 20</button><button class="btn" id="triClose">Close</button></div>`;
+      document.getElementById('triMore').onclick=()=>openTriage();
+      document.getElementById('triClose').onclick=()=>{ triageBg.classList.remove('show'); render(); };
+      return;
+    }
+    const r=tq[ti]; const imgs=r.imgs||[]; const img=imgs.length?imgs[tphoto%imgs.length]:'';
+    const size = r.tp==='apartment' ? `${r.layout||''} ${r.m2} m²` : r.tp==='house' ? `${r.beds?r.beds+' bd · ':''}${r.living_m2||r.m2} m² living${r.plot_m2?` · ${r.plot_m2} m² plot`:''}` : `${r.ac} ac (${(r.m2||0).toLocaleString()} m²)`;
+    const rv=REVIEWS[r.u];
+    triageCard.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <b>🃏 ${ti+1} / ${tq.length}</b><span style="font-size:12px;color:var(--txt-dim)">K keep · S skip · M maybe · ←/→ photos · O open · Esc close</span></div>
+      ${img?`<img class="triage-photo" src="${img}" referrerpolicy="no-referrer" onerror="this.style.display='none'">`:`<div class="triage-photo" style="display:flex;align-items:center;justify-content:center;color:var(--txt-dim)">no photo yet</div>`}
+      ${imgs.length>1?`<div style="text-align:center;font-size:11px;color:var(--txt-dim);margin-top:4px">photo ${tphoto%imgs.length+1}/${imgs.length}</div>`:''}
+      <h3 style="margin:10px 0 2px">${r.code?`<code style="opacity:.6;font-size:12px">${r.code}</code> `:''}${r.cf} · ${r.rg} ${r.a?'· '+r.a:''}</h3>
+      <div style="font-size:18px;font-weight:700">${fmtUsd(r.usd)} <span style="font-size:13px;font-weight:400;color:var(--txt-dim)">${r.cur&&r.cur!=='USD'&&r.lp?`(${r.cur} ${(+r.lp).toLocaleString()})`:''} · ${size}${r._gem!=null?` · ✨${r._gem}`:''}</span></div>
+      ${rowNotes(r)}
+      ${rv?'':''}
+      <div class="triage-btns">
+        <button class="btn" id="triKeep" style="border-color:#7ce38b;color:#7ce38b">★ Keep (K)</button>
+        <button class="btn" id="triMaybe">? Maybe (M)</button>
+        <button class="btn" id="triSkip" style="border-color:#ff8080;color:#ff8080">✕ Skip (S)</button>
+        <a class="btn" href="${r.u}" target="_blank" rel="noopener" id="triOpen">Open ↗ (O)</a>
+      </div>`;
+    document.getElementById('triKeep').onclick=()=>triageAct('keep');
+    document.getElementById('triMaybe').onclick=()=>triageAct('maybe');
+    document.getElementById('triSkip').onclick=()=>triageAct('skip');
+  }
+  function triageAct(kind){
+    const r=tq[ti]; if(!r) return;
+    triaged[r.u]={k:kind, ts:Date.now()}; saveTriaged(); tstats[kind]++;
+    if(kind==='keep'){ shortlist[r.u]={tags:['triage-keep'], reason:'', ts:Date.now()}; saveShortlist(shortlist); refreshShortlistChip(); }
+    else if(kind==='skip'){ archiveUrl(r.u, {code:r.code||'', tags:['triage-skip'], reason:'', ts:Date.now()}); }
+    else if(kind==='maybe' && !isWatched(r.u)){ toggleWatch(r); }
+    ti++; tphoto=0; drawTriage();
+  }
+  document.addEventListener('keydown', e=>{
+    if(!triageBg.classList.contains('show')) return;
+    const k=e.key.toLowerCase();
+    if(k==='k') triageAct('keep'); else if(k==='s'||k==='x') triageAct('skip'); else if(k==='m') triageAct('maybe');
+    else if(k==='arrowright'){ tphoto++; drawTriage(); } else if(k==='arrowleft'){ tphoto=Math.max(0,tphoto-1); drawTriage(); }
+    else if(k==='o'){ const r=tq[ti]; if(r) window.open(r.u,'_blank'); }
+    else if(k==='escape'){ triageBg.classList.remove('show'); render(); }
+  });
+  triageBg.onclick=(e)=>{ if(e.target===triageBg){ triageBg.classList.remove('show'); render(); } };
 
   // Open on ✨ Gems (the curated cross-country feed). Clicking ✨ Gems again
   // drops back to the previous default view: Thailand.
