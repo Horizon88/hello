@@ -55,7 +55,11 @@ def parse_suumo(h):
     if "借地" in tenure: deal.append("leasehold land (借地権)")   # tenure field only — site nav also says 定期借地
     if "市街化調整区域" in t: deal.append("urbanisation-control zone — building generally not allowed (市街化調整区域)")
     if "再建築不可" in t: deal.append("can't be rebuilt (再建築不可)")
-    if land_cat.startswith(("田", "畑")): deal.append(f"farmland {land_cat} — needs agricultural permit to buy")
+    if land_cat.startswith(("田", "畑")):
+        if "現況宅地" in land_cat or "現況：宅地" in land_cat:
+            warn.append("registered as farmland but currently residential — land-category change needed")
+        else:
+            deal.append(f"farmland {land_cat} — needs agricultural permit to buy")
     if re.search(r"接道なし|未接道|接道無", t): deal.append("no road access (未接道)")
     if "自然公園法" in restr: warn.append("nature-park rules limit building")
     if "がけ条例" in restr: warn.append("cliff ordinance (がけ条例)")
