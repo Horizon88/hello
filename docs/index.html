@@ -1023,13 +1023,14 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
       let value = 40*(1-pct);
       if(suspicious){ value=12; why.push('⚠ suspiciously cheap — verify'); }
       else if(pct<=0.30) why.push(`💰 cheaper than ${Math.round((1-pct)*100)}% of similar nearby`);
-      const c=r.coast_km, s=r.ski_km, v=r.v||'';
+      const ap=!!r.loc_approx, fl=x=>(x==null?x:(ap?Math.max(x,1.5):x));   // approx pin → no ≤1.5 km claims
+      const c=fl(r.coast_km), s=fl(r.ski_km), v=r.v||'';
       const coast = c==null?0 : c<=0.2?35 : c<=0.5?30 : c<=1?24 : c<=2?16 : c<=5?8 : 0;
       const ski = s==null?0 : s<=0.3?35 : s<=0.5?32 : s<=1?24 : s<=2?14 : s<=5?6 : 0;
       const view = VIEW[v]||0;
       const wm=r.walk_min, apt=(r.tp==='apartment');
       const station = (apt && wm!=null) ? (wm<=3?24:wm<=5?20:wm<=8?10:0) : 0;
-      const lk=r.lake_km;
+      const lk=fl(r.lake_km);
       const lake = lk==null?0 : lk<=0.2?32 : lk<=0.5?26 : lk<=1?18 : 0;
       const perks=r.perks||[], warns=r.warn||[];
       const perkPts=Math.min(12, 6*perks.length), warnPts=Math.min(8, 4*warns.length);
@@ -1150,10 +1151,10 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
       match:r=>r.cf==='Japan' && (r.perks||[]).some(p=>/onsen/.test(p)) },
     tokyo_value: { label:'🗼 Tokyo value flats', desc:'Tokyo apartments ≤5 min walk from a station, ≥40 m², built 2000+, cheaper than most in the same ward',
       match:r=>r.cf==='Japan' && r.tp==='apartment' && r.rg==='Tokyo' && le(r.walk_min,5) && (r.m2||0)>=40 && (r.year_built||0)>=2000 && le(r._pct,0.4) },
-    at_ski: { label:'⛷ Austria ski-in/out', desc:'Austrian land and chalets ≤500 m from a lift',
-      match:r=>r.cf==='Austria' && r.tp!=='apartment' && homeScale(r) && le(r.ski_km,0.5) },
-    at_lake: { label:'🏞 Austria lakeside', desc:'Austrian land and homes ≤500 m from a lake (Zeller See, Wörthersee, Wolfgangsee, Attersee…)',
-      match:r=>r.cf==='Austria' && r.tp!=='apartment' && homeScale(r) && le(r.lake_km,0.5) },
+    at_ski: { label:'⛷ Austria ski-in/out', desc:'Austrian land and chalets ≤500 m from a lift (town-centre pins only if the listing itself says ski-in / by the piste)',
+      match:r=>r.cf==='Austria' && r.tp!=='apartment' && homeScale(r) && (r.loc_approx ? (le(r.ski_km,2) && (r.perks||[]).some(p=>/ski-in|piste/.test(p))) : le(r.ski_km,0.5)) },
+    at_lake: { label:'🏞 Austria lakeside', desc:'Austrian land and homes ≤500 m from a lake — Zeller See, Wörthersee, Wolfgangsee, Attersee… (town-centre pins only if the listing mentions lake view / access)',
+      match:r=>r.cf==='Austria' && r.tp!=='apartment' && homeScale(r) && (r.loc_approx ? (le(r.lake_km,3) && (r.perks||[]).some(p=>/lake/.test(p))) : le(r.lake_km,0.5)) },
     vienna_value: { label:'🏛 Vienna below-district', desc:'Vienna apartments 60-250 m², ≥15% under the district median $/m², not tenanted',
       match:r=>r.cf==='Austria' && r.tp==='apartment' && r.rg==='Wien' && (r.m2||0)>=60 && (r.m2||0)<=250 && le(r._ratio,0.85) && (r._ratio||1)>=0.35 && !(r.warn||[]).some(w=>/tenanted/.test(w)) },
   };
@@ -1412,6 +1413,7 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
 
   function rowNotes(r){
     let h='';
+    if(r.loc_approx) h+=`<div class="note-warn" title="This listing is pinned to the town centre, not the property">📍 approximate location (town centre)</div>`;
     if(r.deal&&r.deal.length) h+=`<div class="note-deal">⛔ ${r.deal.join(' · ')}</div>`;
     const good = (state.gems||state.hunt) ? [...(r._why||[]), ...(r._taste?[r._taste]:[])] : (r.perks||[]);
     if(good.length) h+=`<div class="gem-why">${good.join(' · ')}</div>`;

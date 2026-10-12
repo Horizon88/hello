@@ -144,6 +144,16 @@ for r in raw:
             "first_seen": r.get("published") or None, "foreign_note": FOREIGN_NOTE,
         })
 
+# Willhaben pins many listings to a town/postcode centre for privacy. A
+# coordinate shared by 3+ listings is a centroid, not the house: distances from
+# it can't support "ski-in/out" or "lakeside" claims on their own.
+from collections import Counter as _C
+_share = _C((round(r["lat"], 5), round(r["lng"], 5)) for r in raw if r.get("lat") is not None)
+for x in rows:
+    if _share[(round(x["lat"], 5), round(x["lon"], 5))] >= 3:
+        x["loc_approx"] = True
+print(f"approximate (shared town-centre) locations: {sum(1 for x in rows if x.get('loc_approx'))} of {len(rows)}", file=sys.stderr)
+
 merged = existing + rows
 merged.sort(key=lambda x: x.get("r",0), reverse=True)
 json.dump(merged, open(PATH,"w"), separators=(",",":"))
