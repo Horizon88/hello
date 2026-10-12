@@ -119,7 +119,7 @@ for r in raw:
             "tp":"house", "cf":"Austria", "r":round(score,1),
             "rg": r.get("state","Austria"), "a": (r.get("location") or r.get("district") or "")[:40],
             "ac":ac, "m2":int(sqm), "usd":usd, "upm":upm,
-            "v":"alpine/ski", "el":"", "t": r.get("ptype","Haus"),
+            "v":("alpine/ski" if (ski_out is not None and ski_out <= 4) else ""), "el":"", "t": r.get("ptype","Haus"),
             "lat":lat, "lon":lng, "cur":"EUR", "lp":str(eur), "rb":"+".join(rb),
             "imgs":[r["img"]] if r.get("img") else [], "u":r["url"],
             "name": (r.get("title") or "Austria alpine house")[:180],
@@ -136,7 +136,7 @@ for r in raw:
             "tp":"land", "cf":"Austria", "r":round(score,1),
             "rg": r.get("state","Austria"), "a": (r.get("location") or r.get("district") or "")[:40],
             "ac":ac, "m2":int(sqm), "usd":usd, "upm":upm,
-            "v":"alpine/ski", "el":"", "t": r.get("ptype","Bauland (verify Widmung)"),
+            "v":("alpine/ski" if (ski_out is not None and ski_out <= 4) else ""), "el":"", "t": r.get("ptype","Bauland (verify Widmung)"),
             "lat":lat, "lon":lng, "cur":"EUR", "lp":str(eur), "rb":"+".join(rb),
             "imgs":[r["img"]] if r.get("img") else [], "u":r["url"],
             "name": (r.get("title") or "Austria alpine land")[:180],
@@ -149,5 +149,5 @@ merged.sort(key=lambda x: x.get("r",0), reverse=True)
 json.dump(merged, open(PATH,"w"), separators=(",",":"))
 from collections import Counter
 print(f"merged: {len(rows)} willhaben rows ({skipped_far} chalets dropped >4km from a lift); total {len(merged)}", file=sys.stderr)
-print("kinds:", Counter(r["tp"] for r in rows), "| ski-in/out ≤0.5km:", sum(1 for r in rows if r["ski_km"]<=0.5), file=sys.stderr)
+print("kinds:", Counter(r["tp"] for r in rows), "| ski-in/out ≤0.5km:", sum(1 for r in rows if (r["ski_km"] is not None and r["ski_km"]<=0.5)), file=sys.stderr)
 print("by state:", Counter(r["rg"] for r in rows).most_common(), file=sys.stderr)
