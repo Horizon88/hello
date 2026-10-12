@@ -172,7 +172,7 @@ def geocode_all():
             m = re.match(r"(.+?[都道府県].+?[市区町村郡])", a)
             if m: g = gsi(m.group(1))
         return a, g
-    with ThreadPoolExecutor(max_workers=4) as ex:
+    with ThreadPoolExecutor(max_workers=8) as ex:
         for i, (a, g) in enumerate(ex.map(one, want), 1):
             cache[a] = g
             if i % 500 == 0:
