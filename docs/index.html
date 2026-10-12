@@ -694,6 +694,17 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
     loadingEl.textContent = 'Failed to load listings.json: ' + e.message;
     return;
   }
+  // ---- hidden countries: removed before anything renders, and remembered ----
+  // docs/prefs.json (committed) hides countries for everyone, on every device;
+  // a per-browser list adds to it, and an override list can re-show one.
+  const HID_KEY='hidden_countries_v1', SHOW_KEY='reshown_countries_v1';
+  let PREFS={hidden_countries:[]};
+  try { const pr=await fetch('prefs.json',{cache:'no-cache'}); if(pr.ok) PREFS=await pr.json(); } catch(e){}
+  const lsList=k=>{ try{ return JSON.parse(localStorage.getItem(k)||'[]'); }catch(e){ return []; } };
+  const reshown=new Set(lsList(SHOW_KEY));
+  const HIDDEN=new Set([...(PREFS.hidden_countries||[]).filter(c=>!reshown.has(c)), ...lsList(HID_KEY)]);
+  const COUNTRY_COUNTS_ALL={}; DATA.forEach(r=>{ if(r.cf) COUNTRY_COUNTS_ALL[r.cf]=(COUNTRY_COUNTS_ALL[r.cf]||0)+1; });
+  DATA = DATA.filter(r=>!HIDDEN.has(r.cf));
   // ---- user-added listings (paste-a-link) — merged in front of the scraped set ----
   const UL_KEY = 'user_listings_v1';
   function loadUserListings(){ try { return JSON.parse(localStorage.getItem(UL_KEY) || '[]'); } catch(e){ return []; } }
@@ -1194,6 +1205,31 @@ Land Parcel Coordinate 8.17128157,98.74988900" style="width:100%;margin-top:8px;
   triageChip.onclick=()=>openTriage();
   huntRow.appendChild(triageChip);
   stats.appendChild(huntRow);
+  const hideChip=document.createElement('span');
+  hideChip.className='chip'; hideChip.style.cssText='border-color:#ff8080;color:#ffb3b3';
+  hideChip.textContent=`🚫 Hide countries${HIDDEN.size?` (${HIDDEN.size} hidden)`:''}`;
+  hideChip.title='Choose countries to hide everywhere — remembered on this device';
+  hideChip.onclick=()=>{
+    const all=Object.keys(COUNTRY_COUNTS_ALL).sort((a,b)=>COUNTRY_COUNTS_ALL[b]-COUNTRY_COUNTS_ALL[a]);
+    const perm=new Set(PREFS.hidden_countries||[]);
+    const bg=document.createElement('div'); bg.className='modal-bg show';
+    bg.innerHTML=`<div class="triage-card" style="width:min(520px,94vw)"><h3 style="margin-top:0">🚫 Hide countries</h3>
+      <p style="font-size:12px;color:var(--txt-dim);margin-top:0">Unticked countries disappear everywhere — chips, Gems, hunts, map. Remembered on this device; tell Claude to make it permanent for every device.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 14px">${all.map(c=>`<label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" data-c="${c}" ${HIDDEN.has(c)?'':'checked'}> ${c} <span style="color:var(--txt-dim)">${COUNTRY_COUNTS_ALL[c].toLocaleString()}</span>${perm.has(c)?' <span title="hidden in prefs.json for every device" style="font-size:10px;color:#ff8080">saved</span>':''}</label>`).join('')}</div>
+      <div class="triage-btns"><button class="btn primary" id="hcSave">Save &amp; reload</button><button class="btn" id="hcCancel">Cancel</button></div></div>`;
+    document.body.appendChild(bg);
+    bg.querySelector('#hcCancel').onclick=()=>bg.remove();
+    bg.onclick=e=>{ if(e.target===bg) bg.remove(); };
+    bg.querySelector('#hcSave').onclick=()=>{
+      const hide=[], show=[];
+      bg.querySelectorAll('input[data-c]').forEach(cb=>{ const c=cb.dataset.c;
+        if(!cb.checked && !perm.has(c)) hide.push(c);
+        if(cb.checked && perm.has(c)) show.push(c); });
+      try{ localStorage.setItem(HID_KEY, JSON.stringify(hide)); localStorage.setItem(SHOW_KEY, JSON.stringify(show)); }catch(e){ alert('This browser is blocking storage, so the choice can\'t be remembered here. Tell Claude which countries to hide and it will make it permanent.'); }
+      location.reload();
+    };
+  };
+  huntRow.appendChild(hideChip);
   // leaving a hunt when the user picks gems / a region tab / a country chip
   gemChip.addEventListener('click', ()=>{ if(state.hunt){ state.hunt=null; huntRow.querySelectorAll('.chip').forEach(c=>c.classList.remove('on')); _preHunt=null; } }, true);
   document.querySelectorAll('#stats .chip[data-cf], #stats .chip[data-rt]').forEach(ch=>ch.addEventListener('click', ()=>{
